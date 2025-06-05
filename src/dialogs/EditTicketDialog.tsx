@@ -7,13 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import type { Ticket } from "@/types/ticket"
-import { useQuery } from "@tanstack/react-query"
-import { userService } from "@/services/user.service"
-import { User } from "@/types/user"
-import { DataResponse, Response } from "@/types/reponse"
 import { UpdateTicketData } from "@/services/ticket.service"
 
 interface EditTicketDialogProps {
@@ -28,15 +23,8 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
   const [formData, setFormData] = useState({
     title: ticket.title,
     description: ticket.description,
-    status: ticket.status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed",
-    staff_id: ticket.staff_id,
   })
   const { toast } = useToast()
-  const { data: users } = useQuery<Response<DataResponse<User[]>>>({
-    queryKey: ["users"],
-    queryFn: () => userService.getUsers({role: "user", isPaginate: false}),
-  })
-
 
 
   useEffect(() => {
@@ -44,8 +32,6 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
       setFormData({
         title: ticket.title || "",
         description: ticket.description || "",
-        status: ticket.status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" || "",
-        staff_id: ticket.staff_id || "",
       })
     }
   }, [ticket])
@@ -103,46 +89,6 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
               rows={4}
               required
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="holder">Status  </Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                    {["new", "in_progress", "waiting", "assigned", "complete", "force_closed"].map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="staff">Assign Staff</Label>
-              <Select
-                value={formData.staff_id}
-                onValueChange={(value) => setFormData({ ...formData, staff_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users?.data.data.map((user: User) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <DialogFooter>
