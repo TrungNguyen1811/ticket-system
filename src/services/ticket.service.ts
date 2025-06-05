@@ -82,30 +82,6 @@ class TicketService {
     }
   }
 
-  // Assign staff to ticket
-  async assignStaff(ticketId: string, staffId: string): Promise<Ticket> {
-    try {
-      const response = await api.post<Ticket>(`/tickets/${ticketId}/assign`, {
-        staff_id: staffId,
-      })
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  // Change ticket status
-  async changeStatus(ticketId: string, status: string): Promise<Ticket> {
-    try {
-      const response = await api.post<Ticket>(`/tickets/${ticketId}/status`, {
-        status,
-      })
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
   // Get ticket comments
   async getTicketComments(ticketId: string): Promise<Comment[]> {
     try {

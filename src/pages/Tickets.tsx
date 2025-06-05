@@ -111,8 +111,8 @@ export function Tickets() {
   })
 
   const assignStaffMutation = useMutation({
-    mutationFn: ({ ticketId, staffId }: { ticketId: string; staffId: string }) =>
-      ticketService.assignStaff(ticketId, staffId),
+    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) =>
+      ticketService.updateTicket(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] })
       toast({
@@ -132,8 +132,8 @@ export function Tickets() {
   })
 
   const changeStatusMutation = useMutation({
-    mutationFn: ({ ticketId, status }: { ticketId: string; status: string }) =>
-      ticketService.changeStatus(ticketId, status),
+    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) =>
+      ticketService.updateTicket(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] })
       toast({
@@ -164,14 +164,20 @@ export function Tickets() {
     } })
   }
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = (data: UpdateTicketData) => {
     if (!selectedTicket) return
-    changeStatusMutation.mutate({ ticketId: selectedTicket.id, status: newStatus })
+    changeStatusMutation.mutate({ id: selectedTicket.id, data: {
+      status: data.status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | undefined,
+      _method: "PUT"
+    } })
   }
 
-  const handleStaffAssign = (staffId: string) => {
+  const handleStaffAssign = (data: UpdateTicketData) => {
     if (!selectedTicket) return
-    assignStaffMutation.mutate({ ticketId: selectedTicket.id, staffId })
+    assignStaffMutation.mutate({ id: selectedTicket.id, data: {
+      staff_id: data.staff_id || "",
+      _method: "PUT"
+    } })
   }
 
   const handleDeleteTicket = () => {

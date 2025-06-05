@@ -9,18 +9,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { TICKET_STATUSES } from "@/lib/constants"
 import { useToast } from "@/components/ui/use-toast"
+import { UpdateTicketData } from "@/services/ticket.service"
 
 interface ChangeStatusDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentStatus: string
-  onSubmit: (status: string) => void
+  onSubmit: (data: UpdateTicketData) => void
 }
 
 export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit }: ChangeStatusDialogProps) {
   const [selectedStatus, setSelectedStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,8 +49,10 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
     setLoading(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500)) // Simulate API call
-      onSubmit(selectedStatus)
+      onSubmit({
+        status: selectedStatus as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | undefined,
+        _method: "PUT"
+      })
       toast({
         title: "Success",
         description: `Status changed to ${selectedStatus}.`,
@@ -79,7 +84,7 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
 
           <div className="space-y-2">
             <Label htmlFor="status">New Status</Label>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | '') }>
               <SelectTrigger>
                 <SelectValue placeholder="Select new status" />
               </SelectTrigger>
