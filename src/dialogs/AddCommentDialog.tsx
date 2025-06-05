@@ -25,6 +25,7 @@ import { HeadingNode, QuoteNode } from "@lexical/rich-text"
 import { ListItemNode, ListNode } from "@lexical/list"
 import { LinkNode } from "@lexical/link"
 import { CodeNode, CodeHighlightNode } from "@lexical/code"
+import { $getRoot } from "lexical"
 
 interface AddCommentDialogProps {
   open: boolean
@@ -130,7 +131,6 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
     setLoading(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
       onSubmit({ content: editorContent, attachments })
       toast({
         title: "Success",
@@ -296,7 +296,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
   )
 }
 
-// Custom plugin to get editor content
+// Custom plugin to get editor content as plain text
 
 function OnChangePlugin({ onChange }: { onChange: (content: string) => void }) {
   const [editor] = useLexicalComposerContext()
@@ -304,8 +304,8 @@ function OnChangePlugin({ onChange }: { onChange: (content: string) => void }) {
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }: { editorState: EditorState }) => {
       editorState.read(() => {
-        const json = editorState.toJSON()
-        onChange(JSON.stringify(json))
+        const text = $getRoot().getTextContent()
+        onChange(text)
       })
     })
   }, [editor, onChange])
