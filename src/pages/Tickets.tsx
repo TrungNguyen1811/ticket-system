@@ -62,10 +62,10 @@ export function Tickets() {
       })
       setDialogOpen(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to create ticket",
+        description: error.message,
         variant: "destructive",
       })
     },
@@ -82,10 +82,10 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to update ticket",
+        description: error.message,
         variant: "destructive",
       })
     },
