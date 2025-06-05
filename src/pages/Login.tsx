@@ -14,8 +14,6 @@ import { LoginSchema, loginSchema } from "@/schema/auth.schema"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
-
-
 export function Login() {
   const form = useForm<LoginSchema>({
     defaultValues: {

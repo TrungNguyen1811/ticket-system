@@ -16,7 +16,7 @@ import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
 import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog"
 import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, Loader2, Filter } from "lucide-react"
 import { Link } from "react-router-dom"
-import type { Ticket, CreateTicketData } from "@/types/ticket"
+import type { Ticket } from "@/types/ticket"
 import type { Response, DataResponse } from "@/types/reponse"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { CreateTicketSchema } from "@/schema/ticket.schema"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
@@ -152,7 +153,7 @@ export function Tickets() {
     },
   })
 
-  const handleCreateTicket = (ticketData: CreateTicketData) => {
+  const handleCreateTicket = (ticketData: CreateTicketSchema) => {
     createTicketMutation.mutate(ticketData)
   }
 
