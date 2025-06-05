@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { mockTickets, mockUsers, mockClients } from "@/mock/data"
 import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
@@ -15,331 +14,430 @@ import { EditTicketDialog } from "@/dialogs/EditTicketDialog"
 import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
 import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
 import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog"
-import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, Loader2 } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, Loader2, Filter } from "lucide-react"
 import { Link } from "react-router-dom"
-import type { Ticket } from "@/types/ticket"
-import { useApi } from "@/hooks/useApi"
-import { useApiMutation } from "@/hooks/useApiMutation"
+import type { Ticket, CreateTicketData } from "@/types/ticket"
+import type { Response, DataResponse } from "@/types/reponse"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { ticketService } from "@/services/ticket.service"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
 
 export function Tickets() {
-  const [tickets, setTickets] = useState(mockTickets)
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedStatus, setSelectedStatus] = useState<string>("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
 
-  // API hooks for real implementation
-  const {
-    data: apiTickets,
-    loading: loadingTickets,
-    execute: fetchTickets,
-  } = useApi(() => ticketService.getTickets({ search: searchTerm }), {
-    immediate: false, // Set to true when connecting to real API
+  // Fetch tickets with React Query
+  const { data, isLoading: isLoadingTickets, isError } = useQuery<Response<DataResponse<Ticket[]>>>({
+    queryKey: ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
+    queryFn: () =>
+      ticketService.getTickets({
+        limit: itemsPerPage,
+        page: currentPage,
+        status: selectedStatus === "all" ? undefined : selectedStatus,
+        search: searchTerm,
+      }),
   })
 
-  const { mutate: createTicket, loading: creatingTicket } = useApiMutation(ticketService.createTicket, {
-    successMessage: "Ticket created successfully",
-    onSuccess: (newTicket) => {
-      setTickets([newTicket, ...tickets])
-      setDialogOpen(null)
-    },
-  })
-
-  const { mutate: updateTicket, loading: updatingTicket } = useApiMutation(
-    ({ id, data }: { id: string; data: any }) => ticketService.updateTicket(id, data),
-    {
-      successMessage: "Ticket updated successfully",
-      onSuccess: (updatedTicket) => {
-        setTickets(tickets.map((ticket) => (ticket.id === updatedTicket.id ? updatedTicket : ticket)))
-        setDialogOpen(null)
-        setSelectedTicket(null)
-      },
-    },
-  )
-
-  const { mutate: deleteTicket, loading: deletingTicket } = useApiMutation(ticketService.deleteTicket, {
-    successMessage: "Ticket deleted successfully",
+  // Mutations
+  const createTicketMutation = useMutation({
+    mutationFn: ticketService.createTicket,
     onSuccess: () => {
-      if (selectedTicket) {
-        setTickets(tickets.filter((ticket) => ticket.id !== selectedTicket.id))
-      }
+      queryClient.invalidateQueries({ queryKey: ["tickets"] })
+      toast({
+        title: "Success",
+        description: "Ticket created successfully",
+      })
       setDialogOpen(null)
-      setSelectedTicket(null)
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create ticket",
+        variant: "destructive",
+      })
     },
   })
 
-  const { mutate: assignStaff, loading: assigningStaff } = useApiMutation(
-    ({ ticketId, staffId }: { ticketId: string; staffId: string }) => ticketService.assignStaff(ticketId, staffId),
-    {
-      successMessage: "Staff assigned successfully",
-      onSuccess: (updatedTicket) => {
-        setTickets(tickets.map((ticket) => (ticket.id === updatedTicket.id ? updatedTicket : ticket)))
-        setDialogOpen(null)
-        setSelectedTicket(null)
-      },
+  const updateTicketMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Ticket> }) => ticketService.updateTicket(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] })
+      toast({
+        title: "Success",
+        description: "Ticket updated successfully",
+      })
+      setDialogOpen(null)
+      setSelectedTicket(null)
     },
-  )
-
-  const { mutate: changeStatus, loading: changingStatus } = useApiMutation(
-    ({ ticketId, status }: { ticketId: string; status: string }) => ticketService.changeStatus(ticketId, status),
-    {
-      successMessage: "Status updated successfully",
-      onSuccess: (updatedTicket) => {
-        setTickets(tickets.map((ticket) => (ticket.id === updatedTicket.id ? updatedTicket : ticket)))
-        setDialogOpen(null)
-        setSelectedTicket(null)
-      },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update ticket",
+        variant: "destructive",
+      })
     },
-  )
+  })
 
-  // Search effect with debouncing
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm) {
-        // In real implementation, this would trigger API call
-        // fetchTickets()
-      }
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-  }, [searchTerm])
-
-  const filteredTickets = tickets.filter(
-    (ticket) =>
-      ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getClientName(ticket.client_id).toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  const getUserName = (userId: string) => {
-    return mockUsers.find((u) => u.id === userId)?.name || "Unknown"
-  }
-
-  const getClientName = (clientId: string) => {
-    return mockClients.find((c) => c.id === clientId)?.name || "Unknown"
-  }
-
-  const handleCreateTicket = async (ticketData: any) => {
-    try {
-      // For demo, use local state. In production, use API:
-      // await createTicket(ticketData)
-
-      const newTicket: Ticket = {
-        id: `ticket${tickets.length + 1}`,
-        ...ticketData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-      setTickets([newTicket, ...tickets])
-      setDialogOpen(null)
-    } catch (error) {
-      console.error("Failed to create ticket:", error)
-    }
-  }
-
-  const handleEditTicket = async (ticketData: any) => {
-    if (!selectedTicket) return
-
-    try {
-      // For demo, use local state. In production, use API:
-      // await updateTicket({ id: selectedTicket.id, data: ticketData })
-
-      const updatedTickets = tickets.map((ticket) =>
-        ticket.id === selectedTicket.id ? { ...ticket, ...ticketData, updated_at: new Date().toISOString() } : ticket,
-      )
-      setTickets(updatedTickets)
+  const deleteTicketMutation = useMutation({
+    mutationFn: ticketService.deleteTicket,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] })
+      toast({
+        title: "Success",
+        description: "Ticket deleted successfully",
+      })
       setDialogOpen(null)
       setSelectedTicket(null)
-    } catch (error) {
-      console.error("Failed to update ticket:", error)
-    }
-  }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete ticket",
+        variant: "destructive",
+      })
+    },
+  })
 
-  const handleStatusChange = async (newStatus: string) => {
-    if (!selectedTicket) return
-
-    try {
-      // For demo, use local state. In production, use API:
-      // await changeStatus({ ticketId: selectedTicket.id, status: newStatus })
-
-      const updatedTickets = tickets.map((ticket) =>
-        ticket.id === selectedTicket.id
-          ? { ...ticket, status: newStatus as any, updated_at: new Date().toISOString() }
-          : ticket,
-      )
-      setTickets(updatedTickets)
+  const assignStaffMutation = useMutation({
+    mutationFn: ({ ticketId, staffId }: { ticketId: string; staffId: string }) =>
+      ticketService.assignStaff(ticketId, staffId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] })
+      toast({
+        title: "Success",
+        description: "Staff assigned successfully",
+      })
       setDialogOpen(null)
       setSelectedTicket(null)
-    } catch (error) {
-      console.error("Failed to change status:", error)
-    }
-  }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign staff",
+        variant: "destructive",
+      })
+    },
+  })
 
-  const handleStaffAssign = async (staffId: string) => {
-    if (!selectedTicket) return
-
-    try {
-      // For demo, use local state. In production, use API:
-      // await assignStaff({ ticketId: selectedTicket.id, staffId })
-
-      const updatedTickets = tickets.map((ticket) =>
-        ticket.id === selectedTicket.id
-          ? { ...ticket, staff_id: staffId, updated_at: new Date().toISOString() }
-          : ticket,
-      )
-      setTickets(updatedTickets)
+  const changeStatusMutation = useMutation({
+    mutationFn: ({ ticketId, status }: { ticketId: string; status: string }) =>
+      ticketService.changeStatus(ticketId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] })
+      toast({
+        title: "Success",
+        description: "Status updated successfully",
+      })
       setDialogOpen(null)
       setSelectedTicket(null)
-    } catch (error) {
-      console.error("Failed to assign staff:", error)
-    }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive",
+      })
+    },
+  })
+
+  const handleCreateTicket = (ticketData: CreateTicketData) => {
+    createTicketMutation.mutate(ticketData)
   }
 
-  const handleDeleteTicket = async () => {
+  const handleEditTicket = (ticketData: Partial<Ticket>) => {
     if (!selectedTicket) return
+    updateTicketMutation.mutate({ id: selectedTicket.id, data: ticketData })
+  }
 
-    try {
-      // For demo, use local state. In production, use API:
-      // await deleteTicket(selectedTicket.id)
+  const handleStatusChange = (newStatus: string) => {
+    if (!selectedTicket) return
+    changeStatusMutation.mutate({ ticketId: selectedTicket.id, status: newStatus })
+  }
 
-      const updatedTickets = tickets.filter((ticket) => ticket.id !== selectedTicket.id)
-      setTickets(updatedTickets)
-      setDialogOpen(null)
-      setSelectedTicket(null)
-    } catch (error) {
-      console.error("Failed to delete ticket:", error)
-    }
+  const handleStaffAssign = (staffId: string) => {
+    if (!selectedTicket) return
+    assignStaffMutation.mutate({ ticketId: selectedTicket.id, staffId })
+  }
+
+  const handleDeleteTicket = () => {
+    if (!selectedTicket) return
+    deleteTicketMutation.mutate(selectedTicket.id)
   }
 
   const isLoading =
-    loadingTickets || creatingTicket || updatingTicket || deletingTicket || assigningStaff || changingStatus
+    isLoadingTickets ||
+    createTicketMutation.isPending ||
+    updateTicketMutation.isPending ||
+    deleteTicketMutation.isPending ||
+    assignStaffMutation.isPending ||
+    changeStatusMutation.isPending
+
+  const totalPages = data?.data.pagination?.total || 1
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tickets</h1>
-          <p className="mt-2 text-gray-600">Manage and track all support tickets</p>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Tickets</h1>
+          <p className="text-muted-foreground">Manage and track all support tickets</p>
         </div>
         <Button onClick={() => setDialogOpen("create")} disabled={isLoading}>
-          {creatingTicket ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+          {createTicketMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
           New Ticket
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search tickets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+      <Card className="shadow-sm">
+        <CardHeader className="border-b bg-muted/50">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <CardTitle className="text-xl">Ticket Management</CardTitle>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <div className="relative flex-1 sm:max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search tickets..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["tickets"] })} disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => fetchTickets()} disabled={loadingTickets}>
-              {loadingTickets ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh
-            </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Holder</TableHead>
-                <TableHead>Staff</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Updated At</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTickets.map((ticket) => (
-                <TableRow key={ticket.id}>
-                  <TableCell className="font-medium">{ticket.title}</TableCell>
-                  <TableCell>{getClientName(ticket.client_id)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <UserAvatar name={getUserName(ticket.holder_id)} size="sm" />
-                      <span className="text-sm">{getUserName(ticket.holder_id)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <UserAvatar name={getUserName(ticket.staff_id)} size="sm" />
-                      <span className="text-sm">{getUserName(ticket.staff_id)}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={ticket.status} />
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-500">{formatDate(ticket.updated_at)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" disabled={isLoading}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link to={`/tickets/${ticket.id}`} className="flex items-center">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            setDialogOpen("edit")
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Ticket
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            setDialogOpen("assign")
-                          }}
-                        >
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Assign Staff
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            setDialogOpen("status")
-                          }}
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Change Status
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            setDialogOpen("delete")
-                          }}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center space-x-4">
+                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-[250px]" />
+                    <Skeleton className="h-4 w-[200px]" />
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : isError ? (
+            <div className="p-6 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
+                <Filter className="h-8 w-8" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Error loading tickets</h3>
+              <p className="text-gray-500 mt-2">Please try again later</p>
+            </div>
+          ) : (
+            <>
+              <div className="relative overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Title</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Holder</TableHead>
+                      <TableHead>Staff</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Updated At</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data?.data.data.map((ticket: Ticket) => (
+                      <TableRow key={ticket.id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">{ticket.title}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <div>
+                              <div className="font-medium">{ticket.client_name}</div>
+                              <div className="text-sm text-muted-foreground">{ticket.client_email}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <UserAvatar name={ticket.holder?.name || "Unassigned"} size="sm" />
+                            <span className="text-sm">{ticket.holder?.name || "Unassigned"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <UserAvatar name={ticket.staff?.name || "Unassigned"} size="sm" />
+                            <span className="text-sm">{ticket.staff?.name || "Unassigned"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={ticket.status} />
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.updated_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" disabled={isLoading}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link to={`/tickets/${ticket.id}`} className="flex items-center">
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedTicket(ticket)
+                                  setDialogOpen("edit")
+                                }}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Ticket
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedTicket(ticket)
+                                  setDialogOpen("assign")
+                                }}
+                              >
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Assign Staff
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedTicket(ticket)
+                                  setDialogOpen("status")
+                                }}
+                              >
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Change Status
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedTicket(ticket)
+                                  setDialogOpen("delete")
+                                }}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border-t">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-muted-foreground">Rows per page</p>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value))
+                      setCurrentPage(1)
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={itemsPerPage} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ITEMS_PER_PAGE_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option.toString()}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+
+                    {[...Array(totalPages)].map((_, i) => {
+                      const page = i + 1
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        )
+                      } else if (
+                        (page === currentPage - 2 && currentPage > 3) ||
+                        (page === currentPage + 2 && currentPage < totalPages - 2)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationEllipsis />
+                          </PaginationItem>
+                        )
+                      }
+                      return null
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

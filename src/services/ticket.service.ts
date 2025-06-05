@@ -1,4 +1,5 @@
 import api from "@/lib/axios"
+import { DataResponse, Response } from "@/types/reponse"
 import type { Ticket, Comment, AuditLog } from "@/types/ticket"
 
 export interface TicketFilters {
@@ -13,13 +14,7 @@ export interface TicketFilters {
   sort_order?: "asc" | "desc"
 }
 
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
+
 
 export interface CreateTicketData {
   title: string
@@ -36,9 +31,9 @@ export interface UpdateTicketData extends Partial<CreateTicketData> {
 
 class TicketService {
   // Get all tickets with filters
-  async getTickets(filters?: TicketFilters): Promise<PaginatedResponse<Ticket>> {
+  async getTickets(filters?: TicketFilters): Promise<Response<DataResponse<Ticket[]>>> {
     try {
-      const response = await api.get<PaginatedResponse<Ticket>>("/tickets", {
+      const response = await api.get<Response<DataResponse<Ticket[]>>>("/tickets", {
         params: filters,
       })
       return response.data

@@ -1,3 +1,5 @@
+import { User } from "./user"
+
 export interface Ticket {
   id: string
   client_id: string
@@ -8,6 +10,26 @@ export interface Ticket {
   status: "Open" | "In Progress" | "Done" | "Cancelled"
   created_at: string
   updated_at: string
+  client_email: string
+  client_name: string
+  holder: User | null
+  staff: User | null
+}
+
+export interface TicketFilters {
+  limit?: number
+  page?: number
+  status?: string
+  search?: string
+}
+
+export interface CreateTicketData {
+  title: string
+  description: string
+  client_id: string
+  holder_id: string
+  staff_id?: string
+  status: Ticket["status"]
 }
 
 export interface Comment {

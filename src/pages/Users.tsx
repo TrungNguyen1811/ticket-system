@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ import { userService } from "@/services/user.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { debounce } from "lodash"
+
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 
@@ -38,9 +38,6 @@ export function Users() {
       }),
   })
 
-  const debouncedSearch = useCallback(debounce((value: string) => { 
-    setSearchTerm(value)
-  }, 500), [])
 
 
   const getRoleColor = (role: string) => {
@@ -77,7 +74,7 @@ export function Users() {
                 <Input
                   placeholder="Search users..."
                   value={searchTerm}
-                  onChange={(e) => debouncedSearch(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
