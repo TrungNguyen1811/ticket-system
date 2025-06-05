@@ -15,7 +15,6 @@ export interface Ticket {
   holder: User | null
   staff: User | null
   logs?: TicketAuditLog[]
-  attachments: Attachment[]
 }
 
 export interface TicketFilters {

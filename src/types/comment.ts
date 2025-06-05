@@ -15,7 +15,7 @@ export interface Comment {
   
   
 export interface DataComment {
-  attachments: File[]
+  attachments?: File[]
   content: string
 }
 
@@ -29,3 +29,5 @@ export interface ParamsComment {
   page?: number
   isPaginate?: boolean
 }
+
+export type CommentFormData = FormData

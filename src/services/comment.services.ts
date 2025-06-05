@@ -1,5 +1,5 @@
 import api from "@/lib/axios"
-import { DataComment, DataUpdateComment, ParamsComment } from "@/types/comment"
+import { DataComment, DataUpdateComment, ParamsComment, CommentFormData } from "@/types/comment"
 import { Response, DataResponse } from "@/types/reponse"
 import { Comment } from "@/types/comment"
 
@@ -15,27 +15,18 @@ async getCommentsTicket (ticketId: string, params?: ParamsComment): Promise<Resp
 }
 
 
-async createComment (ticketId: string, DataComment: DataComment): Promise<Response<DataResponse<Comment>>> {
-        try {
-            const formData = new FormData()
-            formData.append("content", DataComment.content || "")
-
-            if (DataComment.attachments) {
-                DataComment.attachments.forEach((attachment) => {
-                    // Sửa ở đây
-                    formData.append("attachments", attachment)
-                })
-            }
-            const response = await api.post(`/tickets/${ticketId}/comments`, formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            })
-            return response.data
-        } catch (error) {
-            throw error
-        }
-    } 
+async createComment (ticketId: string, formData: CommentFormData): Promise<Response<DataResponse<Comment>>> {
+    try {
+        const response = await api.post(`/tickets/${ticketId}/comments`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        })
+        return response.data
+    } catch (error) {
+        throw error
+    }
+} 
     
 async updateComment (commentId: string, DataUpdateComment: DataUpdateComment): Promise<Response<DataResponse<Comment>>> {
     try {

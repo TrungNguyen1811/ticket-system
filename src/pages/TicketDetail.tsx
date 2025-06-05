@@ -60,7 +60,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { DataResponse, Response } from "@/types/reponse"
 import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
-import { Comment } from "@/types/comment"
+import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { useInfiniteQuery } from "@tanstack/react-query"
@@ -74,6 +74,7 @@ import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 
 
 
@@ -274,10 +275,16 @@ export function TicketDetail() {
   const handleAddComment = async (data: { content: string; attachments?: File[] }) => {
     if (!id) return
     try {
-      await commentService.createComment(id, { content: data.content, attachments: data.attachments || [] })
-      // if (data.attachments?.length) {
-      //   await ticketService.uploadAttachments(id, data.attachments)
-      // }
+      const formData = new FormData()
+      formData.append("content", data.content)
+      
+      if (data.attachments?.length) {
+        data.attachments.forEach((file) => {
+          formData.append("attachments[]", file)
+        })
+      }
+
+      await commentService.createComment(id, formData as CommentFormData)
       queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
       toast({
         title: "Success",
@@ -450,297 +457,311 @@ export function TicketDetail() {
       </div>
 
       {/* Main Content - Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Ticket Information */}
-        <div className="lg:col-span-2">
-          <Card className="overflow-hidden">
-            <CardHeader className="bg-gray-50 border-b pb-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 ">
-                    {isEditingTitle ? (
-                      <Input
-                        value={editedTitle}
-                        onChange={e => setEditedTitle(e.target.value)}
-                        className="text-xl font-bold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
-                        maxLength={200}
-                        autoFocus
-                        onBlur={handleTitleBlur}
-                        onKeyDown={handleTitleKeyDown}
-                        disabled={savingTitle}
-                      />
-                    ) : (
-                      <h1
-                        className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
-                        onClick={() => setIsEditingTitle(true)}
-                        title="Click to edit title"
-                      >
-                        {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
-                      </h1>
-                    )}
-                  </div>
-                  
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="text-xs font-normal">
-                      #{ticket.data.id}
-                    </Badge>
-                    <StatusBadge status={ticket.data.status} />
-                  </div>
-                <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Created {formatDate(ticket.data.created_at)}
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    Updated {formatDate(ticket.data.updated_at)}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-6 space-y-6">
-              {/* Description */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-gray-900 flex items-center">Description</h3>
-                {isEditingDescription ? (
-                  <div>
-                    <Textarea
-                      value={editedDescription}
-                      onChange={e => setEditedDescription(e.target.value)}
-                      className="bg-gray-50 p-4 rounded-md border min-h-[100px] max-h-[300px] resize-y text-base"
-                      autoFocus
-                      maxLength={2000}
-                      style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
-                    />
-                    <div className="flex gap-2 mt-2">
-                      <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
-                        Save
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditedDescription(ticket?.data?.description || "") }}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-1 w-full">
-                    <div
-                      className={cn(
-                        "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
-                        !showFullDescription && isDescriptionClamped(editedDescription) && "line-clamp-4"
-                      )}
-                      onClick={() => setIsEditingDescription(true)}
-                      title="Click to edit description"
-                      style={{ minHeight: 48, wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                    >
-                      {editedDescription}
-                    </div>
-                    {isDescriptionClamped(editedDescription) && (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="self-start px-0 text-blue-500 mt-1"
-                        onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
-                      >
-                        {showFullDescription ? "Thu gọn" : "Xem thêm"}
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Client Information */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-gray-900">Client Information</h3>
-                <div className="bg-gray-50 p-4 rounded-md border">
-                  <div className="flex items-center space-x-3">
-                    <UserAvatar name={ticket.data.client_name} />
-                    <div>
-                      <p className="font-medium text-gray-900">{ticket.data.client_name}</p>
-                      <p className="text-sm text-gray-500">{ticket.data.client_email}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status and Staff Assignment */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Status */}
-                <div className="space-y-2">
-                  <h3 className="font-medium text-gray-900">Status</h3>
-                  <Popover open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isStatusOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedStatus ? (
-                          <div className="flex items-center">
-                            {getStatusIcon(selectedStatus)}
-                            <span className="ml-2">
-                              {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            {getStatusIcon(ticket.data.status)}
-                            <span className="ml-2">
-                              {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
-                            </span>
-                          </div>
-                        )}
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
-                      <Command>
-                        <CommandInput placeholder="Search status..." />
-                        <CommandList>
-                          <CommandEmpty>No status found.</CommandEmpty>
-                          <CommandGroup>
-                            {STATUS_OPTIONS.map((status) => (
-                              <CommandItem
-                                key={status.value}
-                                value={status.value}
-                                onSelect={() => {
-                                  setSelectedStatus(status.value)
-                                  handleStatusSelect(status.value)
-                                }}
-                              >
-                                <div className="flex items-center">
-                                  {getStatusIcon(status.value)}
-                                  <span className="ml-2">{status.label}</span>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                {/* Staff Assignment */}
-                <div className="space-y-2">
-                  <h3 className="font-medium text-gray-900">Assigned To</h3>
-                  <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isStaffOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedStaff ? (
-                          <div className="flex items-center">
-                            <UserAvatar name={selectedStaff} size="sm" />
-                            <span className="ml-2">{selectedStaff}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            <UserAvatar name={ticket.data.staff?.name || "Unassigned"} size="sm" />
-                            <span className="ml-2">{ticket.data.staff?.name || "Unassigned"}</span>
-                          </div>
-                        )}
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
-                      <Command>
-                        <CommandInput placeholder="Search staff..." />
-                        <CommandList>
-                          <CommandEmpty>No staff found.</CommandEmpty>
-                          <CommandGroup>
-                            {usersData?.data.data.map((user) => (
-                            <CommandItem
-                              value={user.id}
-                              onSelect={() => {
-                                setSelectedStaff(user.id)
-                                handleStaffSelect(user.id)
-                              }}
+      <div className="flex flex-col h-[calc(100vh-120px)]">
+        <ResizablePanelGroup
+          direction="vertical"
+          className="flex-1"
+        >
+          <ResizablePanel defaultSize={62} minSize={16}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full p-1">
+              {/* Left Column - Ticket Information */}
+              <div className="lg:col-span-2">
+                <Card className="overflow-hidden h-full flex flex-col">
+                  <CardHeader className="bg-gray-50 border-b pb-4 flex-shrink-0">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 ">
+                          {isEditingTitle ? (
+                            <Input
+                              value={editedTitle}
+                              onChange={e => setEditedTitle(e.target.value)}
+                              className="text-xl font-bold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
+                              maxLength={200}
+                              autoFocus
+                              onBlur={handleTitleBlur}
+                              onKeyDown={handleTitleKeyDown}
+                              disabled={savingTitle}
+                            />
+                          ) : (
+                            <h1
+                              className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
+                              onClick={() => setIsEditingTitle(true)}
+                              title="Click to edit title"
                             >
-                              <div className="flex items-center">
-                                <UserAvatar name={user.name} size="sm" />
-                                <span className="ml-2">{user.name}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Comments Section */}
-          <Tabs defaultValue="comments" className="mt-6">
-            <TabsList>
-              <TabsTrigger value="comments">Comments</TabsTrigger>
-              <TabsTrigger value="logs">Logs</TabsTrigger>
-            </TabsList>
-            <TabsContent value="comments">
-              <CommentList ticketId={id || ""} currentUserId={ticket.data.holder_id} />
-            </TabsContent>
-            <TabsContent value="logs">
-              <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
-            </TabsContent>
-          </Tabs>
-          <Card className="mt-6">
-            <CardHeader>  
-              <CardTitle>Comments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CommentList ticketId={id || ""} currentUserId={ticket.data.holder_id} />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Attachments */}
-        <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-lg font-medium">Attachments</CardTitle>
-              {/* <Button variant="outline" size="sm" onClick={() => setDialogOpen("attachment")}>
-                <Paperclip className="h-4 w-4 mr-2" />
-                Add Files
-              </Button> */}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search attachments..."
-                  value={attachmentSearchTerm}
-                  onChange={(e) => setAttachmentSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-2">
-                  {/* Add your attachments list here */}
-                  {Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.map((attachment) => (
-                    <div key={attachment.id}>
-                      <a href={attachment.filename} target="_blank" rel="noopener noreferrer" onClick={() => handleDownloadAttachment(attachment.id)} className="text-blue-500 hover:underline">
-                        {attachment.filename}
-                      </a>
-                      <Button variant="outline" size="sm" onClick={() => deleteAttachment.mutate(attachment.id)}>
-                        <Trash className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
+                              {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
+                            </h1>
+                          )}
+                        </div>
+                        
+                      </div>
+                      <div className="flex items-center space-x-2">
+                          <Badge variant="outline" className="text-xs font-normal">
+                            #{ticket.data.id}
+                          </Badge>
+                          <StatusBadge status={ticket.data.status} />
+                        </div>
+                      <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          Created {formatDate(ticket.data.created_at)}
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          Updated {formatDate(ticket.data.updated_at)}
+                        </div>
+                      </div>
                     </div>
-                  ))} 
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+                  </CardHeader>
+
+                  <CardContent className="p-6 space-y-6 flex-1 overflow-y-auto">
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <h3 className="font-medium text-gray-900 flex items-center">Description</h3>
+                      {isEditingDescription ? (
+                        <div>
+                          <Textarea
+                            value={editedDescription}
+                            onChange={e => setEditedDescription(e.target.value)}
+                            className="bg-gray-50 p-4 rounded-md border min-h-[100px] max-h-[300px] resize-y text-base"
+                            autoFocus
+                            maxLength={2000}
+                            style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditedDescription(ticket?.data?.description || "") }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1 w-full">
+                          <div
+                            className={cn(
+                              "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
+                              !showFullDescription && isDescriptionClamped(editedDescription) && "line-clamp-4"
+                            )}
+                            onClick={() => setIsEditingDescription(true)}
+                            title="Click to edit description"
+                            style={{ minHeight: 48, wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                          >
+                            {editedDescription}
+                          </div>
+                          {isDescriptionClamped(editedDescription) && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="self-start px-0 text-blue-500 mt-1"
+                              onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
+                            >
+                              {showFullDescription ? "Thu gọn" : "Xem thêm"}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Client Information */}
+                    <div className="space-y-2">
+                      <h3 className="font-medium text-gray-900">Client Information</h3>
+                      <div className="bg-gray-50 p-4 rounded-md border">
+                        <div className="flex items-center space-x-3">
+                          <UserAvatar name={ticket.data.client_name} />
+                          <div>
+                            <p className="font-medium text-gray-900">{ticket.data.client_name}</p>
+                            <p className="text-sm text-gray-500">{ticket.data.client_email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status and Staff Assignment */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Status */}
+                      <div className="space-y-2">
+                        <h3 className="font-medium text-gray-900">Status</h3>
+                        <Popover open={isStatusOpen} onOpenChange={setIsStatusOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={isStatusOpen}
+                              className="w-full justify-between"
+                            >
+                              {selectedStatus ? (
+                                <div className="flex items-center">
+                                  {getStatusIcon(selectedStatus)}
+                                  <span className="ml-2">
+                                    {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center">
+                                  {getStatusIcon(ticket.data.status)}
+                                  <span className="ml-2">
+                                    {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
+                                  </span>
+                                </div>
+                              )}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[200px] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search status..." />
+                              <CommandList>
+                                <CommandEmpty>No status found.</CommandEmpty>
+                                <CommandGroup>
+                                  {STATUS_OPTIONS.map((status) => (
+                                    <CommandItem
+                                      key={status.value}
+                                      value={status.value}
+                                      onSelect={() => {
+                                        setSelectedStatus(status.value)
+                                        handleStatusSelect(status.value)
+                                      }}
+                                    >
+                                      <div className="flex items-center">
+                                        {getStatusIcon(status.value)}
+                                        <span className="ml-2">{status.label}</span>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {/* Staff Assignment */}
+                      <div className="space-y-2">
+                        <h3 className="font-medium text-gray-900">Assigned To</h3>
+                        <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={isStaffOpen}
+                              className="w-full justify-between"
+                            >
+                              {selectedStaff ? (
+                                <div className="flex items-center">
+                                  <UserAvatar name={selectedStaff} size="sm" />
+                                  <span className="ml-2">{selectedStaff}</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center">
+                                  <UserAvatar name={ticket.data.staff?.name || "Unassigned"} size="sm" />
+                                  <span className="ml-2">{ticket.data.staff?.name || "Unassigned"}</span>
+                                </div>
+                              )}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[200px] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search staff..." />
+                              <CommandList>
+                                <CommandEmpty>No staff found.</CommandEmpty>
+                                <CommandGroup>
+                                  {usersData?.data.data.map((user) => (
+                                  <CommandItem
+                                    value={user.id}
+                                    onSelect={() => {
+                                      setSelectedStaff(user.id)
+                                      handleStaffSelect(user.id)
+                                    }}
+                                  >
+                                    <div className="flex items-center">
+                                      <UserAvatar name={user.name} size="sm" />
+                                      <span className="ml-2">{user.name}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right Column - Attachments */}
+              <div>
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+                    <CardTitle className="text-lg font-medium">Attachments</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 flex-1 overflow-y-auto">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Search attachments..."
+                        value={attachmentSearchTerm}
+                        onChange={(e) => setAttachmentSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      {Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.map((attachment) => (
+                        <div key={attachment.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                          <a 
+                            href={attachment.filename} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            onClick={() => handleDownloadAttachment(attachment.id)} 
+                            className="flex items-center gap-2 text-blue-500 hover:underline"
+                          >
+                            <File className="h-4 w-4" />
+                            {attachment.filename}
+                          </a>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => deleteAttachment.mutate(attachment.id)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Trash className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle className="bg-gray-200 my-2" />
+
+          <ResizablePanel defaultSize={40} minSize={30}>
+            <Card className="h-full flex flex-col">
+              <CardHeader className="flex-shrink-0 pb-2">
+                <Tabs defaultValue="comments" className="w-full">
+                  <TabsList className="w-full">
+                    <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>
+                    <TabsTrigger value="logs" className="flex-1">Logs</TabsTrigger>
+                  </TabsList>
+                  <CardContent className="flex-1 overflow-y-auto p-0">
+                    <TabsContent value="comments" className="h-full m-0">
+                      <CommentList ticketId={id || ""} currentUserId={ticket.data.holder_id} />
+                    </TabsContent>
+                    <TabsContent value="logs" className="h-full m-0">
+                      <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+                    </TabsContent>
+                  </CardContent>
+                </Tabs>
+              </CardHeader>
+            </Card>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
       {/* Dialogs */}
