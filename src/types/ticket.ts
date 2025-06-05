@@ -14,6 +14,7 @@ export interface Ticket {
   client_name: string
   holder: User | null
   staff: User | null
+  logs?: TicketAuditLog[]
 }
 
 export interface TicketFilters {
@@ -29,31 +30,33 @@ export interface CreateTicketData {
   client_email: string
 }
 
-export interface Comment {
+
+export interface TicketAuditLog {
   id: string
   ticket_id: string
-  user_id: string
-  content: string
+  action: string
+  status: string
+  to_status: string | null
+  holder_id: string | null
+  staff_id: string | null
+  start_at: string
+  end_at: string | null
   created_at: string
   updated_at: string
-  attachments?: Attachment[]
-}
-
-export interface AuditLog {
-  id: string
-  ticket_id: string
-  user_id: string
-  action: string
-  old_value?: string
-  new_value?: string
-  created_at: string
+  deleted_at: string | null
+  holder?: User
+  staff?: User
 }
 
 export interface Attachment {
   id: string
-  comment_id: string
   filename: string
-  size: number
-  type: string
+  file_path: string
+  file_size: number
+  content_type: string
+  created_at: string
+  updated_at: string
 }
+
+
 

@@ -14,15 +14,3 @@ export interface DataResponse<T> {
     data: T
     pagination?: Pagination
 }
-
-// export interface PaginationMeta {
-//   current_page: number
-//   total_pages: number
-//   total_items: number
-//   items_per_page: number
-// }
-
-// export interface DataResponse<T> {
-//   data: T
-//   meta?: PaginationMeta
-// }
