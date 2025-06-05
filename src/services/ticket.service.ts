@@ -19,10 +19,7 @@ export interface TicketFilters {
 export interface CreateTicketData {
   title: string
   description: string
-  client_id: string
-  holder_id?: string
-  staff_id?: string
-  priority?: "low" | "medium" | "high" | "urgent"
+  client_email: string
 }
 
 export interface UpdateTicketData extends Partial<CreateTicketData> {
@@ -53,9 +50,9 @@ class TicketService {
   }
 
   // Create new ticket
-  async createTicket(data: CreateTicketData): Promise<Ticket> {
+  async createTicket(data: CreateTicketData): Promise<Response<Ticket>> {
     try {
-      const response = await api.post<Ticket>("/tickets", data)
+      const response = await api.post<Response<Ticket>>("/tickets", data)
       return response.data
     } catch (error) {
       throw error

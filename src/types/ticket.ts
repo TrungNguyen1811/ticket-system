@@ -26,10 +26,7 @@ export interface TicketFilters {
 export interface CreateTicketData {
   title: string
   description: string
-  client_id: string
-  holder_id: string
-  staff_id?: string
-  status: Ticket["status"]
+  client_email: string
 }
 
 export interface Comment {
@@ -59,3 +56,4 @@ export interface Attachment {
   size: number
   type: string
 }
+
