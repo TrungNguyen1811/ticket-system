@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,13 +10,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
 import { Eye, EyeOff, Ticket, AlertCircle } from "lucide-react"
-import type { LoginCredentials } from "@/types/auth"
+import { LoginSchema, loginSchema } from "@/schema/auth.schema"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+
+
 
 export function Login() {
-  const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: "",
-    password: "",
+  const form = useForm<LoginSchema>({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    resolver: zodResolver(loginSchema),
   })
+
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
 
@@ -33,17 +39,11 @@ export function Login() {
     return <Navigate to={from} replace />
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: LoginSchema) => {
     setError("")
 
-    if (!credentials.email || !credentials.password) {
-      setError("Please fill in all fields")
-      return
-    }
-
     try {
-      await login(credentials)
+      await login(data)
       toast({
         title: "Welcome back!",
         description: "You have been successfully logged in.",
@@ -90,15 +90,14 @@ export function Login() {
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="Enter your email"
-                  value={credentials.email}
-                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                  {...form.register("email")}
                   required
                 />
               </div>
@@ -110,8 +109,7 @@ export function Login() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    value={credentials.password}
-                    onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                    {...form.register("password")}
                     required
                   />
                   <Button
@@ -130,7 +128,7 @@ export function Login() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>

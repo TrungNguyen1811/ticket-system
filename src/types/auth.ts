@@ -1,3 +1,5 @@
+import { LoginSchema } from "@/schema/auth.schema"
+
 export interface AuthUser {
   id: string
   name: string
@@ -6,14 +8,10 @@ export interface AuthUser {
   avatar?: string
 }
 
-export interface LoginCredentials {
-  email: string
-  password: string
-}
 
 export interface AuthContextType {
   user: AuthUser | null
-  login: (credentials: LoginCredentials) => Promise<void>
+  login: (credentials: LoginSchema) => Promise<void>
   logout: () => void
   isLoading: boolean
   isAuthenticated: boolean
