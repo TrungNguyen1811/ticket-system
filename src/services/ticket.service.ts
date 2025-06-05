@@ -22,8 +22,12 @@ export interface CreateTicketData {
   client_email: string
 }
 
-export interface UpdateTicketData extends Partial<CreateTicketData> {
-  status?: "Open" | "In Progress" | "Done" | "Cancelled"
+export interface UpdateTicketData  {
+  title?: string
+  description?: string
+  status?: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed"
+  staff_id?: string
+  _method?: "PUT"
 }
 
 class TicketService {
@@ -40,9 +44,9 @@ class TicketService {
   }
 
   // Get single ticket by ID
-  async getTicket(id: string): Promise<Ticket> {
+  async getTicket(id: string): Promise<Response<DataResponse<Ticket>>> {
     try {
-      const response = await api.get<Ticket>(`/tickets/${id}`)
+      const response = await api.get<Response<DataResponse<Ticket>>>(`/tickets/${id}`)
       return response.data
     } catch (error) {
       throw error
@@ -60,9 +64,9 @@ class TicketService {
   }
 
   // Update ticket
-  async updateTicket(id: string, data: UpdateTicketData): Promise<Ticket> {
+  async updateTicket(id: string, data: UpdateTicketData): Promise<Response<DataResponse<Ticket>>> {
     try {
-      const response = await api.put<Ticket>(`/tickets/${id}`, data)
+      const response = await api.post<Response<DataResponse<Ticket>>>(`/tickets/${id}`, data)
       return response.data
     } catch (error) {
       throw error

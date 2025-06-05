@@ -19,7 +19,7 @@ import { Link } from "react-router-dom"
 import type { Ticket, CreateTicketData } from "@/types/ticket"
 import type { Response, DataResponse } from "@/types/reponse"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { ticketService } from "@/services/ticket.service"
+import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -71,7 +71,7 @@ export function Tickets() {
   })
 
   const updateTicketMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Ticket> }) => ticketService.updateTicket(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) => ticketService.updateTicket(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] })
       toast({
@@ -156,9 +156,12 @@ export function Tickets() {
     createTicketMutation.mutate(ticketData)
   }
 
-  const handleEditTicket = (ticketData: Partial<Ticket>) => {
+  const handleEditTicket = (ticketData: UpdateTicketData) => {
     if (!selectedTicket) return
-    updateTicketMutation.mutate({ id: selectedTicket.id, data: ticketData })
+    updateTicketMutation.mutate({ id: selectedTicket.id, data: {
+      ...ticketData,
+      _method: "PUT"
+    } })
   }
 
   const handleStatusChange = (newStatus: string) => {

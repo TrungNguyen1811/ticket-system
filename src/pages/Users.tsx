@@ -53,7 +53,7 @@ export function Users() {
     }
   }
 
-  const totalPages = data?.pagination?.total || 1
+  const totalPages = data?.data.pagination?.total || 1
 
   return (
     <div className="space-y-6 p-6">
@@ -125,7 +125,7 @@ export function Users() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data?.data.map((user: User) => (
+                    {data?.data.data.map((user: User) => (
                       <TableRow key={user.id} className="hover:bg-muted/50">
                         <TableCell>
                           <div className="flex items-center space-x-3">
