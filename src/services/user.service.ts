@@ -1,10 +1,11 @@
 import api from "@/lib/axios"
 import type { User, Client } from "@/types/user"
+import type { DataResponse, Response } from "@/types/reponse"
 
 export interface CreateUserData {
   name: string
   email: string
-  role: "Admin" | "Manager" | "Staff"
+  role: "admin" | "user"
   password: string
 }
 
@@ -19,12 +20,20 @@ export interface CreateClientData {
 
 export interface UpdateClientData extends Partial<CreateClientData> {}
 
+export interface ParamsUser {
+  limit?: number
+  page?: number
+  isPaginate?: boolean
+  role?: string
+  search?: string
+}
+
 class UserService {
   // Users
-  async getUsers(): Promise<User[]> {
+  async getUsers(params: ParamsUser): Promise<DataResponse<User[]>> {
     try {
-      const response = await api.get<User[]>("/users")
-      return response.data
+      const response = await api.get<Response<DataResponse<User[]>>>("/users", { params })
+      return response.data.data
     } catch (error) {
       throw error
     }
