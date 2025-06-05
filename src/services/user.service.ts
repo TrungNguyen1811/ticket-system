@@ -48,32 +48,6 @@ class UserService {
     }
   }
 
-  async createUser(data: CreateUserData): Promise<User> {
-    try {
-      const response = await api.post<User>("/users", data)
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  async updateUser(id: string, data: UpdateUserData): Promise<User> {
-    try {
-      const response = await api.put<User>(`/users/${id}`, data)
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  async deleteUser(id: string): Promise<void> {
-    try {
-      await api.delete(`/users/${id}`)
-    } catch (error) {
-      throw error
-    }
-  }
-
   // Clients
   async getClients(): Promise<Client[]> {
     try {
@@ -88,32 +62,6 @@ class UserService {
     try {
       const response = await api.get<Client>(`/clients/${id}`)
       return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  async createClient(data: CreateClientData): Promise<Client> {
-    try {
-      const response = await api.post<Client>("/clients", data)
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  async updateClient(id: string, data: UpdateClientData): Promise<Client> {
-    try {
-      const response = await api.put<Client>(`/clients/${id}`, data)
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  async deleteClient(id: string): Promise<void> {
-    try {
-      await api.delete(`/clients/${id}`)
     } catch (error) {
       throw error
     }
