@@ -8,10 +8,11 @@ export interface AuthUser {
   avatar?: string
 }
 
+export type LoginCredentials = LoginSchema
 
 export interface AuthContextType {
   user: AuthUser | null
-  login: (credentials: LoginSchema) => Promise<void>
+  login: (credentials: LoginCredentials) => Promise<void>
   logout: () => void
   isLoading: boolean
   isAuthenticated: boolean

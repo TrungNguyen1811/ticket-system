@@ -15,6 +15,7 @@ export interface Ticket {
   holder: User | null
   staff: User | null
   logs?: TicketAuditLog[]
+  attachments: Attachment[]
 }
 
 export interface TicketFilters {
@@ -29,7 +30,6 @@ export interface CreateTicketData {
   description: string
   client_email: string
 }
-
 
 export interface TicketAuditLog {
   id: string

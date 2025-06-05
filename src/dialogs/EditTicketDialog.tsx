@@ -33,8 +33,6 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
       form.reset({
         title: ticket.title || "",
         description: ticket.description || "",
-        status: ticket.status || "",
-        staff_id: ticket.staff_id || "",
       })
     }
   }, [ticket])

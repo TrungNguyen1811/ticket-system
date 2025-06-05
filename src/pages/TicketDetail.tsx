@@ -72,6 +72,8 @@ import attachmentService from "@/services/attachment"
 import logService from "@/services/log.service"
 import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
+import { User } from "@/types/user"
+import { userService } from "@/services/user.service"
 
 
 
@@ -152,6 +154,14 @@ export function TicketDetail() {
   const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
+  })
+
+  const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<User[]>>>({
+    queryKey: ["users"],
+    queryFn: () => userService.getUsers({
+      isPaginate: false,
+      role: "user",
+    }),
   })
 
   const { data: commentsData, isLoading: isLoadingComments, isError: isErrorComments } = useQuery<Response<DataResponse<Comment[]>>>({
@@ -644,20 +654,20 @@ export function TicketDetail() {
                         <CommandList>
                           <CommandEmpty>No staff found.</CommandEmpty>
                           <CommandGroup>
-                            {/* Add your staff list here */}
+                            {usersData?.data.data.map((user) => (
                             <CommandItem
-                              value="staff1"
+                              value={user.id}
                               onSelect={() => {
-                                setSelectedStaff("Staff 1")
-                                handleStaffSelect("staff1")
+                                setSelectedStaff(user.id)
+                                handleStaffSelect(user.id)
                               }}
                             >
                               <div className="flex items-center">
-                                <UserAvatar name="Staff 1" size="sm" />
-                                <span className="ml-2">Staff 1</span>
+                                <UserAvatar name={user.name} size="sm" />
+                                <span className="ml-2">{user.name}</span>
                               </div>
                             </CommandItem>
-                            {/* Add more staff items */}
+                          ))}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -715,7 +725,7 @@ export function TicketDetail() {
               <ScrollArea className="h-[400px] pr-4">
                 <div className="space-y-2">
                   {/* Add your attachments list here */}
-                  {attachmentsData?.data.data.map((attachment) => (
+                  {Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.map((attachment) => (
                     <div key={attachment.id}>
                       <a href={attachment.filename} target="_blank" rel="noopener noreferrer" onClick={() => handleDownloadAttachment(attachment.id)} className="text-blue-500 hover:underline">
                         {attachment.filename}
