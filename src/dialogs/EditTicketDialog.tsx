@@ -9,43 +9,41 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import type { Ticket } from "@/types/ticket"
-import { UpdateTicketData } from "@/services/ticket.service"
+import { updateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
 
 interface EditTicketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   ticket: Ticket
-  onSubmit: (data: UpdateTicketData) => void
+  onSubmit: (data: UpdateTicketSchema) => void
 }
 
 export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditTicketDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    title: ticket.title,
-    description: ticket.description,
+  const form = useForm<UpdateTicketSchema>({
+    resolver: zodResolver(updateTicketSchema),
   })
   const { toast } = useToast()
 
 
   useEffect(() => {
     if (ticket) {
-      setFormData({
+      form.reset({
         title: ticket.title || "",
         description: ticket.description || "",
+        status: ticket.status || "",
+        staff_id: ticket.staff_id || "",
       })
     }
   }, [ticket])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleSubmit = async (data: UpdateTicketSchema) => {
     setLoading(true)
 
     try {
-      onSubmit({
-        ...formData,
-        _method: "PUT"
-      })
+      onSubmit(data)
       toast({
         title: "Success",
         description: "Ticket updated successfully.",
@@ -67,13 +65,12 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
         <DialogHeader>
           <DialogTitle>Edit Ticket</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title *</Label>
             <Input
               id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              {...form.register("title")}
               placeholder="Enter ticket title"
               required
             />
@@ -83,8 +80,7 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...form.register("description")}
               placeholder="Describe the issue in detail"
               rows={4}
               required

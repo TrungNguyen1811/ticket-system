@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { CreateTicketSchema } from "@/schema/ticket.schema"
+import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
@@ -157,7 +157,7 @@ export function Tickets() {
     createTicketMutation.mutate(ticketData)
   }
 
-  const handleEditTicket = (ticketData: UpdateTicketData) => {
+  const handleEditTicket = (ticketData: UpdateTicketSchema) => {
     if (!selectedTicket) return
     updateTicketMutation.mutate({ id: selectedTicket.id, data: {
       ...ticketData,
