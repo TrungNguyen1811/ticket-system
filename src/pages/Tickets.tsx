@@ -102,10 +102,10 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to delete ticket",
+        description: error.message,
         variant: "destructive",
       })
     },
@@ -123,10 +123,10 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to assign staff",
+        description: error.message,
         variant: "destructive",
       })
     },
@@ -144,15 +144,16 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to update status",
+        description: error.message,
         variant: "destructive",
       })
     },
   })
 
+  // Mutations handlers
   const handleCreateTicket = (ticketData: CreateTicketSchema) => {
     createTicketMutation.mutate(ticketData)
   }
@@ -186,6 +187,7 @@ export function Tickets() {
     deleteTicketMutation.mutate(selectedTicket.id)
   }
 
+  // Loading state
   const isLoading =
     isLoadingTickets ||
     createTicketMutation.isPending ||
@@ -194,6 +196,7 @@ export function Tickets() {
     assignStaffMutation.isPending ||
     changeStatusMutation.isPending
 
+  // Total pages
   const totalPages = data?.data.pagination?.total || 1
 
   return (
