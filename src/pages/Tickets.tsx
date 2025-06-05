@@ -166,18 +166,18 @@ export function Tickets() {
     } })
   }
 
-  const handleStatusChange = (data: UpdateTicketData) => {
+  const handleStatusChange = (data: UpdateTicketSchema) => {
     if (!selectedTicket) return
     changeStatusMutation.mutate({ id: selectedTicket.id, data: {
-      status: data.status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | undefined,
+      ...data,
       _method: "PUT"
     } })
   }
 
-  const handleStaffAssign = (data: UpdateTicketData) => {
+  const handleStaffAssign = (data: UpdateTicketSchema) => {
     if (!selectedTicket) return
     assignStaffMutation.mutate({ id: selectedTicket.id, data: {
-      staff_id: data.staff_id || "",
+      ...data,
       _method: "PUT"
     } })
   }
