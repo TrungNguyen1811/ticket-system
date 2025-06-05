@@ -91,7 +91,7 @@ export function Tickets() {
   })
 
   const deleteTicketMutation = useMutation({
-    mutationFn: ticketService.deleteTicket,
+    mutationFn: (id: string) => ticketService.deleteTicket(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] })
       toast({
