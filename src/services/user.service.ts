@@ -30,10 +30,10 @@ export interface ParamsUser {
 
 class UserService {
   // Users
-  async getUsers(params: ParamsUser): Promise<DataResponse<User[]>> {
+  async getUsers(params: ParamsUser): Promise<Response<DataResponse<User[]>>> {
     try {
       const response = await api.get<Response<DataResponse<User[]>>>("/users", { params })
-      return response.data.data
+      return response.data
     } catch (error) {
       throw error
     }

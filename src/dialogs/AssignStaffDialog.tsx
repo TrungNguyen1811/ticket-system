@@ -6,21 +6,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { mockUsers } from "@/mock/data"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { useToast } from "@/components/ui/use-toast"
+import { DataResponse, Response } from "@/types/reponse"
+import { userService } from "@/services/user.service"
+import { useQuery } from "@tanstack/react-query"
+import { User } from "@/types/user"
+import { UpdateTicketData } from "@/services/ticket.service"
 
 interface AssignStaffDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentStaffId: string
-  onSubmit: (staffId: string) => void
+  onSubmit: (data: UpdateTicketData) => void
 }
 
 export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit }: AssignStaffDialogProps) {
   const [selectedStaffId, setSelectedStaffId] = useState(currentStaffId)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+  const { data: users } = useQuery<Response<DataResponse<User[]>>>({
+    queryKey: ["users"],
+    queryFn: () => userService.getUsers({role: "user", isPaginate: false}),
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,8 +46,10 @@ export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit
     setLoading(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500)) // Simulate API call
-      onSubmit(selectedStaffId)
+      onSubmit({
+        staff_id: selectedStaffId,
+        _method: "PUT"
+      })
       toast({
         title: "Success",
         description: "Staff assigned successfully.",
@@ -63,12 +74,12 @@ export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="staff">Select Staff Member</Label>
-            <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+            <Select value={selectedStaffId} onValueChange={(value) => setSelectedStaffId(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a staff member" />
               </SelectTrigger>
               <SelectContent>
-                {mockUsers.map((user) => (
+                {users?.data.data.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     <div className="flex items-center space-x-2">
                       <UserAvatar name={user.name} size="sm" />

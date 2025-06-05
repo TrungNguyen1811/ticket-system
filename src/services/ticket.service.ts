@@ -1,4 +1,5 @@
 import api from "@/lib/axios"
+import { DataResponse, Response } from "@/types/reponse"
 import type { Ticket, Comment, AuditLog } from "@/types/ticket"
 
 export interface TicketFilters {
@@ -13,32 +14,27 @@ export interface TicketFilters {
   sort_order?: "asc" | "desc"
 }
 
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
+
 
 export interface CreateTicketData {
   title: string
   description: string
-  client_id: string
-  holder_id?: string
-  staff_id?: string
-  priority?: "low" | "medium" | "high" | "urgent"
+  client_email: string
 }
 
-export interface UpdateTicketData extends Partial<CreateTicketData> {
-  status?: "Open" | "In Progress" | "Done" | "Cancelled"
+export interface UpdateTicketData  {
+  title?: string
+  description?: string
+  status?: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed"
+  staff_id?: string
+  _method?: "PUT"
 }
 
 class TicketService {
   // Get all tickets with filters
-  async getTickets(filters?: TicketFilters): Promise<PaginatedResponse<Ticket>> {
+  async getTickets(filters?: TicketFilters): Promise<Response<DataResponse<Ticket[]>>> {
     try {
-      const response = await api.get<PaginatedResponse<Ticket>>("/tickets", {
+      const response = await api.get<Response<DataResponse<Ticket[]>>>("/tickets", {
         params: filters,
       })
       return response.data
@@ -48,9 +44,9 @@ class TicketService {
   }
 
   // Get single ticket by ID
-  async getTicket(id: string): Promise<Ticket> {
+  async getTicket(id: string): Promise<Response<DataResponse<Ticket>>> {
     try {
-      const response = await api.get<Ticket>(`/tickets/${id}`)
+      const response = await api.get<Response<DataResponse<Ticket>>>(`/tickets/${id}`)
       return response.data
     } catch (error) {
       throw error
@@ -58,9 +54,9 @@ class TicketService {
   }
 
   // Create new ticket
-  async createTicket(data: CreateTicketData): Promise<Ticket> {
+  async createTicket(data: CreateTicketData): Promise<Response<Ticket>> {
     try {
-      const response = await api.post<Ticket>("/tickets", data)
+      const response = await api.post<Response<Ticket>>("/tickets", data)
       return response.data
     } catch (error) {
       throw error
@@ -68,9 +64,9 @@ class TicketService {
   }
 
   // Update ticket
-  async updateTicket(id: string, data: UpdateTicketData): Promise<Ticket> {
+  async updateTicket(id: string, data: UpdateTicketData): Promise<Response<DataResponse<Ticket>>> {
     try {
-      const response = await api.put<Ticket>(`/tickets/${id}`, data)
+      const response = await api.post<Response<DataResponse<Ticket>>>(`/tickets/${id}`, data)
       return response.data
     } catch (error) {
       throw error
@@ -81,30 +77,6 @@ class TicketService {
   async deleteTicket(id: string): Promise<void> {
     try {
       await api.delete(`/tickets/${id}`)
-    } catch (error) {
-      throw error
-    }
-  }
-
-  // Assign staff to ticket
-  async assignStaff(ticketId: string, staffId: string): Promise<Ticket> {
-    try {
-      const response = await api.post<Ticket>(`/tickets/${ticketId}/assign`, {
-        staff_id: staffId,
-      })
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  // Change ticket status
-  async changeStatus(ticketId: string, status: string): Promise<Ticket> {
-    try {
-      const response = await api.post<Ticket>(`/tickets/${ticketId}/status`, {
-        status,
-      })
-      return response.data
     } catch (error) {
       throw error
     }

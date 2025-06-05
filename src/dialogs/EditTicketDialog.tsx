@@ -7,39 +7,31 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { mockClients, mockUsers } from "@/mock/data"
 import { useToast } from "@/components/ui/use-toast"
 import type { Ticket } from "@/types/ticket"
+import { UpdateTicketData } from "@/services/ticket.service"
 
 interface EditTicketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   ticket: Ticket
-  onSubmit: (data: any) => void
+  onSubmit: (data: UpdateTicketData) => void
 }
 
 export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditTicketDialogProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    client_id: "",
-    holder_id: "",
-    staff_id: "",
-    status: "Open" as const,
+    title: ticket.title,
+    description: ticket.description,
   })
   const { toast } = useToast()
+
 
   useEffect(() => {
     if (ticket) {
       setFormData({
-        title: ticket.title,
-        description: ticket.description,
-        client_id: ticket.client_id,
-        holder_id: ticket.holder_id,
-        staff_id: ticket.staff_id,
-        status: ticket.status,
+        title: ticket.title || "",
+        description: ticket.description || "",
       })
     }
   }, [ticket])
@@ -47,20 +39,13 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.title || !formData.description || !formData.client_id) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setLoading(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-      onSubmit(formData)
+      onSubmit({
+        ...formData,
+        _method: "PUT"
+      })
       toast({
         title: "Success",
         description: "Ticket updated successfully.",
@@ -95,25 +80,6 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="client">Client *</Label>
-            <Select
-              value={formData.client_id}
-              onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a client" />
-              </SelectTrigger>
-              <SelectContent>
-                {mockClients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
@@ -123,46 +89,6 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
               rows={4}
               required
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="holder">Holder</Label>
-              <Select
-                value={formData.holder_id}
-                onValueChange={(value) => setFormData({ ...formData, holder_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select holder" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="staff">Assign Staff</Label>
-              <Select
-                value={formData.staff_id}
-                onValueChange={(value) => setFormData({ ...formData, staff_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <DialogFooter>

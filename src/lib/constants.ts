@@ -1,4 +1,4 @@
-export const TICKET_STATUSES = ["Open", "In Progress", "Done", "Cancelled"] as const
+export const TICKET_STATUSES = ["new", "in_progress", "waiting", "assigned", "complete", "force_closed"] as const
 
 export const COLORS = {
   primary: "#4F46E5",
