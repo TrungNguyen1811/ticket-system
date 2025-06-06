@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
 import { Comment as CommentType } from "@/types/comment";
+import AttachmentService from "@/services/attachment";
 
 interface CommentListProps {
   ticketId: string;
@@ -100,6 +101,14 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   const cancelEditing = () => {
     setEditingCommentId(null);
     setEditContent("");
+  };
+
+  const handleDownloadAttachment = (attachmentId: string) => {
+    AttachmentService.downloadAttachment(attachmentId);
+    toast({
+      title: "Success",
+      description: "Attachment downloaded successfully",
+    });
   };
 
   // Empty state
@@ -185,13 +194,14 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
                           {comment.attachments.map(attachment => (
                             <a
                               key={attachment.id}
-                              href={attachment.filename}
+                              href={attachment.file_path}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => handleDownloadAttachment(attachment.id)}
                               className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
                             >
                               <FileIcon className="h-3 w-3" />
-                              {attachment.filename}
+                              {attachment.file_name}
                             </a>
                           ))}
                         </div>
