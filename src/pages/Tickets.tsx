@@ -30,7 +30,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
 
-export function Tickets() {
+export default function Tickets() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")

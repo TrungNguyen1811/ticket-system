@@ -11,7 +11,7 @@ import { Ticket, TrendingUp, Building2, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 
-export function Dashboard() {
+export default function Dashboard() {
   const { user } = useAuth()
   const openTickets = mockTickets.filter((t) => t.status === "Open").length
   const inProgressTickets = mockTickets.filter((t) => t.status === "In Progress").length

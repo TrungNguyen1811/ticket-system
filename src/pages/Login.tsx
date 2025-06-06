@@ -16,7 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Separator } from "@/components/ui/separator"
 import { useAuth0 } from "@auth0/auth0-react"
 
-export function Login() {
+export default function Login() {
   const form = useForm<LoginSchema>({
     defaultValues: {
       email: "",

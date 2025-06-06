@@ -19,7 +19,7 @@ import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, Pagi
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 
-export function Users() {
+export default function Users() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRole, setSelectedRole] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
