@@ -15,116 +15,51 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User } from "@/types/user";
 import { useAuth } from "@/contexts/AuthContext";
-
-type Attachment = {
-  id: string;
-  filename: string;
-  url: string;
-};
-
-type Comment = {
-  id: string;
-  ticket_id: string;
-  user_id: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  attachments?: Attachment[];
-  user?: User;
-};
-
-type PaginationMeta = {
-  page: number;
-  perPage: number;
-  total: number;
-};
-
-type ApiResponse = {
-  success: boolean;
-  message: string;
-  data: {
-    data: Comment[];
-    pagination: PaginationMeta;
-  };
-};
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DataResponse, Response } from "@/types/reponse";
+import { Comment as CommentType } from "@/types/comment";
 
 interface CommentListProps {
   ticketId: string;
 }
 
-export const CommentList: React.FC<CommentListProps> = ({ ticketId}) => {
-  const [comments, setComments] = useState<Comment[]>([]);
+export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadCount, setLoadCount] = useState(0);
   const [showPagination, setShowPagination] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const { toast } = useToast();
-
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const fetchComments = async () => {
-    setIsLoading(true);
-    try {
-      const response = await CommentService.getCommentsTicket(ticketId, { page, limit: perPage, isPaginate: true })
-      if (response.success === true) {
-        const typedComments: Comment[] = response.data.data.map(comment => ({
-          ...comment,
-          attachments: comment.attachments?.map(attachment => ({
-            ...attachment,
-            url: attachment.filename || '' 
-          }))
-        }));
-        setComments(typedComments)
-        setTotal(response.data.pagination?.total || 0)
-        setShowPagination(true)
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch comments",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const { data: commentsData, isLoading, isError } = useQuery({
+    queryKey: ["ticket-comments", ticketId, page, perPage],
+    queryFn: () => CommentService.getCommentsTicket(ticketId, { page, limit: perPage, isPaginate: true }),
+  });
 
-  useEffect(() => {
-    fetchComments()
-  }, [ticketId, page, showPagination])
 
-  // Handle Load More
-  const handleLoadMore = () => {
-    setPage(prev => prev + 1);
-    setLoadCount(prev => prev + 1);
-    if (total > 50 && loadCount + 1 >= 3) setShowPagination(true);
-  };
+  const comments = commentsData?.data.data || [];
+  const total = commentsData?.data.pagination?.total || 0;
+
+
 
   // Handle Pagination
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    setComments([]); // reset for new page
   };
 
   const updateComment = async (commentId: string, content: string) => {
     try {
-      const response = await CommentService.updateComment(commentId, { content, _method: "PUT" })
+      const response = await CommentService.updateComment(commentId, { content, _method: "PUT" });
       if (response.success) {
-        setComments(prev => prev.map(comment => 
-          comment.id === commentId 
-            ? { ...comment, content, updated_at: new Date().toISOString() }
-            : comment
-        ));
-        setEditingCommentId(null);
         toast({
           title: "Success",
           description: "Comment updated successfully",
         });
+        setEditingCommentId(null);
+        queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId, page, perPage] });
       }
     } catch (error) {
       toast({
@@ -133,17 +68,17 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId}) => {
         variant: "destructive",
       });
     }
-  }
+  };
 
   const deleteComment = async (commentId: string) => {
     try {
       await CommentService.deleteComment(commentId);
-      setComments(prev => prev.filter(comment => comment.id !== commentId));
       setDeleteCommentId(null);
       toast({
         title: "Success",
         description: "Comment deleted successfully",
       });
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId] });  
     } catch (error) {
       toast({
         title: "Error",
@@ -151,21 +86,21 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId}) => {
         variant: "destructive",
       });
     }
-  }
+  };
 
   const handleUpdateComment = (commentId: string) => {
     updateComment(commentId, editContent);
-  }
+  };
 
-  const startEditing = (comment: Comment) => {
+  const startEditing = (comment: CommentType) => {
     setEditingCommentId(comment.id);
     setEditContent(comment.content);
-  }
+  };
 
   const cancelEditing = () => {
     setEditingCommentId(null);
     setEditContent("");
-  }
+  };
 
   // Empty state
   if (!isLoading && comments.length === 0) {
@@ -239,14 +174,18 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId}) => {
                   ) : (
                     <>
                       <div className="text-sm text-gray-700 whitespace-pre-line break-words">
-                        {comment.content}
+                        <div
+                          className="text-base text-muted-foreground"
+                          dir="ltr"
+                          dangerouslySetInnerHTML={{ __html: comment.content }}
+                        />
                       </div>
                       {comment.attachments && comment.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {comment.attachments.map(attachment => (
                             <a
                               key={attachment.id}
-                              href={attachment.url}
+                              href={attachment.filename}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
@@ -273,21 +212,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId}) => {
           </div>
         )}
 
-        {!showPagination && comments.length < total && (
-          <div className="flex justify-center pt-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleLoadMore} 
-              disabled={isLoading}
-              className="w-full"
-            >
-              {isLoading ? "Loading..." : "Load More"}
-            </Button>
-          </div>
-        )}
-
-        {showPagination && (
+        {total > perPage && (
           <div className="flex justify-center pt-2">
             <Pagination>
               <PaginationContent>
