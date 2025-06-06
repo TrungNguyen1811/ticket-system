@@ -12,14 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { TicketAuditLog } from "@/types/ticket";
 import { useToast } from "@/components/ui/use-toast";
-import { Pencil } from "lucide-react";
+import { Pencil, Tag, Trash, UserPlus } from "lucide-react";
 import { ticketService } from "@/services/ticket.service";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS_OPTIONS } from "@/lib/constants";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import LogService from "@/services/log.service";
 
 interface AuditLogTableProps {
   logs: TicketAuditLog[];
@@ -35,6 +36,8 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const [editingType, setEditingType] = useState<'status' | 'staff' | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
+  const [deletingLog, setDeletingLog] = useState<boolean>(false);
+  const [logId, setLogId] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -45,7 +48,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
         _method: "PUT",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
       setEditingType(null);
       toast({
         title: "Success",
@@ -69,6 +72,25 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     updateTicket.mutate({ staff_id: staffId });
   };
 
+  const deleteLog = useMutation({
+    mutationFn: (logId: string) => LogService.deleteLog(logId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      setDeletingLog(false);
+      toast({
+        title: "Success",
+        description: "Log deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete log",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getStatusColor = (status: string) => {
     const statusOption = STATUS_OPTIONS.find(s => s.value === status);
     return statusOption?.color || "gray";
@@ -79,24 +101,31 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Action</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>To Status</TableHead>
-            <TableHead>Holder</TableHead>
-            <TableHead>Staff</TableHead>
-            <TableHead>Start Time</TableHead>
-            <TableHead>End Time</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead className="w-[120px]">By</TableHead>
+            <TableHead className="w-[120px]">Staff</TableHead>
+            <TableHead className="w-[150px]">Start Time</TableHead>
+            <TableHead className="w-[150px]">End Time</TableHead>
+            <TableHead className="w-[100px]">Status</TableHead>
+            <TableHead className="w-[100px]">To Status</TableHead>
+            <TableHead className="w-[120px]">Action</TableHead>
+            <TableHead className="w-[120px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {logs.map((log) => (
             <TableRow key={log.id}>
-              <TableCell>{log.action}</TableCell>
+              <TableCell className="font-medium truncate max-w-[120px]" title={log.holder?.name || "-"}>
+                {log.holder?.name || "-"}
+              </TableCell>
+              <TableCell className="truncate max-w-[120px]" title={log.staff?.name || "-"}>
+                {log.staff?.name || "-"}
+              </TableCell>
+              <TableCell className="whitespace-nowrap">{formatDate(log.start_at)}</TableCell>
+              <TableCell className="whitespace-nowrap">{log.end_at ? formatDate(log.end_at) : "-"}</TableCell>
               <TableCell>
                 <Badge
                   variant="outline"
-                  className={`bg-${getStatusColor(log.status)}-100 text-${getStatusColor(log.status)}-800`}
+                  className={`bg-${getStatusColor(log.status)}-100 text-${getStatusColor(log.status)}-800 whitespace-nowrap`}
                 >
                   {STATUS_OPTIONS.find(s => s.value === log.status)?.label || log.status}
                 </Badge>
@@ -105,18 +134,17 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 {log.to_status && (
                   <Badge
                     variant="outline"
-                    className={`bg-${getStatusColor(log.to_status)}-100 text-${getStatusColor(log.to_status)}-800`}
+                    className={`bg-${getStatusColor(log.to_status)}-100 text-${getStatusColor(log.to_status)}-800 whitespace-nowrap`}
                   >
                     {STATUS_OPTIONS.find(s => s.value === log.to_status)?.label || log.to_status}
                   </Badge>
                 )}
               </TableCell>
-              <TableCell>{log.holder?.name || "-"}</TableCell>
-              <TableCell>{log.staff?.name || "-"}</TableCell>
-              <TableCell>{formatDate(log.start_at)}</TableCell>
-              <TableCell>{log.end_at ? formatDate(log.end_at) : "-"}</TableCell>
+              <TableCell className="truncate max-w-[120px]" title={log.action}>
+                {log.action}
+              </TableCell>
               <TableCell>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2">
                   {log.id === logs[0].id && (
                     <>
                       <Button
@@ -128,7 +156,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                         }}
                         className="h-8 w-8"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Tag className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -139,10 +167,21 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                         }}
                         className="h-8 w-8"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <UserPlus className="h-4 w-4" />
                       </Button>
                     </>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setDeletingLog(true);
+                      setLogId(log.id);
+                    }}
+                    className="h-8 w-8"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -205,6 +244,21 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             >
               Save changes
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deletingLog} onOpenChange={() => setDeletingLog(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Log</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>
+            Are you sure you want to delete this log?
+          </DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingLog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteLog.mutate(logId)}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

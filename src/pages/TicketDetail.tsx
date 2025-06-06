@@ -180,7 +180,6 @@ export function TicketDetail() {
     queryFn: () => logService.getTicketLogs(id || ""),
   })
 
-
   // Download attachment
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
@@ -402,6 +401,30 @@ export function TicketDetail() {
   const hasNextPage = commentsData?.data.data.length === 10
   const isFetchingNextPage = commentsData?.data.data.length === 10
 
+  if (isLoadingTicket) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading ticket details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isErrorTicket) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900">Error Loading Ticket</h2>
+        <p className="mt-2 text-gray-600">There was an error loading the ticket details. Please try again later.</p>
+        <Button asChild className="mt-6">
+          <Link to="/tickets">Back to Tickets</Link>
+        </Button>
+      </div>
+    )
+  }
+
   if (!ticket?.data) {
     return (
       <div className="text-center py-12">
@@ -589,6 +612,7 @@ export function TicketDetail() {
                               role="combobox"
                               aria-expanded={isStatusOpen}
                               className="w-full justify-between"
+                              disabled={isLoadingUsers}
                             >
                               {selectedStatus ? (
                                 <div className="flex items-center">
@@ -646,6 +670,7 @@ export function TicketDetail() {
                               role="combobox"
                               aria-expanded={isStaffOpen}
                               className="w-full justify-between"
+                              disabled={isLoadingUsers}
                             >
                               {selectedStaff ? (
                                 <div className="flex items-center">
@@ -667,20 +692,29 @@ export function TicketDetail() {
                               <CommandList>
                                 <CommandEmpty>No staff found.</CommandEmpty>
                                 <CommandGroup>
-                                  {usersData?.data.data.map((user) => (
-                                  <CommandItem
-                                    value={user.id}
-                                    onSelect={() => {
-                                      setSelectedStaff(user.id)
-                                      handleStaffSelect(user.id)
-                                    }}
-                                  >
-                                    <div className="flex items-center">
-                                      <UserAvatar name={user.name} size="sm" />
-                                      <span className="ml-2">{user.name}</span>
+                                  {isLoadingUsers ? (
+                                    <div className="flex items-center justify-center p-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
                                     </div>
-                                  </CommandItem>
-                                ))}
+                                  ) : isErrorUsers ? (
+                                    <div className="p-2 text-sm text-red-500">Failed to load users</div>
+                                  ) : (
+                                    usersData?.data.data.map((user) => (
+                                      <CommandItem
+                                        key={user.id}
+                                        value={user.id}
+                                        onSelect={() => {
+                                          setSelectedStaff(user.id)
+                                          handleStaffSelect(user.id)
+                                        }}
+                                      >
+                                        <div className="flex items-center">
+                                          <UserAvatar name={user.name} size="sm" />
+                                          <span className="ml-2">{user.name}</span>
+                                        </div>
+                                      </CommandItem>
+                                    ))
+                                  )}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
@@ -710,28 +744,42 @@ export function TicketDetail() {
                     </div>
 
                     <div className="space-y-2">
-                      {Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.map((attachment) => (
-                        <div key={attachment.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
-                          <a 
-                            href={attachment.filename} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            onClick={() => handleDownloadAttachment(attachment.id)} 
-                            className="flex items-center gap-2 text-blue-500 hover:underline"
-                          >
-                            <File className="h-4 w-4" />
-                            {attachment.filename}
-                          </a>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => deleteAttachment.mutate(attachment.id)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash className="h-4 w-4 text-red-500" />
-                          </Button>
+                      {isLoadingAttachments ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                         </div>
-                      ))}
+                      ) : isErrorAttachments ? (
+                        <div className="text-center p-4 text-red-500">
+                          Failed to load attachments
+                        </div>
+                      ) : Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.length > 0 ? (
+                        attachmentsData.data.data.map((attachment) => (
+                          <div key={attachment.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                            <a 
+                              href={attachment.filename} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              onClick={() => handleDownloadAttachment(attachment.id)} 
+                              className="flex items-center gap-2 text-blue-500 hover:underline"
+                            >
+                              <File className="h-4 w-4" />
+                              {attachment.filename}
+                            </a>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => deleteAttachment.mutate(attachment.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Trash className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center p-4 text-gray-500">
+                          No attachments found
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -754,7 +802,17 @@ export function TicketDetail() {
                       <CommentList ticketId={id || ""} currentUserId={ticket.data.holder_id} />
                     </TabsContent>
                     <TabsContent value="logs" className="h-full m-0">
-                      <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+                      {isLoadingLogs ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                        </div>
+                      ) : isErrorLogs ? (
+                        <div className="text-center p-4 text-red-500">
+                          Failed to load audit logs
+                        </div>
+                      ) : (
+                        <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+                      )}
                     </TabsContent>
                   </CardContent>
                 </Tabs>
