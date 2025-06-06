@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User } from "@/types/user";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Attachment = {
   id: string;
@@ -49,10 +50,9 @@ type ApiResponse = {
 
 interface CommentListProps {
   ticketId: string;
-  currentUserId: string; // Add this prop to identify current user's comments
 }
 
-export const CommentList: React.FC<CommentListProps> = ({ ticketId, currentUserId }) => {
+export const CommentList: React.FC<CommentListProps> = ({ ticketId}) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -64,6 +64,8 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, currentUserI
   const [editContent, setEditContent] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const { user } = useAuth();
 
   const fetchComments = async () => {
     setIsLoading(true);
@@ -178,7 +180,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, currentUserI
 
   return (
     <ScrollArea className="h-full pr-4">
-      <div className="space-y-3">
+      <div className="space-y-3 mt-2">
         {comments.map(comment => (
           <Card key={comment.id} className="group relative border-l-4 border-l-blue-500 hover:border-l-blue-600 transition-colors">
             <CardContent className="p-4">
@@ -198,7 +200,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, currentUserI
                       </Badge>
                     </div>
                     
-                    {comment.user_id === currentUserId && !editingCommentId && (
+                    {comment.user_id === user?.id && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">

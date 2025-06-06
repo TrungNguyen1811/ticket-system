@@ -799,7 +799,7 @@ export function TicketDetail() {
                   </TabsList>
                   <CardContent className="flex-1 overflow-y-auto p-0">
                     <TabsContent value="comments" className="h-full m-0">
-                      <CommentList ticketId={id || ""} currentUserId={ticket.data.holder_id} />
+                      <CommentList ticketId={id || ""}/>
                     </TabsContent>
                     <TabsContent value="logs" className="h-full m-0">
                       {isLoadingLogs ? (
