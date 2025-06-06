@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Pencil, Trash2, FileIcon, MessageSquare, MoreVertical } from "lucide-react";
+import { Pencil, Trash2, FileIcon, MessageSquare, MoreVertical, Loader2 } from "lucide-react";
 import CommentService from "@/services/comment.services";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User } from "@/types/user";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
 import { Comment as CommentType } from "@/types/comment";
 import AttachmentService from "@/services/attachment";
+import { Attachment } from "@/types/ticket";
 
 interface CommentListProps {
   ticketId: string;
@@ -35,16 +36,32 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: commentsData, isLoading, isError } = useQuery({
+  const { data: commentsData, isLoading, isError } = useQuery<Response<DataResponse<CommentType[]>>>({
     queryKey: ["ticket-comments", ticketId, page, perPage],
     queryFn: () => CommentService.getCommentsTicket(ticketId, { page, limit: perPage, isPaginate: true }),
   });
 
+  const downloadAttachment = useMutation({
+    mutationFn: (attachmentId: string) => AttachmentService.downloadAttachment(attachmentId),
+    onSuccess: (data) => {
+      const url = window.URL.createObjectURL(data);
+      window.open(url, '_blank');
+      toast({
+        title: "Success",
+        description: "Attachment downloaded successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to download attachment",
+        variant: "destructive",
+      });
+    }
+  });
 
   const comments = commentsData?.data.data || [];
   const total = commentsData?.data.pagination?.total || 0;
-
-
 
   // Handle Pagination
   const handlePageChange = (newPage: number) => {
@@ -104,11 +121,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   };
 
   const handleDownloadAttachment = (attachmentId: string) => {
-    AttachmentService.downloadAttachment(attachmentId);
-    toast({
-      title: "Success",
-      description: "Attachment downloaded successfully",
-    });
+    downloadAttachment.mutate(attachmentId);
   };
 
   // Empty state
@@ -125,7 +138,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-3 mt-2">
-        {comments.map(comment => (
+        {comments.map((comment: CommentType) => (
           <Card key={comment.id} className="group relative border-l-4 border-l-blue-500 hover:border-l-blue-600 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -191,18 +204,21 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
                       </div>
                       {comment.attachments && comment.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {comment.attachments.map(attachment => (
-                            <a
+                          {comment.attachments.map((attachment: Attachment) => (
+                            <Button
                               key={attachment.id}
-                              href={attachment.file_path}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleDownloadAttachment(attachment.id)}
-                              className="inline-flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+                              className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+                              disabled={downloadAttachment.isPending}
                             >
                               <FileIcon className="h-3 w-3" />
                               {attachment.file_name}
-                            </a>
+                              {downloadAttachment.isPending && (
+                                <Loader2 className="h-3 w-3 animate-spin ml-1" />
+                              )}
+                            </Button>
                           ))}
                         </div>
                       )}

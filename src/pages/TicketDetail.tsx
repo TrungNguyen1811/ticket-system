@@ -128,6 +128,14 @@ function isDescriptionClamped(text: string, maxLines = 4) {
   return text.split("\n").length > maxLines || text.length > 300
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -152,7 +160,8 @@ export function TicketDetail() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [confirmType, setConfirmType] = useState<"status" | "staff" | null>(null)
   const [isViewingLogs, setIsViewingLogs] = useState(false)
-
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
+  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
   const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
@@ -166,7 +175,7 @@ export function TicketDetail() {
     }),
   })
 
-  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<DataResponse<Attachment[]>>>({
+  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   })
@@ -179,39 +188,72 @@ export function TicketDetail() {
   // Download attachment
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
-    onSuccess: (data) => {
-      const url = window.URL.createObjectURL(data)
-      window.open(url, '_blank');
+    onMutate: (attachmentId) => {
+      setDownloadingFiles(prev => new Set(prev).add(attachmentId));
     },
-    onError: () => {
+    onSuccess: (data, attachmentId) => {
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ''; // Let the browser determine the filename
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setDownloadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
+      toast({
+        title: "Success",
+        description: "Attachment downloaded successfully",
+      });
+    },
+    onError: (_, attachmentId) => {
+      setDownloadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
       toast({
         title: "Error",
         description: "Failed to download attachment",
         variant: "destructive",
-      })
+      });
     }
   })
-
-  const handleDownloadAttachment = (attachmentId: string) => {
-    downloadAttachment.mutate(attachmentId)
-  }
 
   // Delete attachment
   const deleteAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
-    onSuccess: () => {
+    onMutate: (attachmentId) => {
+      setDeletingFiles(prev => new Set(prev).add(attachmentId));
+    },
+    onSuccess: (_, attachmentId) => {
       queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+
       toast({
         title: "Success",
         description: "Attachment deleted successfully",
       })
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
     },
-    onError: () => {
+    onError: (_, attachmentId) => {
       toast({
         title: "Error",
         description: "Failed to delete attachment",
         variant: "destructive",
       })
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
     }
   })
 
@@ -227,6 +269,7 @@ export function TicketDetail() {
     mutationFn: (data: CommentFormData) => commentService.createComment(id || "", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
+      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
       toast({
         title: "Success",
         description: "Comment added successfully",
@@ -732,6 +775,15 @@ export function TicketDetail() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <CardTitle className="text-lg font-medium">Attachments</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setDialogOpen("attachment")}
+                  className="h-8"
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
@@ -753,32 +805,92 @@ export function TicketDetail() {
                     <div className="text-center p-4 text-red-500">
                       Failed to load attachments
                     </div>
-                  ) : Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.length > 0 ? (
-                    attachmentsData.data.data.map((attachment) => (
-                      <div key={attachment.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
-                        <a 
-                          href={attachment.file_path} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          onClick={() => handleDownloadAttachment(attachment.id)} 
-                          className="flex items-center gap-2 text-blue-500 hover:underline"
-                        >
-                          <File className="h-4 w-4" />
-                          {attachment.file_name}
-                        </a>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => deleteAttachment.mutate(attachment.id)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    ))
+                  ) : Array.isArray(attachmentsData?.data) && attachmentsData?.data.length > 0 ? (
+                    <div className="grid gap-2">
+                      {attachmentsData.data
+                        .filter((attachment: Attachment) => 
+                          attachment.file_name.toLowerCase().includes(attachmentSearchTerm.toLowerCase())
+                        )
+                        .map((attachment: Attachment) => (
+                          <div 
+                            key={attachment.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                              <div className="flex-shrink-0">
+                                {attachment.content_type.startsWith('image/') ? (
+                                  <ImageIcon className="h-5 w-5 text-blue-500" />
+                                ) : (
+                                  <FileText className="h-5 w-5 text-gray-500" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 overflow-hidden">
+                                <a
+                                  href={attachment.file_path}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block truncate text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                                >
+                                  {attachment.file_name}
+                                </a>
+                                <p className="truncate text-xs text-gray-500">
+                                  {formatFileSize(attachment.file_size)} • {formatDate(attachment.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  downloadAttachment.mutate(attachment.id);
+                                }}
+                                disabled={downloadingFiles.has(attachment.id)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {downloadingFiles.has(attachment.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  deleteAttachment.mutate(attachment.id);
+                                }}
+                                disabled={deletingFiles.has(attachment.id)}
+                                className="h-8 w-8 p-0 hover:text-red-500"
+                              >
+                                {deletingFiles.has(attachment.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   ) : (
-                    <div className="text-center p-4 text-gray-500">
-                      No attachments found
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
+                      <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No attachments found</p>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => setDialogOpen("attachment")}
+                        className="mt-2"
+                      >
+                        Upload files
+                      </Button>
                     </div>
                   )}
                 </div>
