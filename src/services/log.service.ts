@@ -12,6 +12,15 @@ class LogService {
       throw error
     }
   } 
+
+  async deleteLog(logId: string): Promise<Response<DataResponse<string>>> {
+    try {
+      const response = await api.delete<Response<DataResponse<string>>>(`/logs/${logId}`)
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  }
 }
 
 export default new LogService()
