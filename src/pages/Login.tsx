@@ -70,7 +70,7 @@ export function Login() {
               <Ticket className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">TicketMS</h1>
+          <h1 className="text-3xl font-bold text-gray-900">TasketES</h1>
           <p className="text-gray-600">Sign in to your account</p>
         </div>
 
@@ -169,7 +169,7 @@ export function Login() {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-500">
-          <p>© 2025 TicketMS. All rights reserved.</p>
+          <p>© 2025 TasketES. All rights reserved.</p>
         </div>
       </div>
     </div>

@@ -49,13 +49,13 @@ export interface TicketAuditLog {
 
 export interface Attachment {
   id: string
-  filename: string
+  file_name: string
+  file_extension: string
   file_path: string
   file_size: number
   content_type: string
   created_at: string
   updated_at: string
+  ticket_id: string
+  comment_id: string
 }
-
-
-

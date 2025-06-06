@@ -40,7 +40,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-bold text-indigo-600">TicketMS</h1>
+            <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6" />
             </Button>
@@ -76,7 +76,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200 pt-5 pb-4 overflow-y-auto">
           <div className="flex items-center flex-shrink-0 px-4">
-            <h1 className="text-xl font-bold text-indigo-600">TicketMS</h1>
+            <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
           </div>
           <nav className="mt-8 flex-1 flex flex-col divide-y divide-gray-200 overflow-y-auto">
             <div className="px-2 space-y-1">
@@ -144,7 +144,7 @@ export function Layout({ children }: LayoutProps) {
             <Menu className="h-6 w-6" />
           </Button>
           <div className="flex-1 px-4 flex justify-between items-center">
-            <h1 className="text-xl font-bold text-indigo-600">TicketMS</h1>
+            <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
             {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -128,6 +128,14 @@ function isDescriptionClamped(text: string, maxLines = 4) {
   return text.split("\n").length > maxLines || text.length > 300
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export function TicketDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -151,7 +159,9 @@ export function TicketDetail() {
   const [pendingStaff, setPendingStaff] = useState<string | null>(null)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [confirmType, setConfirmType] = useState<"status" | "staff" | null>(null)
-
+  const [isViewingLogs, setIsViewingLogs] = useState(false)
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
+  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
   const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
@@ -165,12 +175,7 @@ export function TicketDetail() {
     }),
   })
 
-  const { data: commentsData, isLoading: isLoadingComments, isError: isErrorComments } = useQuery<Response<DataResponse<Comment[]>>>({
-    queryKey: ["ticket-comments", id],
-    queryFn: () => commentService.getCommentsTicket(id || ""),
-  })
-
-  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<DataResponse<Attachment[]>>>({
+  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   })
@@ -183,39 +188,72 @@ export function TicketDetail() {
   // Download attachment
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
-    onSuccess: (data) => {
-      const url = window.URL.createObjectURL(data)
-      window.open(url, '_blank');
+    onMutate: (attachmentId) => {
+      setDownloadingFiles(prev => new Set(prev).add(attachmentId));
     },
-    onError: () => {
+    onSuccess: (data, attachmentId) => {
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ''; // Let the browser determine the filename
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setDownloadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
+      toast({
+        title: "Success",
+        description: "Attachment downloaded successfully",
+      });
+    },
+    onError: (_, attachmentId) => {
+      setDownloadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
       toast({
         title: "Error",
         description: "Failed to download attachment",
         variant: "destructive",
-      })
+      });
     }
   })
-
-  const handleDownloadAttachment = (attachmentId: string) => {
-    downloadAttachment.mutate(attachmentId)
-  }
 
   // Delete attachment
   const deleteAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
-    onSuccess: () => {
+    onMutate: (attachmentId) => {
+      setDeletingFiles(prev => new Set(prev).add(attachmentId));
+    },
+    onSuccess: (_, attachmentId) => {
       queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+
       toast({
         title: "Success",
         description: "Attachment deleted successfully",
       })
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
     },
-    onError: () => {
+    onError: (_, attachmentId) => {
       toast({
         title: "Error",
         description: "Failed to delete attachment",
         variant: "destructive",
       })
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
     }
   })
 
@@ -226,6 +264,26 @@ export function TicketDetail() {
       setEditedDescription(ticket.data.description)
     }
   }, [ticket?.data])
+
+  const createComment = useMutation({
+    mutationFn: (data: CommentFormData) => commentService.createComment(id || "", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
+      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+      toast({
+        title: "Success",
+        description: "Comment added successfully",
+      })
+      setDialogOpen(null)
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+  })  
 
   const updateTicketMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) => ticketService.updateTicket(id, data),
@@ -271,24 +329,20 @@ export function TicketDetail() {
     })
   }
 
-  const handleAddComment = async (data: { content: string; attachments?: File[] }) => {
+  const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
     if (!id) return
+  
     try {
       const formData = new FormData()
-      formData.append("content", data.content)
-      
+      formData.append("content", data.editorContent.html)
+  
       if (data.attachments?.length) {
         data.attachments.forEach((file) => {
           formData.append("attachments[]", file)
         })
       }
-
-      await commentService.createComment(id, formData as CommentFormData)
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
-      toast({
-        title: "Success",
-        description: "Comment added successfully",
-      })
+  
+      createComment.mutate(formData as CommentFormData)
     } catch (error) {
       toast({
         title: "Error",
@@ -297,6 +351,7 @@ export function TicketDetail() {
       })
     }
   }
+  
 
   // const handleUploadAttachment = async (files: FileList) => {
   //   if (!id) return
@@ -398,9 +453,6 @@ export function TicketDetail() {
     setConfirmType(null)
   }
 
-  const hasNextPage = commentsData?.data.data.length === 10
-  const isFetchingNextPage = commentsData?.data.data.length === 10
-
   if (isLoadingTicket) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -456,370 +508,440 @@ export function TicketDetail() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/tickets">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Tickets
-            </Link>
-          </Button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => setDialogOpen("comment")}>
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Add Comment
-          </Button>
-          {/* <Button variant="outline" onClick={() => setDialogOpen("attachment")}>
-            <Paperclip className="h-4 w-4 mr-2" />
-            Add Files
-          </Button> */}
+    <div className="min-h-screen flex flex-col">
+      {/* Header - Fixed height */}
+      <div className="flex-none p-6 border-b">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/tickets">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Tickets
+              </Link>
+            </Button>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" onClick={() => setDialogOpen("comment")}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Add Comment
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Main Content - Two Column Layout */}
-      <div className="flex flex-col h-[calc(100vh-120px)]">
-        <ResizablePanelGroup
-          direction="vertical"
-          className="flex-1"
-        >
-          <ResizablePanel defaultSize={62} minSize={16}>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full p-1">
-              {/* Left Column - Ticket Information */}
-              <div className="lg:col-span-2">
-                <Card className="overflow-hidden h-full flex flex-col">
-                  <CardHeader className="bg-gray-50 border-b pb-4 flex-shrink-0">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 ">
-                          {isEditingTitle ? (
-                            <Input
-                              value={editedTitle}
-                              onChange={e => setEditedTitle(e.target.value)}
-                              className="text-xl font-bold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
-                              maxLength={200}
-                              autoFocus
-                              onBlur={handleTitleBlur}
-                              onKeyDown={handleTitleKeyDown}
-                              disabled={savingTitle}
-                            />
-                          ) : (
-                            <h1
-                              className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
-                              onClick={() => setIsEditingTitle(true)}
-                              title="Click to edit title"
-                            >
-                              {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
-                            </h1>
-                          )}
-                        </div>
-                        
-                      </div>
-                      <div className="flex items-center space-x-2">
-                          <Badge variant="outline" className="text-xs font-normal">
-                            #{ticket.data.id}
-                          </Badge>
-                          <StatusBadge status={ticket.data.status} />
-                        </div>
-                      <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          Created {formatDate(ticket.data.created_at)}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          Updated {formatDate(ticket.data.updated_at)}
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="p-6 space-y-6 flex-1 overflow-y-auto">
-                    {/* Description */}
-                    <div className="space-y-2">
-                      <h3 className="font-medium text-gray-900 flex items-center">Description</h3>
-                      {isEditingDescription ? (
-                        <div>
-                          <Textarea
-                            value={editedDescription}
-                            onChange={e => setEditedDescription(e.target.value)}
-                            className="bg-gray-50 p-4 rounded-md border min-h-[100px] max-h-[300px] resize-y text-base"
-                            autoFocus
-                            maxLength={2000}
-                            style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
-                              Save
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditedDescription(ticket?.data?.description || "") }}>
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 p-6 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Ticket Information */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader className="bg-gray-50 border-b pb-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 ">
+                      {isEditingTitle ? (
+                        <Input
+                          value={editedTitle}
+                          onChange={e => setEditedTitle(e.target.value)}
+                          className="text-xl font-bold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
+                          maxLength={200}
+                          autoFocus
+                          onBlur={handleTitleBlur}
+                          onKeyDown={handleTitleKeyDown}
+                          disabled={savingTitle}
+                        />
                       ) : (
-                        <div className="flex flex-col gap-1 w-full">
-                          <div
-                            className={cn(
-                              "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
-                              !showFullDescription && isDescriptionClamped(editedDescription) && "line-clamp-4"
-                            )}
-                            onClick={() => setIsEditingDescription(true)}
-                            title="Click to edit description"
-                            style={{ minHeight: 48, wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                          >
-                            {editedDescription}
-                          </div>
-                          {isDescriptionClamped(editedDescription) && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="self-start px-0 text-blue-500 mt-1"
-                              onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
-                            >
-                              {showFullDescription ? "Thu gọn" : "Xem thêm"}
-                            </Button>
-                          )}
-                        </div>
+                        <h1
+                          className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
+                          onClick={() => setIsEditingTitle(true)}
+                          title="Click to edit title"
+                        >
+                          {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
+                        </h1>
                       )}
                     </div>
-
-                    {/* Client Information */}
-                    <div className="space-y-2">
-                      <h3 className="font-medium text-gray-900">Client Information</h3>
-                      <div className="bg-gray-50 p-4 rounded-md border">
-                        <div className="flex items-center space-x-3">
-                          <UserAvatar name={ticket.data.client_name} />
-                          <div>
-                            <p className="font-medium text-gray-900">{ticket.data.client_name}</p>
-                            <p className="text-sm text-gray-500">{ticket.data.client_email}</p>
-                          </div>
-                        </div>
-                      </div>
+                    
+                  </div>
+                  <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="text-xs font-normal">
+                        #{ticket.data.id}
+                      </Badge>
+                      <StatusBadge status={ticket.data.status} />
                     </div>
-
-                    {/* Status and Staff Assignment */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Status */}
-                      <div className="space-y-2">
-                        <h3 className="font-medium text-gray-900">Status</h3>
-                        <Popover open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={isStatusOpen}
-                              className="w-full justify-between"
-                              disabled={isLoadingUsers}
-                            >
-                              {selectedStatus ? (
-                                <div className="flex items-center">
-                                  {getStatusIcon(selectedStatus)}
-                                  <span className="ml-2">
-                                    {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center">
-                                  {getStatusIcon(ticket.data.status)}
-                                  <span className="ml-2">
-                                    {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
-                                  </span>
-                                </div>
-                              )}
-                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[200px] p-0">
-                            <Command>
-                              <CommandInput placeholder="Search status..." />
-                              <CommandList>
-                                <CommandEmpty>No status found.</CommandEmpty>
-                                <CommandGroup>
-                                  {STATUS_OPTIONS.map((status) => (
-                                    <CommandItem
-                                      key={status.value}
-                                      value={status.value}
-                                      onSelect={() => {
-                                        setSelectedStatus(status.value)
-                                        handleStatusSelect(status.value)
-                                      }}
-                                    >
-                                      <div className="flex items-center">
-                                        {getStatusIcon(status.value)}
-                                        <span className="ml-2">{status.label}</span>
-                                      </div>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-
-                      {/* Staff Assignment */}
-                      <div className="space-y-2">
-                        <h3 className="font-medium text-gray-900">Assigned To</h3>
-                        <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={isStaffOpen}
-                              className="w-full justify-between"
-                              disabled={isLoadingUsers}
-                            >
-                              {selectedStaff ? (
-                                <div className="flex items-center">
-                                  <UserAvatar name={selectedStaff} size="sm" />
-                                  <span className="ml-2">{selectedStaff}</span>
-                                </div>
-                              ) : (
-                                <div className="flex items-center">
-                                  <UserAvatar name={ticket.data.staff?.name || "Unassigned"} size="sm" />
-                                  <span className="ml-2">{ticket.data.staff?.name || "Unassigned"}</span>
-                                </div>
-                              )}
-                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[200px] p-0">
-                            <Command>
-                              <CommandInput placeholder="Search staff..." />
-                              <CommandList>
-                                <CommandEmpty>No staff found.</CommandEmpty>
-                                <CommandGroup>
-                                  {isLoadingUsers ? (
-                                    <div className="flex items-center justify-center p-2">
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    </div>
-                                  ) : isErrorUsers ? (
-                                    <div className="p-2 text-sm text-red-500">Failed to load users</div>
-                                  ) : (
-                                    usersData?.data.data.map((user) => (
-                                      <CommandItem
-                                        key={user.id}
-                                        value={user.id}
-                                        onSelect={() => {
-                                          setSelectedStaff(user.id)
-                                          handleStaffSelect(user.id)
-                                        }}
-                                      >
-                                        <div className="flex items-center">
-                                          <UserAvatar name={user.name} size="sm" />
-                                          <span className="ml-2">{user.name}</span>
-                                        </div>
-                                      </CommandItem>
-                                    ))
-                                  )}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+                  <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      Created {formatDate(ticket.data.created_at)}
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right Column - Attachments */}
-              <div>
-                <Card className="h-full flex flex-col">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
-                    <CardTitle className="text-lg font-medium">Attachments</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 flex-1 overflow-y-auto">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Search attachments..."
-                        value={attachmentSearchTerm}
-                        onChange={(e) => setAttachmentSearchTerm(e.target.value)}
-                        className="pl-10"
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Updated {formatDate(ticket.data.updated_at)}
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+                {/* Description */}
+                <div className="space-y-2">
+                  <h3 className="font-medium text-gray-900 flex items-center">Description</h3>
+                  {isEditingDescription ? (
+                    <div>
+                      <Textarea
+                        value={editedDescription}
+                        onChange={e => setEditedDescription(e.target.value)}
+                        className="bg-gray-50 p-4 rounded-md border min-h-[100px] max-h-[300px] resize-y text-base"
+                        autoFocus
+                        maxLength={2000}
+                        style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
                       />
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditedDescription(ticket?.data?.description || "") }}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
-
-                    <div className="space-y-2">
-                      {isLoadingAttachments ? (
-                        <div className="flex items-center justify-center p-4">
-                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                        </div>
-                      ) : isErrorAttachments ? (
-                        <div className="text-center p-4 text-red-500">
-                          Failed to load attachments
-                        </div>
-                      ) : Array.isArray(attachmentsData?.data.data) && attachmentsData?.data.data.length > 0 ? (
-                        attachmentsData.data.data.map((attachment) => (
-                          <div key={attachment.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
-                            <a 
-                              href={attachment.filename} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              onClick={() => handleDownloadAttachment(attachment.id)} 
-                              className="flex items-center gap-2 text-blue-500 hover:underline"
-                            >
-                              <File className="h-4 w-4" />
-                              {attachment.filename}
-                            </a>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => deleteAttachment.mutate(attachment.id)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center p-4 text-gray-500">
-                          No attachments found
-                        </div>
+                  ) : (
+                    <div className="flex flex-col gap-1 w-full">
+                      <div
+                        className={cn(
+                          "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
+                          !showFullDescription && isDescriptionClamped(editedDescription) && "line-clamp-4"
+                        )}
+                        onClick={() => setIsEditingDescription(true)}
+                        title="Click to edit description"
+                        style={{ minHeight: 48, wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      >
+                        {editedDescription}
+                      </div>
+                      {isDescriptionClamped(editedDescription) && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="self-start px-0 text-blue-500 mt-1"
+                          onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
+                        >
+                          {showFullDescription ? "Thu gọn" : "Xem thêm"}
+                        </Button>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
+
+                {/* Client Information */}
+                <div className="space-y-2">
+                  <h3 className="font-medium text-gray-900">Client Information</h3>
+                  <div className="bg-gray-50 p-4 rounded-md border">
+                    <div className="flex items-center space-x-3">
+                      <UserAvatar name={ticket.data.client_name} />
+                      <div>
+                        <p className="font-medium text-gray-900">{ticket.data.client_name}</p>
+                        <p className="text-sm text-gray-500">{ticket.data.client_email}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status and Staff Assignment */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Status */}
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Status</h3>
+                    <Popover open={isStatusOpen} onOpenChange={setIsStatusOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isStatusOpen}
+                          className="w-full justify-between"
+                          disabled={isLoadingUsers}
+                        >
+                          {selectedStatus ? (
+                            <div className="flex items-center">
+                              {getStatusIcon(selectedStatus)}
+                              <span className="ml-2">
+                                {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              {getStatusIcon(ticket.data.status)}
+                              <span className="ml-2">
+                                {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
+                              </span>
+                            </div>
+                          )}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search status..." />
+                          <CommandList>
+                            <CommandEmpty>No status found.</CommandEmpty>
+                            <CommandGroup>
+                              {STATUS_OPTIONS.map((status) => (
+                                <CommandItem
+                                  key={status.value}
+                                  value={status.value}
+                                  onSelect={() => {
+                                    setSelectedStatus(status.value)
+                                    handleStatusSelect(status.value)
+                                  }}
+                                >
+                                  <div className="flex items-center">
+                                    {getStatusIcon(status.value)}
+                                    <span className="ml-2">{status.label}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Staff Assignment */}
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-900">Assigned To</h3>
+                    <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={isStaffOpen}
+                          className="w-full justify-between"
+                          disabled={isLoadingUsers}
+                        >
+                          {selectedStaff ? (
+                            <div className="flex items-center">
+                              <UserAvatar name={selectedStaff} size="sm" />
+                              <span className="ml-2">{selectedStaff}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <UserAvatar name={ticket.data.staff?.name || "Unassigned"} size="sm" />
+                              <span className="ml-2">{ticket.data.staff?.name || "Unassigned"}</span>
+                            </div>
+                          )}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search staff..." />
+                          <CommandList>
+                            <CommandEmpty>No staff found.</CommandEmpty>
+                            <CommandGroup>
+                              {isLoadingUsers ? (
+                                <div className="flex items-center justify-center p-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </div>
+                              ) : isErrorUsers ? (
+                                <div className="p-2 text-sm text-red-500">Failed to load users</div>
+                              ) : (
+                                usersData?.data.data.map((user) => (
+                                  <CommandItem
+                                    key={user.id}
+                                    value={user.id}
+                                    onSelect={() => {
+                                      setSelectedStaff(user.id)
+                                      handleStaffSelect(user.id)
+                                    }}
+                                  >
+                                    <div className="flex items-center">
+                                      <UserAvatar name={user.name} size="sm" />
+                                      <span className="ml-2">{user.name}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))
+                              )}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - Attachments */}
+          <div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-lg font-medium">Attachments</CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setDialogOpen("attachment")}
+                  className="h-8"
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search attachments..."
+                    value={attachmentSearchTerm}
+                    onChange={(e) => setAttachmentSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  {isLoadingAttachments ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    </div>
+                  ) : isErrorAttachments ? (
+                    <div className="text-center p-4 text-red-500">
+                      Failed to load attachments
+                    </div>
+                  ) : Array.isArray(attachmentsData?.data) && attachmentsData?.data.length > 0 ? (
+                    <div className="grid gap-2">
+                      {attachmentsData.data
+                        .filter((attachment: Attachment) => 
+                          attachment.file_name.toLowerCase().includes(attachmentSearchTerm.toLowerCase())
+                        )
+                        .map((attachment: Attachment) => (
+                          <div 
+                            key={attachment.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                              <div className="flex-shrink-0">
+                                {attachment.content_type.startsWith('image/') ? (
+                                  <ImageIcon className="h-5 w-5 text-blue-500" />
+                                ) : (
+                                  <FileText className="h-5 w-5 text-gray-500" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 overflow-hidden">
+                                <a
+                                  href={attachment.file_path}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block truncate text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                                >
+                                  {attachment.file_name}
+                                </a>
+                                <p className="truncate text-xs text-gray-500">
+                                  {formatFileSize(attachment.file_size)} • {formatDate(attachment.created_at)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  downloadAttachment.mutate(attachment.id);
+                                }}
+                                disabled={downloadingFiles.has(attachment.id)}
+                                className="h-8 w-8 p-0"
+                              >
+                                {downloadingFiles.has(attachment.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  deleteAttachment.mutate(attachment.id);
+                                }}
+                                disabled={deletingFiles.has(attachment.id)}
+                                className="h-8 w-8 p-0 hover:text-red-500"
+                              >
+                                {deletingFiles.has(attachment.id) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
+                      <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No attachments found</p>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => setDialogOpen("attachment")}
+                        className="mt-2"
+                      >
+                        Upload files
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Activity Section */}
+        <Card>
+          <CardHeader className="flex-shrink-0 pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-medium">Activity</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant={!isViewingLogs ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setIsViewingLogs(false)}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Comments
+                </Button>
+                <Button 
+                  variant={isViewingLogs ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setIsViewingLogs(true)}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Logs
+                </Button>
               </div>
             </div>
-          </ResizablePanel>
-
-          <ResizableHandle withHandle className="bg-gray-200 my-2" />
-
-          <ResizablePanel defaultSize={40} minSize={30}>
-            <Card className="h-full flex flex-col">
-              <CardHeader className="flex-shrink-0 pb-2">
-                <Tabs defaultValue="comments" className="w-full">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>
-                    <TabsTrigger value="logs" className="flex-1">Logs</TabsTrigger>
-                  </TabsList>
-                  <CardContent className="flex-1 overflow-y-auto p-0">
-                    <TabsContent value="comments" className="h-full m-0">
-                      <CommentList ticketId={id || ""} currentUserId={ticket.data.holder_id} />
-                    </TabsContent>
-                    <TabsContent value="logs" className="h-full m-0">
-                      {isLoadingLogs ? (
-                        <div className="flex items-center justify-center p-4">
-                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                        </div>
-                      ) : isErrorLogs ? (
-                        <div className="text-center p-4 text-red-500">
-                          Failed to load audit logs
-                        </div>
-                      ) : (
-                        <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
-                      )}
-                    </TabsContent>
-                  </CardContent>
-                </Tabs>
-              </CardHeader>
-            </Card>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          </CardHeader>
+          <CardContent>
+            {!isViewingLogs ? (
+              <CommentList ticketId={id || ""}/>
+            ) : (
+              isLoadingLogs ? (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : isErrorLogs ? (
+                <div className="text-center p-4 text-red-500">
+                  Failed to load audit logs
+                </div>
+              ) : (
+                <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+              )
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Dialogs */}
@@ -829,12 +951,6 @@ export function TicketDetail() {
         onSubmit={handleAddComment}
         ticketId={id}
       />
-
-      {/* <UploadAttachmentDialog
-        open={dialogOpen === "attachment"}
-        onOpenChange={(open) => !open && setDialogOpen(null)}
-        onSubmit={handleUploadAttachment}
-      /> */}
 
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <AlertDialogContent className="max-w-md w-full rounded-xl p-6 text-center">

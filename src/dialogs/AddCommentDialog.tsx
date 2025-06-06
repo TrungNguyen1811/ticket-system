@@ -20,24 +20,29 @@ import { TRANSFORMERS } from "@lexical/markdown"
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary"
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
+
 import { EditorState } from "lexical"
 import { HeadingNode, QuoteNode } from "@lexical/rich-text"
 import { ListItemNode, ListNode } from "@lexical/list"
 import { LinkNode } from "@lexical/link"
 import { CodeNode, CodeHighlightNode } from "@lexical/code"
-import { $getRoot } from "lexical"
+import { $generateHtmlFromNodes } from "@lexical/html"
 
 interface AddCommentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: { content: string; attachments?: File[] }) => void
+  onSubmit: (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => void
   ticketId?: string
 }
 
 export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: AddCommentDialogProps) {
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
-  const [editorContent, setEditorContent] = useState("")
+  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
+    raw: "",
+    html: "",
+  })
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
@@ -118,8 +123,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!editorContent.trim()) {
+    if (!editorContent.html.trim()) {
       toast({
         title: "Validation Error",
         description: "Please enter a comment.",
@@ -131,12 +135,10 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
     setLoading(true)
 
     try {
-      onSubmit({ content: editorContent, attachments })
-      toast({
-        title: "Success",
-        description: "Comment added successfully.",
-      })
-      setEditorContent("")
+      onSubmit({ editorContent, attachments })
+      onOpenChange(false)
+      setLoading(false)
+      setEditorContent({ raw: "", html: "" })
       setAttachments([])
     } catch (error) {
       toast({
@@ -279,7 +281,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !editorContent.trim()}>
+            <Button type="submit" disabled={loading || !editorContent.html.trim()}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -297,15 +299,19 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
 }
 
 // Custom plugin to get editor content as plain text
-
-function OnChangePlugin({ onChange }: { onChange: (content: string) => void }) {
+export function OnChangePlugin({
+  onChange,
+}: {
+  onChange: (data: { raw: string; html: string }) => void
+}) {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }: { editorState: EditorState }) => {
       editorState.read(() => {
-        const text = $getRoot().getTextContent()
-        onChange(text)
+        const raw = JSON.stringify(editorState.toJSON())
+        const html = $generateHtmlFromNodes(editor, null)
+        onChange({ raw, html })
       })
     })
   }, [editor, onChange])

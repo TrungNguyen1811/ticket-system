@@ -4,7 +4,7 @@ import { Attachment } from "@/types/ticket"
 
 class AttachmentService {
 
-    async getAttachments(ticketId: string): Promise<Response<DataResponse<Attachment[]>>> {
+    async getAttachments(ticketId: string): Promise<Response<Attachment[]>> {
         try {
           const response = await api.get(`/tickets/${ticketId}/attachments`)
           return response.data

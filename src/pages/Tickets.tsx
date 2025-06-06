@@ -286,6 +286,7 @@ export function Tickets() {
                       <TableHead>Holder</TableHead>
                       <TableHead>Staff</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Created At</TableHead>
                       <TableHead>Updated At</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -293,7 +294,7 @@ export function Tickets() {
                   <TableBody>
                     {data?.data.data.map((ticket: Ticket) => (
                       <TableRow key={ticket.id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium">{ticket.title}</TableCell>
+                        <TableCell className="font-medium truncate max-w-[250px]">{ticket.title}</TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <div>
@@ -317,6 +318,7 @@ export function Tickets() {
                         <TableCell>
                           <StatusBadge status={ticket.status} />
                         </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.created_at)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.updated_at)}</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
