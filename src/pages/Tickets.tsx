@@ -16,7 +16,7 @@ import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
 import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog"
 import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, Loader2, Filter } from "lucide-react"
 import { Link } from "react-router-dom"
-import type { Ticket, CreateTicketData } from "@/types/ticket"
+import type { Ticket } from "@/types/ticket"
 import type { Response, DataResponse } from "@/types/reponse"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
@@ -61,10 +62,10 @@ export function Tickets() {
       })
       setDialogOpen(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to create ticket",
+        description: error.message,
         variant: "destructive",
       })
     },
@@ -81,17 +82,17 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to update ticket",
+        description: error.message,
         variant: "destructive",
       })
     },
   })
 
   const deleteTicketMutation = useMutation({
-    mutationFn: ticketService.deleteTicket,
+    mutationFn: (id: string) => ticketService.deleteTicket(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] })
       toast({
@@ -101,10 +102,10 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to delete ticket",
+        description: error.message,
         variant: "destructive",
       })
     },
@@ -122,10 +123,10 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to assign staff",
+        description: error.message,
         variant: "destructive",
       })
     },
@@ -143,20 +144,21 @@ export function Tickets() {
       setDialogOpen(null)
       setSelectedTicket(null)
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to update status",
+        description: error.message,
         variant: "destructive",
       })
     },
   })
 
-  const handleCreateTicket = (ticketData: CreateTicketData) => {
+  // Mutations handlers
+  const handleCreateTicket = (ticketData: CreateTicketSchema) => {
     createTicketMutation.mutate(ticketData)
   }
 
-  const handleEditTicket = (ticketData: UpdateTicketData) => {
+  const handleEditTicket = (ticketData: UpdateTicketSchema) => {
     if (!selectedTicket) return
     updateTicketMutation.mutate({ id: selectedTicket.id, data: {
       ...ticketData,
@@ -164,18 +166,18 @@ export function Tickets() {
     } })
   }
 
-  const handleStatusChange = (data: UpdateTicketData) => {
+  const handleStatusChange = (data: UpdateTicketSchema) => {
     if (!selectedTicket) return
     changeStatusMutation.mutate({ id: selectedTicket.id, data: {
-      status: data.status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | undefined,
+      ...data,
       _method: "PUT"
     } })
   }
 
-  const handleStaffAssign = (data: UpdateTicketData) => {
+  const handleStaffAssign = (data: UpdateTicketSchema) => {
     if (!selectedTicket) return
     assignStaffMutation.mutate({ id: selectedTicket.id, data: {
-      staff_id: data.staff_id || "",
+      ...data,
       _method: "PUT"
     } })
   }
@@ -185,6 +187,7 @@ export function Tickets() {
     deleteTicketMutation.mutate(selectedTicket.id)
   }
 
+  // Loading state
   const isLoading =
     isLoadingTickets ||
     createTicketMutation.isPending ||
@@ -193,6 +196,7 @@ export function Tickets() {
     assignStaffMutation.isPending ||
     changeStatusMutation.isPending
 
+  // Total pages
   const totalPages = data?.data.pagination?.total || 1
 
   return (

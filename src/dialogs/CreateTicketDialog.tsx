@@ -8,26 +8,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Textarea } from "@/components/ui/textarea"
+import { createTicketSchema } from "@/schema/ticket.schema"
+import { CreateTicketSchema } from "@/schema/ticket.schema"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 interface CreateTicketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: any) => void
+  onSubmit: (data: CreateTicketSchema) => void
 }
 
 export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicketDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    client_email: "",
+  const form = useForm<CreateTicketSchema>({
+    resolver: zodResolver(createTicketSchema),
   })
   const { toast } = useToast()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.title || !formData.description || !formData.client_email) {
+  const handleSubmit = async (data: CreateTicketSchema) => {
+    if (!form.formState.isValid) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
@@ -40,15 +40,11 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
-      onSubmit(formData)
+      onSubmit(data)
+      form.reset()
       toast({
         title: "Success",
         description: "Ticket created successfully.",
-      })
-      setFormData({
-        title: "",
-        description: "",
-        client_email: "",
       })
     } catch (error) {
       toast({
@@ -67,13 +63,12 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
         <DialogHeader>
           <DialogTitle>Create New Ticket</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title *</Label>
             <Input
               id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              {...form.register("title")}
               placeholder="Enter ticket title"
               required
             />
@@ -83,8 +78,7 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
             <Label htmlFor="client_email">Client Email *</Label>
             <Input
               id="client_email"
-              value={formData.client_email}
-              onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
+              {...form.register("client_email")}
               placeholder="Enter client email"
               required
             />  
@@ -94,8 +88,7 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
             <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...form.register("description")}
               placeholder="Describe the issue in detail"
               rows={4}
               required

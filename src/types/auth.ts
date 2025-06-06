@@ -1,3 +1,5 @@
+import { LoginSchema } from "@/schema/auth.schema"
+
 export interface AuthUser {
   id: string
   name: string
@@ -6,10 +8,7 @@ export interface AuthUser {
   avatar?: string
 }
 
-export interface LoginCredentials {
-  email: string
-  password: string
-}
+export type LoginCredentials = LoginSchema
 
 export interface AuthContextType {
   user: AuthUser | null

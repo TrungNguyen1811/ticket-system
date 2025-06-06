@@ -1,6 +1,6 @@
 import api from "@/lib/axios"
 import { DataResponse, Response } from "@/types/reponse"
-import type { Ticket, Comment, AuditLog } from "@/types/ticket"
+import type { Ticket } from "@/types/ticket"
 
 export interface TicketFilters {
   status?: string
@@ -14,19 +14,26 @@ export interface TicketFilters {
   sort_order?: "asc" | "desc"
 }
 
-
-
 export interface CreateTicketData {
   title: string
   description: string
   client_email: string
 }
 
-export interface UpdateTicketData  {
+export interface UpdateTicketData {
   title?: string
   description?: string
   status?: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed"
   staff_id?: string
+  _method?: "PUT"
+}
+
+export interface UpdateAuditLogData {
+  status?: string
+  to_status?: string
+  holder_id?: string
+  staff_id?: string
+  end_at?: string
   _method?: "PUT"
 }
 
@@ -44,9 +51,9 @@ class TicketService {
   }
 
   // Get single ticket by ID
-  async getTicket(id: string): Promise<Response<DataResponse<Ticket>>> {
+  async getTicket(id: string): Promise<Response<Ticket>> {
     try {
-      const response = await api.get<Response<DataResponse<Ticket>>>(`/tickets/${id}`)
+      const response = await api.get<Response<Ticket>>(`/tickets/${id}`)
       return response.data
     } catch (error) {
       throw error
@@ -74,74 +81,15 @@ class TicketService {
   }
 
   // Delete ticket
-  async deleteTicket(id: string): Promise<void> {
+  async deleteTicket(id: string): Promise<Response<DataResponse<boolean>>> {
     try {
-      await api.delete(`/tickets/${id}`)
-    } catch (error) {
-      throw error
-    }
-  }
-
-  // Get ticket comments
-  async getTicketComments(ticketId: string): Promise<Comment[]> {
-    try {
-      const response = await api.get<Comment[]>(`/tickets/${ticketId}/comments`)
+      const response = await api.delete<Response<DataResponse<boolean>>>(`/tickets/${id}`)
       return response.data
     } catch (error) {
       throw error
     }
   }
 
-  // Add comment to ticket
-  async addComment(ticketId: string, content: string, attachments?: File[]): Promise<Comment> {
-    try {
-      const formData = new FormData()
-      formData.append("content", content)
-
-      if (attachments) {
-        attachments.forEach((file) => {
-          formData.append("attachments", file)
-        })
-      }
-
-      const response = await api.post<Comment>(`/tickets/${ticketId}/comments`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  // Get ticket audit logs
-  async getTicketAuditLogs(ticketId: string): Promise<AuditLog[]> {
-    try {
-      const response = await api.get<AuditLog[]>(`/tickets/${ticketId}/audit-logs`)
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
-
-  // Upload attachments
-  async uploadAttachments(ticketId: string, files: File[]): Promise<void> {
-    try {
-      const formData = new FormData()
-      files.forEach((file) => {
-        formData.append("files", file)
-      })
-
-      await api.post(`/tickets/${ticketId}/attachments`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-    } catch (error) {
-      throw error
-    }
-  }
 
   // Get dashboard stats
   async getDashboardStats(): Promise<{

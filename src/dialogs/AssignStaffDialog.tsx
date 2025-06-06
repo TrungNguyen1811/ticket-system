@@ -12,28 +12,29 @@ import { DataResponse, Response } from "@/types/reponse"
 import { userService } from "@/services/user.service"
 import { useQuery } from "@tanstack/react-query"
 import { User } from "@/types/user"
-import { UpdateTicketData } from "@/services/ticket.service"
-
+import { updateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 interface AssignStaffDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentStaffId: string
-  onSubmit: (data: UpdateTicketData) => void
+  onSubmit: (data: UpdateTicketSchema) => void
 }
 
 export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit }: AssignStaffDialogProps) {
   const [selectedStaffId, setSelectedStaffId] = useState(currentStaffId)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
-
+  const form = useForm<UpdateTicketSchema>({
+    resolver: zodResolver(updateTicketSchema),
+  })
   const { data: users } = useQuery<Response<DataResponse<User[]>>>({
     queryKey: ["users"],
     queryFn: () => userService.getUsers({role: "user", isPaginate: false}),
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleSubmit = async (data: UpdateTicketSchema) => {
     if (!selectedStaffId) {
       toast({
         title: "Validation Error",
@@ -47,6 +48,7 @@ export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit
 
     try {
       onSubmit({
+        ...data,
         staff_id: selectedStaffId,
         _method: "PUT"
       })
@@ -71,7 +73,7 @@ export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit
         <DialogHeader>
           <DialogTitle>Assign Staff Member</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="staff">Select Staff Member</Label>
             <Select value={selectedStaffId} onValueChange={(value) => setSelectedStaffId(value)}>

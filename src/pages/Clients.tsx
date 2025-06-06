@@ -5,17 +5,14 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { mockClients } from "@/mock/data"
-import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Building2 } from "lucide-react"
-import type { Client } from "@/types/user"
+import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react"
+
 
 export function Clients() {
   const [clients, setClients] = useState(mockClients)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   const filteredClients = clients.filter(
     (client) =>
@@ -23,14 +20,6 @@ export function Clients() {
       client.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleDeleteClient = () => {
-    if (!selectedClient) return
-
-    const updatedClients = clients.filter((client) => client.id !== selectedClient.id)
-    setClients(updatedClients)
-    setDeleteDialogOpen(false)
-    setSelectedClient(null)
-  }
 
   return (
     <div className="space-y-6">
@@ -97,21 +86,7 @@ export function Clients() {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Client
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedClient(client)
-                            setDeleteDialogOpen(true)
-                          }}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
+                      <DropdownMenuContent>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -121,16 +96,6 @@ export function Clients() {
           </Table>
         </CardContent>
       </Card>
-
-      {selectedClient && (
-        <DeleteConfirmationDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          title="Delete Client"
-          description={`Are you sure you want to delete "${selectedClient.name}"? This action cannot be undone and will affect all associated tickets.`}
-          onConfirm={handleDeleteClient}
-        />
-      )}
     </div>
   )
 }

@@ -9,24 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { TICKET_STATUSES } from "@/lib/constants"
 import { useToast } from "@/components/ui/use-toast"
-import { UpdateTicketData } from "@/services/ticket.service"
+import { updateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 interface ChangeStatusDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentStatus: string
-  onSubmit: (data: UpdateTicketData) => void
+  onSubmit: (data: UpdateTicketSchema) => void
 }
 
 export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit }: ChangeStatusDialogProps) {
   const [selectedStatus, setSelectedStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const form = useForm<UpdateTicketSchema>({
+    resolver: zodResolver(updateTicketSchema),
+  })
 
 
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (data: UpdateTicketSchema) => {
 
     if (!selectedStatus) {
       toast({
@@ -50,8 +53,8 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
 
     try {
       onSubmit({
+        ...data,
         status: selectedStatus as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | undefined,
-        _method: "PUT"
       })
       toast({
         title: "Success",
@@ -74,7 +77,7 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
         <DialogHeader>
           <DialogTitle>Change Ticket Status</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label>Current Status</Label>
             <div className="p-2 bg-gray-50 rounded-md">

@@ -1,5 +1,6 @@
 import api from "@/lib/axios"
-import type { LoginCredentials, AuthUser } from "@/types/auth"
+import { LoginSchema } from "@/schema/auth.schema"
+import type { AuthUser } from "@/types/auth"
 import type { Response } from "@/types/reponse"
 
 export interface LoginResponse {
@@ -18,7 +19,7 @@ export interface RefreshTokenResponse {
 
 class AuthService {
   // Login user
-  async login(credentials: LoginCredentials): Promise<LoginResponse> {
+  async login(credentials: LoginSchema): Promise<LoginResponse> {
     try {
       const response = await api.post<Response<LoginResponse>>("/auth/login", credentials)
       return response.data.data
@@ -69,50 +70,50 @@ class AuthService {
     }
   }
 
-  // Update user profile
-  async updateProfile(data: Partial<AuthUser>): Promise<AuthUser> {
-    try {
-      const response = await api.put<AuthUser>("/auth/profile", data)
-      return response.data
-    } catch (error) {
-      throw error
-    }
-  }
+  // // Update user profile
+  // async updateProfile(data: Partial<AuthUser>): Promise<AuthUser> {
+  //   try {
+  //     const response = await api.put<AuthUser>("/auth/profile", data)
+  //     return response.data
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
 
-  // Change password
-  async changePassword(data: {
-    currentPassword: string
-    newPassword: string
-    confirmPassword: string
-  }): Promise<void> {
-    try {
-      await api.post("/auth/change-password", data)
-    } catch (error) {
-      throw error
-    }
-  }
+  // // Change password
+  // async changePassword(data: {
+  //   currentPassword: string
+  //   newPassword: string
+  //   confirmPassword: string
+  // }): Promise<void> {
+  //   try {
+  //     await api.post("/auth/change-password", data)
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
 
-  // Request password reset
-  async requestPasswordReset(email: string): Promise<void> {
-    try {
-      await api.post("/auth/forgot-password", { email })
-    } catch (error) {
-      throw error
-    }
-  }
+  // // Request password reset
+  // async requestPasswordReset(email: string): Promise<void> {
+  //   try {
+  //     await api.post("/auth/forgot-password", { email })
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
 
-  // Reset password
-  async resetPassword(data: {
-    token: string
-    password: string
-    confirmPassword: string
-  }): Promise<void> {
-    try {
-      await api.post("/auth/reset-password", data)
-    } catch (error) {
-      throw error
-    }
-  }
+  // // Reset password
+  // async resetPassword(data: {
+  //   token: string
+  //   password: string
+  //   confirmPassword: string
+  // }): Promise<void> {
+  //   try {
+  //     await api.post("/auth/reset-password", data)
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
 }
 
 export const authService = new AuthService()

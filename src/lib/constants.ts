@@ -9,3 +9,12 @@ export const COLORS = {
   text: "#0F172A",
   background: "#F8FAFC",
 } as const
+
+export const STATUS_OPTIONS = [
+  { value: "new", label: "Open", color: "blue" },
+  { value: "in_progress", label: "In Progress", color: "yellow" },
+  { value: "waiting", label: "Waiting", color: "orange" },
+  { value: "assigned", label: "Assigned", color: "purple" },
+  { value: "complete", label: "Complete", color: "green" },
+  { value: "force_closed", label: "Cancelled", color: "red" },
+]
