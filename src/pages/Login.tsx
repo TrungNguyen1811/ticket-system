@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Navigate, useLocation } from "react-router-dom"
+import { Link, Navigate, useLocation } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,10 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
-import { Eye, EyeOff, Ticket, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, Ticket, AlertCircle, Slack } from "lucide-react"
 import { LoginSchema, loginSchema } from "@/schema/auth.schema"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Separator } from "@/components/ui/separator"
+import { useAuth0 } from "@auth0/auth0-react"
 
 export function Login() {
   const form = useForm<LoginSchema>({
@@ -27,6 +29,7 @@ export function Login() {
   const [error, setError] = useState("")
 
   const { login, isLoading, isAuthenticated } = useAuth()
+  const { loginWithRedirect } = useAuth0()
   const { toast } = useToast()
   const location = useLocation()
 
@@ -37,17 +40,33 @@ export function Login() {
     return <Navigate to={from} replace />
   }
 
-  const onSubmit = async (data: LoginSchema) => {
+  const onSubmit = async (data: any) => {
     setError("")
 
     try {
-      await login(data)
+      await login()
       toast({
         title: "Welcome back!",
         description: "You have been successfully logged in.",
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed")
+    }
+  }
+
+  const handleSlackLogin = async () => {
+    try {
+      await loginWithRedirect({
+        connection: "slack",
+        appState: { returnTo: from }
+      } as any)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed")
+      toast({
+        title: "Error",
+        description: "Failed to login with Slack",
+        variant: "destructive",
+      })
     }
   }
 
@@ -131,6 +150,22 @@ export function Login() {
               </Button>
             </form>
 
+            <Separator />
+
+            <div className="text-center">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="sm:w-56 sm:h-11 md:w-64 md:h-12" 
+                onClick={handleSlackLogin}
+                disabled={isLoading}
+              >
+                <img src="src/assets/Slack_icon.svg" alt="Slack Logo" className="sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                <p className="sm:text-sm md:text-md ml-4 Lato font-bold">
+                  {isLoading ? "Signing in..." : "Sign in with Slack"}
+                </p>
+              </Button>
+            </div>
             {/* Demo Credentials
             <div className="pt-4 border-t">
               <p className="text-sm text-gray-600 text-center mb-3">Demo Accounts:</p>

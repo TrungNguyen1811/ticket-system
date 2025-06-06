@@ -1,170 +1,157 @@
-"use client"
+// "use client"
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import type { AuthUser, LoginCredentials, AuthContextType } from "@/types/auth"
-import { authService } from "@/services/auth.service"
-import { useToast } from "@/components/ui/use-toast"
+// import type React from "react"
+// import { createContext, useContext, useState, useEffect } from "react"
+// import type { AuthUser, LoginCredentials, AuthContextType } from "@/types/auth"
+// import { authService } from "@/services/auth.service"
+// import { useToast } from "@/components/ui/use-toast"
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+import { createContext, useContext, useEffect } from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useToast } from '@/components/ui/use-toast';
 
-interface AuthProviderProps {
-  children: React.ReactNode
+interface AuthContextType {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  user: any;
+  login: () => void;
+  logout: () => void;
+  getAccessToken: () => Promise<string | undefined>;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const { toast } = useToast()
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  // Check for existing session on mount
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { 
+    isAuthenticated, 
+    isLoading, 
+    user, 
+    loginWithRedirect, 
+    logout: auth0Logout,
+    getAccessTokenSilently 
+  } = useAuth0();
+  const { toast } = useToast();
+
+  const login = async () => {
+    try {
+      await loginWithRedirect({
+        appState: { returnTo: window.location.pathname }
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to login",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const logout = () => {
+    auth0Logout({
+      logoutParams: {
+        returnTo: window.location.origin
+      }
+    });
+  };
+
+  const getAccessToken = async () => {
+    try {
+      const token = await getAccessTokenSilently();
+      console.log('Got new token:', token ? 'Token received' : 'No token');
+      // Store token in localStorage
+      localStorage.setItem('auth_token', token);
+      return token;
+    } catch (error) {
+      console.error('Error getting access token:', error);
+      return undefined;
+    }
+  };
+
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("auth_token")
+    console.log('Auth state changed:', { isAuthenticated, isLoading, hasUser: !!user });
+    
+    const initializeAuth = async () => {
+      // If still loading, wait
+      if (isLoading) {
+        console.log('Auth0 is still loading, waiting...');
+        return;
+      }
 
-      if (token) {
+      // If authenticated, update token and user info
+      if (isAuthenticated && user) {
+        console.log('User is authenticated, updating session...');
         try {
-          // Verify token with backend and get current user
-          const userData = await authService.getCurrentUser()
-          console.log(userData)
-          setUser(userData)
-          setIsAuthenticated(true)
+          const token = await getAccessToken();
+          if (token) {
+            localStorage.setItem('user', JSON.stringify(user));
+            (window as any).auth0 = {
+              getAccessTokenSilently
+            };
+            console.log('Session updated successfully');
+          } else {
+            console.error('Failed to get token');
+          }
         } catch (error) {
-          // Token is invalid, clear it
-          localStorage.removeItem("auth_token")
-          localStorage.removeItem("refresh_token")
-          localStorage.removeItem("auth_user")
-          console.warn("Invalid token, cleared auth data")
+          console.error('Error updating session:', error);
+        }
+      } 
+      // If not authenticated and not loading, check if we need to clear session
+      else if (!isLoading) {
+        console.log('Not authenticated, checking stored session...');
+        const storedToken = localStorage.getItem('auth_token');
+        const storedUser = localStorage.getItem('user');
+        
+        // Only clear if we have no stored data
+        if (!storedToken || !storedUser) {
+          console.log('No stored session found, clearing...');
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+          delete (window as any).auth0;
+        } else {
+          console.log('Found stored session, keeping it for now');
         }
       }
+    };
 
-      setIsLoading(false)
-    }
+    initializeAuth();
+  }, [isAuthenticated, isLoading, user, getAccessTokenSilently]);
 
-    checkAuth()
-  }, [])
-
-  // Auto-refresh token before expiry
+  // Add a separate effect to handle token refresh
   useEffect(() => {
-    const token = localStorage.getItem("auth_token")
+    if (isAuthenticated && user) {
+      const refreshInterval = setInterval(async () => {
+        try {
+          await getAccessToken();
+          console.log('Token refreshed successfully');
+        } catch (error) {
+          console.error('Error refreshing token:', error);
+        }
+      }, 1000 * 60 * 30); // Refresh every 30 minutes
 
-    if (token && user) {
-      // Set up token refresh interval (refresh every 14 minutes if token expires in 15 minutes)
-      const refreshInterval = setInterval(
-        async () => {
-          try {
-            const { token: newToken, refreshToken: newRefreshToken } = await authService.refreshToken()
-            localStorage.setItem("auth_token", newToken)
-
-            if (newRefreshToken) {
-              localStorage.setItem("refresh_token", newRefreshToken)
-            }
-          } catch (error) {
-            console.warn("Token refresh failed:", error)
-            logout()
-          }
-        },
-        14 * 60 * 1000,
-      ) // 14 minutes
-
-      return () => clearInterval(refreshInterval)
+      return () => clearInterval(refreshInterval);
     }
-  }, [user])
+  }, [isAuthenticated, user]);
 
-  const login = async (credentials: LoginCredentials): Promise<void> => {
-    setIsLoading(true)
-    try {
-      const mockResponse = await authService.login(credentials)
-  
-      localStorage.setItem("auth_token", mockResponse.token)
-      localStorage.setItem("auth_user", JSON.stringify(mockResponse.user))
-      if (mockResponse.refreshToken) {
-        localStorage.setItem("refresh_token", mockResponse.refreshToken)
-      }
-  
-      setUser(mockResponse.user)
-      setIsAuthenticated(true)
-    } catch (error) {
-      throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }
-  
-
-  const logout = async () => {
-    try {
-      // Call logout API to invalidate token on server
-      await authService.logout()
-    } catch (error) {
-      console.warn("Logout API call failed:", error)
-    } finally {
-      // Clear local storage regardless of API call result
-      localStorage.removeItem("auth_token")
-      localStorage.removeItem("refresh_token")
-      localStorage.removeItem("auth_user")
-      setUser(null)
-      setIsAuthenticated(false)
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      })
-    }
-  }
-
-  const value: AuthContextType = {
-    user,
-    login,
-    logout,
-    isLoading,
-    isAuthenticated 
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        isLoading,
+        user,
+        login,
+        logout,
+        getAccessToken,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-// // Mock login function for demo - replace with actual API call
-// async function mockLogin(credentials: LoginCredentials) {
-//   // Simulate API delay
-//   await new Promise((resolve) => setTimeout(resolve, 1000))
-
-//   const mockCredentials = [
-//     { email: "admin@example.com", password: "admin123", userId: "user1" },
-//     { email: "manager@example.com", password: "manager123", userId: "user4" },
-//     { email: "staff@example.com", password: "staff123", userId: "user2" },
-//   ]
-
-//   const mockUsers = [
-//     { id: "user1", name: "John Admin", email: "admin@example.com", role: "Admin" as const },
-//     { id: "user4", name: "Lisa Manager", email: "manager@example.com", role: "Manager" as const },
-//     { id: "user2", name: "Sarah Staff", email: "staff@example.com", role: "Staff" as const },
-//   ]
-
-//   const mockCred = mockCredentials.find(
-//     (cred) => cred.email === credentials.email && cred.password === credentials.password,
-//   )
-
-//   if (!mockCred) {
-//     throw new Error("Invalid email or password")
-//   }
-
-//   const userData = mockUsers.find((u) => u.id === mockCred.userId)
-//   if (!userData) {
-//     throw new Error("User not found")
-//   }
-
-//   return {
-//     user: userData,
-//     token: `mock_token_${Date.now()}`,
-//     refreshToken: `mock_refresh_${Date.now()}`,
-//   }
-// }
-
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context
+  return context;
 }

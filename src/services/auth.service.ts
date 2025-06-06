@@ -28,6 +28,15 @@ class AuthService {
     }
   }
 
+  async loginWithSlack(): Promise<void> {
+    try {
+      const response = await api.get("/auth/slack/login")
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  }
+
   // Logout user
   async logout(): Promise<void> {
     try {
