@@ -38,7 +38,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Calendar,
+  Calendar as CalendarIcon,
   Filter,
   File,
   ChevronDown,
@@ -46,13 +46,6 @@ import {
   AlertTriangle,
   Trash
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
@@ -62,9 +55,6 @@ import { DataResponse, Response } from "@/types/reponse"
 import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { useInfiniteQuery } from "@tanstack/react-query"
-import { useInView } from "react-intersection-observer"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import commentService from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
@@ -74,53 +64,7 @@ import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 
-
-
-// Mock attachments for demo
-const MOCK_ATTACHMENTS = [
-  {
-    id: "att1",
-    filename: "screenshot.png",
-    size: 1240000,
-    type: "image/png",
-    created_at: "2025-06-01T10:30:00Z",
-    user_id: "user1",
-  },
-  {
-    id: "att2",
-    filename: "error_log.txt",
-    size: 45000,
-    type: "text/plain",
-    created_at: "2025-06-01T11:15:00Z",
-    user_id: "user2",
-  },
-  {
-    id: "att3",
-    filename: "system_report.pdf",
-    size: 2800000,
-    type: "application/pdf",
-    created_at: "2025-06-02T09:20:00Z",
-    user_id: "user3",
-  },
-  {
-    id: "att4",
-    filename: "database_backup.sql",
-    size: 8500000,
-    type: "application/sql",
-    created_at: "2025-06-02T14:45:00Z",
-    user_id: "user2",
-  },
-  {
-    id: "att5",
-    filename: "user_manual.docx",
-    size: 3700000,
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    created_at: "2025-06-03T08:10:00Z",
-    user_id: "user4",
-  },
-]
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
 function isDescriptionClamped(text: string, maxLines = 4) {
@@ -162,6 +106,19 @@ export default function TicketDetail() {
   const [isViewingLogs, setIsViewingLogs] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
+  const [date, setDate] = useState<Date | undefined>(
+    new Date(2025, 5, 12)
+  )
+  const [commentDateRange, setCommentDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  })
+  const [logDateRange, setLogDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  })
+  const [commentSort, setCommentSort] = useState<"newest" | "oldest">("newest")
+  const [logActionType, setLogActionType] = useState<"all" | "status" | "assignment" | "comment">("all")
   const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
@@ -184,6 +141,13 @@ export default function TicketDetail() {
     queryKey: ["ticket-logs", id],
     queryFn: () => logService.getTicketLogs(id || ""),
   })
+
+  const { data: commentsData } = useQuery<Response<DataResponse<Comment[]>>>({
+    queryKey: ["ticket-comments", id],
+    queryFn: () => commentService.getCommentsTicket(id || ""),
+  })
+
+  const comments = commentsData?.data.data || []
 
   // Download attachment
   const downloadAttachment = useMutation({
@@ -520,12 +484,6 @@ export default function TicketDetail() {
               </Link>
             </Button>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={() => setDialogOpen("comment")}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Add Comment
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -570,7 +528,7 @@ export default function TicketDetail() {
                     </div>
                   <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
                     <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
+                      <CalendarIcon className="h-4 w-4 mr-1" />
                       Created {formatDate(ticket.data.created_at)}
                     </div>
                     <div className="flex items-center">
@@ -926,19 +884,39 @@ export default function TicketDetail() {
           </CardHeader>
           <CardContent>
             {!isViewingLogs ? (
-              <CommentList ticketId={id || ""}/>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" onClick={() => setDialogOpen("comment")}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Add Comment
+                    </Button>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {comments.length} comments
+                  </Badge>
+                </div>
+                <CommentList ticketId={id || ""}/>
+              </div>
             ) : (
-              isLoadingLogs ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <div className="space-y-4">
+                <div className="flex items-center justify-end">                 
+                  <Badge variant="outline" className="text-xs">
+                    {logsData?.data.data.length || 0} logs
+                  </Badge>
                 </div>
-              ) : isErrorLogs ? (
-                <div className="text-center p-4 text-red-500">
-                  Failed to load audit logs
-                </div>
-              ) : (
-                <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
-              )
+                {isLoadingLogs ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : isErrorLogs ? (
+                  <div className="text-center p-4 text-red-500">
+                    Failed to load audit logs
+                  </div>
+                ) : (
+                  <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

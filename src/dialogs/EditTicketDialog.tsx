@@ -61,7 +61,7 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Edit Ticket</DialogTitle>
+          <DialogTitle>Quick Edit</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -90,7 +90,7 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Updating..." : "Update Ticket"}
+              {loading ? "Updating..." : "Update"}
             </Button>
           </DialogFooter>
         </form>
