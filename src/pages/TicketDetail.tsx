@@ -254,7 +254,7 @@ export default function TicketDetail() {
     updateTicketMutation.mutate({
       id,
       data: {
-        status: status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed",
+        status: status as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed",
         _method: "PUT"
       }
     })

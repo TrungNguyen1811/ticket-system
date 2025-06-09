@@ -1,4 +1,4 @@
-export const TICKET_STATUSES = ["new", "in_progress", "waiting", "assigned", "complete", "force_closed"] as const
+export const TICKET_STATUSES = ["new", "in_progress", "pending", "assigned", "complete", "force_closed"] as const
 
 export const COLORS = {
   primary: "#4F46E5",
@@ -13,7 +13,7 @@ export const COLORS = {
 export const STATUS_OPTIONS = [
   { value: "new", label: "Open", color: "blue" },
   { value: "in_progress", label: "In Progress", color: "yellow" },
-  { value: "waiting", label: "Waiting", color: "orange" },
+  { value: "pending", label: "Pending", color: "orange" },
   // { value: "assigned", label: "Assigned", color: "purple" },
   { value: "complete", label: "Complete", color: "green" },
   { value: "force_closed", label: "Cancelled", color: "red" },
