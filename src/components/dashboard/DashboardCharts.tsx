@@ -1,0 +1,371 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { AreaChart, BarChart, DonutChart, Title, LineChart, Metric, Text } from "@tremor/react"
+import { mockTickets, mockUsers } from "@/mock/data"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState } from "react"
+import { 
+  Calendar, 
+  BarChart2, 
+  LineChart as LineChartIcon, 
+  PieChart, 
+  Activity, 
+  AreaChart as AreaChartIcon,
+  Download,
+  Filter,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff
+} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useToast } from "@/components/ui/use-toast"
+
+interface ChartData {
+  name: string
+  value: number
+}
+
+interface TimeSeriesData {
+  date: string
+  tickets: number
+  resolved: number
+  inProgress: number
+}
+
+interface StaffPerformanceData {
+  name: string
+  "Total Tickets": number
+  "Resolved": number
+  "In Progress": number
+  "Avg. Resolution Time": number
+}
+
+interface ActivityData {
+  day: string
+  hour: string
+  value: number
+}
+
+export function DashboardCharts() {
+  const { toast } = useToast()
+  const [timeRange, setTimeRange] = useState("7d")
+  const [chartType, setChartType] = useState<"area" | "line">("area")
+  const [showMetrics, setShowMetrics] = useState(true)
+  const [loading, setLoading] = useState(false)
+
+  // Process data for charts
+  const statusData: ChartData[] = [
+    { name: "Open", value: mockTickets.filter(t => t.status === "Open").length },
+    { name: "In Progress", value: mockTickets.filter(t => t.status === "In Progress").length },
+    { name: "Done", value: mockTickets.filter(t => t.status === "Done").length },
+  ]
+
+  const doneTickets = mockTickets.filter(t => t.status === "Done").length
+
+  // Mock time series data (last 7 days)
+  const timeSeriesData: TimeSeriesData[] = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date()
+    date.setDate(date.getDate() - i)
+    return {
+      date: date.toLocaleDateString(),
+      tickets: Math.floor(Math.random() * 20) + 5,
+      resolved: Math.floor(Math.random() * 15) + 3,
+      inProgress: Math.floor(Math.random() * 10) + 2,
+    }
+  }).reverse()
+
+  // Mock staff performance data
+  const staffPerformanceData: StaffPerformanceData[] = [
+    {
+      name: "John Doe",
+      "Total Tickets": 45,
+      "Resolved": 30,
+      "In Progress": 15,
+      "Avg. Resolution Time": 2.5,
+    },
+    {
+      name: "Jane Smith",
+      "Total Tickets": 38,
+      "Resolved": 25,
+      "In Progress": 13,
+      "Avg. Resolution Time": 2.1,
+    },
+    {
+      name: "Mike Johnson",
+      "Total Tickets": 52,
+      "Resolved": 40,
+      "In Progress": 12,
+      "Avg. Resolution Time": 1.8,
+    },
+  ]
+
+  // Mock activity data for the last 7 days
+  const activityData: ActivityData[] = Array.from({ length: 7 }, (_, day) => {
+    return Array.from({ length: 24 }, (_, hour) => ({
+      day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day],
+      hour: `${hour}:00`,
+      value: Math.floor(Math.random() * 10),
+    }))
+  }).flat()
+
+  const handleRefresh = () => {
+    setLoading(true)
+    // Simulate data refresh
+    setTimeout(() => {
+      setLoading(false)
+      toast({
+        title: "Data refreshed",
+        description: "Dashboard data has been updated successfully.",
+      })
+    }, 1000)
+  }
+
+  const handleExport = (format: "csv" | "json") => {
+    const data = {
+      statusData,
+      timeSeriesData,
+      staffPerformanceData,
+      activityData,
+    }
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `dashboard-data-${new Date().toISOString()}.${format}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    toast({
+      title: "Export successful",
+      description: `Dashboard data has been exported as ${format.toUpperCase()}.`,
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Chart Controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select time range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="24h">Last 24 Hours</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Last 90 Days</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant={chartType === "area" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("area")}
+            >
+              <AreaChartIcon className="h-4 w-4 mr-2" />
+              Area
+            </Button>
+            <Button
+              variant={chartType === "line" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("line")}
+            >
+              <LineChartIcon className="h-4 w-4 mr-2" />
+              Line
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMetrics(!showMetrics)}
+          >
+            {showMetrics ? (
+              <>
+                <EyeOff className="h-4 w-4 mr-2" />
+                Hide Metrics
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4 mr-2" />
+                Show Metrics
+              </>
+            )}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleExport("csv")}>
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("json")}>
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Key Metrics */}
+      {showMetrics && (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardContent className="p-6">
+              <Metric>Total Tickets</Metric>
+              <Text>Across all statuses</Text>
+              <div className="mt-2 text-2xl font-bold text-blue-600">
+                {mockTickets.length}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <Metric>Resolution Rate</Metric>
+              <Text>Last 30 days</Text>
+              <div className="mt-2 text-2xl font-bold text-green-600">
+                {Math.round((doneTickets / mockTickets.length) * 100)}%
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <Metric>Avg. Resolution Time</Metric>
+              <Text>Last 30 days</Text>
+              <div className="mt-2 text-2xl font-bold text-yellow-600">
+                2.3 days
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <Metric>Active Staff</Metric>
+              <Text>Currently assigned</Text>
+              <div className="mt-2 text-2xl font-bold text-purple-600">
+                {mockUsers.length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Tickets by Status */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <PieChart className="h-5 w-5 mr-2" />
+              Tickets by Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DonutChart
+              className="h-72"
+              data={statusData}
+              category="value"
+              index="name"
+              colors={["blue", "yellow", "green"]}
+              showAnimation={true}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Ticket Volume Over Time */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Activity className="h-5 w-5 mr-2" />
+              Ticket Volume Over Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartType === "area" ? (
+              <AreaChart
+                className="h-72"
+                data={timeSeriesData}
+                index="date"
+                categories={["tickets", "resolved", "inProgress"]}
+                colors={["blue", "green", "yellow"]}
+                showAnimation={true}
+              />
+            ) : (
+              <LineChart
+                className="h-72"
+                data={timeSeriesData}
+                index="date"
+                categories={["tickets", "resolved", "inProgress"]}
+                colors={["blue", "green", "yellow"]}
+                showAnimation={true}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Staff Performance */}
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart2 className="h-5 w-5 mr-2" />
+              Staff Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarChart
+              className="h-72"
+              data={staffPerformanceData}
+              index="name"
+              categories={["Total Tickets", "Resolved", "In Progress"]}
+              colors={["blue", "green", "yellow"]}
+              showAnimation={true}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Ticket Activity */}
+        <Card className="col-span-full">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 mr-2" />
+              Ticket Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AreaChart
+              className="h-72"
+              data={activityData}
+              index="hour"
+              categories={["value"]}
+              colors={["blue"]}
+              showAnimation={true}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+} 

@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge"
 import { Ticket, TrendingUp, Building2, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts"
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -84,6 +85,9 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Charts Section */}
+      <DashboardCharts />
 
       {/* Recent Tickets */}
       <Card>
