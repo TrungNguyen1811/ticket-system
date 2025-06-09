@@ -6,7 +6,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { SettingsIcon, Users, Bell, Shield, Database } from "lucide-react"
 
-export function Settings() {
+export default function Settings() {
   return (
     <div className="space-y-6">
       <div>

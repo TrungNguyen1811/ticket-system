@@ -25,11 +25,12 @@ import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
+import { useApiQuery } from '@/hooks/useApiQuery';
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
 
-export function Tickets() {
+export default function Tickets() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
@@ -40,7 +41,7 @@ export function Tickets() {
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
 
   // Fetch tickets with React Query
-  const { data, isLoading: isLoadingTickets, isError } = useQuery<Response<DataResponse<Ticket[]>>>({
+  const { data, isLoading: isLoadingTickets, isError } = useApiQuery<Response<DataResponse<Ticket[]>>>({
     queryKey: ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
     queryFn: () =>
       ticketService.getTickets({

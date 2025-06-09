@@ -10,7 +10,7 @@ import { mockClients } from "@/mock/data"
 import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react"
 
 
-export function Clients() {
+export default function Clients() {
   const [clients, setClients] = useState(mockClients)
   const [searchTerm, setSearchTerm] = useState("")
 

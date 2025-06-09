@@ -4,19 +4,33 @@ import { toast } from "@/components/ui/use-toast"
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001/api",
+  baseURL: import.meta.env.VITE_API_URL || "http://192.168.1.26:8080/api",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
+    "Accept": "application/json",
   },
 })
+
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any = null, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 // Request interceptor - Add auth token to requests
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Get token from localStorage
     const token = localStorage.getItem("auth_token")
-
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -56,7 +70,9 @@ api.interceptors.response.use(
 
     return response
   },
-  (error: AxiosError<{ message?: string }>) => {
+  async (error: AxiosError<{ message?: string }>) => {
+    const originalRequest = error.config;
+
     // Log error in development
     if (import.meta.env.DEV) {
       console.error("❌ API Error:", {
@@ -74,20 +90,63 @@ api.interceptors.response.use(
 
       switch (status) {
         case 401:
-          // Unauthorized - clear auth and redirect to login
-          localStorage.removeItem("auth_token")
-          localStorage.removeItem("auth_user")
-
-          // Only redirect if not already on login page
-          if (window.location.pathname !== "/login") {
-            toast({
-              title: "Session Expired",
-              description: "Please log in again to continue.",
-              variant: "destructive",
-            })
-            window.location.href = "/login"
+          if (!originalRequest) {
+            return Promise.reject(error);
           }
-          break
+
+          if (isRefreshing) {
+            // If token refresh is in progress, add request to queue
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            })
+              .then(token => {
+                if (originalRequest.headers) {
+                  originalRequest.headers.Authorization = `Bearer ${token}`;
+                }
+                return api(originalRequest);
+              })
+              .catch(err => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          isRefreshing = true;
+
+          try {
+            // Try to refresh token using Auth0
+            const auth0 = (window as any).auth0;
+            if (auth0) {
+              const newToken = await auth0.getAccessTokenSilently();
+              localStorage.setItem('auth_token', newToken);
+              
+              if (originalRequest.headers) {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              }
+              
+              processQueue(null, newToken);
+              return api(originalRequest);
+            } else {
+              // If Auth0 is not available, redirect to login
+              localStorage.removeItem("auth_token");
+              localStorage.removeItem("user");
+              
+              if (window.location.pathname !== "/login") {
+                toast({
+                  title: "Session Expired",
+                  description: "Please log in again to continue.",
+                  variant: "destructive",
+                });
+                window.location.href = "/login";
+              }
+            }
+          } catch (refreshError) {
+            processQueue(refreshError, null);
+            return Promise.reject(refreshError);
+          } finally {
+            isRefreshing = false;
+          }
+          break;
 
         case 403:
           // Forbidden
@@ -96,7 +155,7 @@ api.interceptors.response.use(
             description: "You don't have permission to perform this action.",
             variant: "destructive",
           })
-          break
+          break;
 
         case 404:
           // Not found
@@ -105,7 +164,7 @@ api.interceptors.response.use(
             description: data?.message || "The requested resource was not found.",
             variant: "destructive",
           })
-          break
+          break;
 
         case 422:
           // Validation error
@@ -114,7 +173,7 @@ api.interceptors.response.use(
             description: data?.message || "Please check your input and try again.",
             variant: "destructive",
           })
-          break
+          break;
 
         case 429:
           // Rate limit
@@ -123,7 +182,7 @@ api.interceptors.response.use(
             description: "Please wait a moment before trying again.",
             variant: "destructive",
           })
-          break
+          break;
 
         case 500:
           // Server error
@@ -132,7 +191,7 @@ api.interceptors.response.use(
             description: "Something went wrong on our end. Please try again later.",
             variant: "destructive",
           })
-          break
+          break;
 
         default:
           // Generic error
@@ -168,6 +227,7 @@ declare module "axios" {
     metadata?: {
       startTime: Date
     }
+    _retry?: boolean
   }
 }
 
