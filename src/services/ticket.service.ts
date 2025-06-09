@@ -23,7 +23,7 @@ export interface CreateTicketData {
 export interface UpdateTicketData {
   title?: string
   description?: string
-  status?: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed"
+  status?: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed"
   staff_id?: string
   _method?: "PUT"
 }

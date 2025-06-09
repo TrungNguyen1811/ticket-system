@@ -2,70 +2,43 @@
 
 import { CommandEmpty } from "@/components/ui/command"
 
-import { useState, useEffect, useRef } from "react"
-import { useParams, Link, useNavigate } from "react-router-dom"
+import { useState, useEffect} from "react"
+import { useParams, Link} from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { mockTickets, mockUsers, mockClients, mockComments, mockAuditLogs } from "@/mock/data"
-import { formatDate, getStatusColor } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
-import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
-import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
 import { useToast } from "@/components/ui/use-toast"
 import {
   ArrowLeft,
-  UserPlus,
-  RefreshCw,
   MessageSquare,
   Paperclip,
-  Save,
-  X,
-  Edit2,
-  Tag,
   Search,
   FileText,
   ImageIcon,
   Download,
   Loader2,
   Clock,
-  CheckCircle2,
   AlertCircle,
-  Calendar,
-  Filter,
-  File,
+  Calendar as CalendarIcon,
   ChevronDown,
-  ChevronUp,
+  Trash,
   AlertTriangle,
-  Trash
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation,  useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { DataResponse, Response } from "@/types/reponse"
 import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { useInfiniteQuery } from "@tanstack/react-query"
-import { useInView } from "react-intersection-observer"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import commentService from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
 import attachmentService from "@/services/attachment"
@@ -74,53 +47,8 @@ import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { useApiQuery } from "@/hooks/useApiQuery"
 
-
-
-// Mock attachments for demo
-const MOCK_ATTACHMENTS = [
-  {
-    id: "att1",
-    filename: "screenshot.png",
-    size: 1240000,
-    type: "image/png",
-    created_at: "2025-06-01T10:30:00Z",
-    user_id: "user1",
-  },
-  {
-    id: "att2",
-    filename: "error_log.txt",
-    size: 45000,
-    type: "text/plain",
-    created_at: "2025-06-01T11:15:00Z",
-    user_id: "user2",
-  },
-  {
-    id: "att3",
-    filename: "system_report.pdf",
-    size: 2800000,
-    type: "application/pdf",
-    created_at: "2025-06-02T09:20:00Z",
-    user_id: "user3",
-  },
-  {
-    id: "att4",
-    filename: "database_backup.sql",
-    size: 8500000,
-    type: "application/sql",
-    created_at: "2025-06-02T14:45:00Z",
-    user_id: "user2",
-  },
-  {
-    id: "att5",
-    filename: "user_manual.docx",
-    size: 3700000,
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    created_at: "2025-06-03T08:10:00Z",
-    user_id: "user4",
-  },
-]
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
 function isDescriptionClamped(text: string, maxLines = 4) {
@@ -138,17 +66,17 @@ function formatFileSize(bytes: number): string {
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
+
   const { toast } = useToast()
   const queryClient = useQueryClient()
+
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [attachmentSearchTerm, setAttachmentSearchTerm] = useState("")
   const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isStaffOpen, setIsStaffOpen] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<string>("")
-  const [selectedStaff, setSelectedStaff] = useState<string>("")
+  const [selectedStaff, setSelectedStaff] = useState<User | null>(null)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
   const [editedTitle, setEditedTitle] = useState("")
@@ -162,12 +90,14 @@ export default function TicketDetail() {
   const [isViewingLogs, setIsViewingLogs] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
-  const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
+
+  // Queries
+  const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useApiQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
   })
 
-  const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<User[]>>>({
+  const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useApiQuery<Response<DataResponse<User[]>>>({
     queryKey: ["users"],
     queryFn: () => userService.getUsers({
       isPaginate: false,
@@ -175,17 +105,25 @@ export default function TicketDetail() {
     }),
   })
 
-  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
+  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useApiQuery<Response<Attachment[]>>({
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   })
 
-  const { data: logsData, isLoading: isLoadingLogs, isError: isErrorLogs } = useQuery<Response<DataResponse<TicketAuditLog[]>>>({
+  const { data: logsData, isLoading: isLoadingLogs, isError: isErrorLogs } = useApiQuery<Response<DataResponse<TicketAuditLog[]>>>({
     queryKey: ["ticket-logs", id],
     queryFn: () => logService.getTicketLogs(id || ""),
   })
 
-  // Download attachment
+  const { data: commentsData } = useApiQuery<Response<DataResponse<Comment[]>>>({
+    queryKey: ["ticket-comments", id],
+    queryFn: () => commentService.getCommentsTicket(id || ""),
+  })
+
+  const comments = commentsData?.data.data || []
+
+  // Mutations
+
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
     onMutate: (attachmentId) => {
@@ -224,7 +162,6 @@ export default function TicketDetail() {
     }
   })
 
-  // Delete attachment
   const deleteAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
     onMutate: (attachmentId) => {
@@ -257,14 +194,6 @@ export default function TicketDetail() {
     }
   })
 
-  // Get ticket audit logs
-  useEffect(() => {
-    if (ticket?.data) {
-      setEditedTitle(ticket.data.title)
-      setEditedDescription(ticket.data.description)
-    }
-  }, [ticket?.data])
-
   const createComment = useMutation({
     mutationFn: (data: CommentFormData) => commentService.createComment(id || "", data),
     onSuccess: () => {
@@ -296,7 +225,7 @@ export default function TicketDetail() {
       setIsStatusOpen(false)
       setIsStaffOpen(false)
       setSelectedStatus("")
-      setSelectedStaff("")
+      setSelectedStaff(null)
     },
     onError: () => {
       toast({
@@ -304,15 +233,28 @@ export default function TicketDetail() {
         description: "Failed to update ticket",
         variant: "destructive",
       })
+      setIsStatusOpen(false)
+      setIsStaffOpen(false)
+      setSelectedStatus("")
+      setSelectedStaff(null)
     },
   })
+
+
+  // Handlers
+  useEffect(() => {
+    if (ticket?.data) {
+      setEditedTitle(ticket.data.title)
+      setEditedDescription(ticket.data.description)
+    }
+  }, [ticket?.data])
 
   const handleStatusChange = (status: string) => {
     if (!id) return
     updateTicketMutation.mutate({
       id,
       data: {
-        status: status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed",
+        status: status as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed",
         _method: "PUT"
       }
     })
@@ -352,7 +294,6 @@ export default function TicketDetail() {
     }
   }
   
-
   // const handleUploadAttachment = async (files: FileList) => {
   //   if (!id) return
   //   try {
@@ -372,31 +313,6 @@ export default function TicketDetail() {
   //   }
   // }
 
-  // Save handlers
-  const handleSaveTitle = async () => {
-    if (!id) return
-    try {
-      await ticketService.updateTicket(id, { title: editedTitle, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      setIsEditingTitle(false)
-      toast({ title: "Success", description: "Title updated successfully" })
-    } catch {
-      toast({ title: "Error", description: "Failed to update title", variant: "destructive" })
-    }
-  }
-  const handleSaveDescription = async () => {
-    if (!id) return
-    try {
-      await ticketService.updateTicket(id, { description: editedDescription, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      setIsEditingDescription(false)
-      toast({ title: "Success", description: "Description updated successfully" })
-    } catch {
-      toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
-    }
-  }
-
-  // Auto-save title on blur or Enter
   const handleTitleBlur = async () => {
     if (!id || editedTitle.trim() === ticket?.data?.title) {
       setIsEditingTitle(false)
@@ -415,6 +331,7 @@ export default function TicketDetail() {
       setIsEditingTitle(false)
     }
   }
+
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       (e.target as HTMLInputElement).blur()
@@ -424,17 +341,32 @@ export default function TicketDetail() {
     }
   }
 
-  // Xác nhận đổi status
+  const handleSaveDescription = async () => {
+    if (!id) return
+    try {
+      await ticketService.updateTicket(id, { description: editedDescription, _method: "PUT" })
+      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
+      setIsEditingDescription(false)
+      toast({ title: "Success", description: "Description updated successfully" })
+    } catch {
+      toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
+    }
+  }
+
+
+  // Confirm handlers
   const handleStatusSelect = (status: string) => {
     setPendingStatus(status)
     setConfirmType("status")
     setConfirmDialogOpen(true)
   }
+
   const handleStaffSelect = (staffId: string) => {
     setPendingStaff(staffId)
     setConfirmType("staff")
     setConfirmDialogOpen(true)
   }
+
   const handleConfirmChange = () => {
     if (confirmType === "status" && pendingStatus) {
       handleStatusChange(pendingStatus)
@@ -446,6 +378,7 @@ export default function TicketDetail() {
     setPendingStaff(null)
     setConfirmType(null)
   }
+
   const handleCancelChange = () => {
     setConfirmDialogOpen(false)
     setPendingStatus(null)
@@ -509,7 +442,7 @@ export default function TicketDetail() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header - Fixed height */}
+      {/* Header */}
       <div className="flex-none p-6 border-b">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -518,12 +451,6 @@ export default function TicketDetail() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Tickets
               </Link>
-            </Button>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={() => setDialogOpen("comment")}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Add Comment
             </Button>
           </div>
         </div>
@@ -556,11 +483,10 @@ export default function TicketDetail() {
                           onClick={() => setIsEditingTitle(true)}
                           title="Click to edit title"
                         >
-                          {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
+                          {savingTitle ? <span className="text-sm text-gray-500">Saving...</span> : ticket.data.title}
                         </h1>
                       )}
-                    </div>
-                    
+                    </div>                    
                   </div>
                   <div className="flex items-center space-x-2">
                       <Badge variant="outline" className="text-xs font-normal">
@@ -570,7 +496,7 @@ export default function TicketDetail() {
                     </div>
                   <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
                     <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
+                      <CalendarIcon className="h-4 w-4 mr-1" />
                       Created {formatDate(ticket.data.created_at)}
                     </div>
                     <div className="flex items-center">
@@ -623,7 +549,7 @@ export default function TicketDetail() {
                           className="self-start px-0 text-blue-500 mt-1"
                           onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
                         >
-                          {showFullDescription ? "Thu gọn" : "Xem thêm"}
+                          {showFullDescription ? "Collapse" : "View more"}
                         </Button>
                       )}
                     </div>
@@ -657,22 +583,13 @@ export default function TicketDetail() {
                           aria-expanded={isStatusOpen}
                           className="w-full justify-between"
                           disabled={isLoadingUsers}
-                        >
-                          {selectedStatus ? (
-                            <div className="flex items-center">
-                              {getStatusIcon(selectedStatus)}
-                              <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                              </span>
-                            </div>
-                          ) : (
+                        >                             
                             <div className="flex items-center">
                               {getStatusIcon(ticket.data.status)}
                               <span className="ml-2">
                                 {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
                               </span>
-                            </div>
-                          )}
+                            </div>                         
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
@@ -718,8 +635,8 @@ export default function TicketDetail() {
                         >
                           {selectedStaff ? (
                             <div className="flex items-center">
-                              <UserAvatar name={selectedStaff} size="sm" />
-                              <span className="ml-2">{selectedStaff}</span>
+                              <UserAvatar name={selectedStaff.name} size="sm" />
+                              <span className="ml-2">{selectedStaff.name}</span>
                             </div>
                           ) : (
                             <div className="flex items-center">
@@ -748,7 +665,7 @@ export default function TicketDetail() {
                                     key={user.id}
                                     value={user.id}
                                     onSelect={() => {
-                                      setSelectedStaff(user.id)
+                                      setSelectedStaff(user)
                                       handleStaffSelect(user.id)
                                     }}
                                   >
@@ -926,19 +843,39 @@ export default function TicketDetail() {
           </CardHeader>
           <CardContent>
             {!isViewingLogs ? (
-              <CommentList ticketId={id || ""}/>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" onClick={() => setDialogOpen("comment")}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Add Comment
+                    </Button>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {comments.length} comments
+                  </Badge>
+                </div>
+                <CommentList ticketId={id || ""}/>
+              </div>
             ) : (
-              isLoadingLogs ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <div className="space-y-4">
+                <div className="flex items-center justify-end">                 
+                  <Badge variant="outline" className="text-xs">
+                    {logsData?.data.data.length || 0} logs
+                  </Badge>
                 </div>
-              ) : isErrorLogs ? (
-                <div className="text-center p-4 text-red-500">
-                  Failed to load audit logs
-                </div>
-              ) : (
-                <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
-              )
+                {isLoadingLogs ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : isErrorLogs ? (
+                  <div className="text-center p-4 text-red-500">
+                    Failed to load audit logs
+                  </div>
+                ) : (
+                  <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -962,8 +899,8 @@ export default function TicketDetail() {
                 {confirmType === "status" && pendingStatus && (
                   <>Are you sure you want to change the status to <b>{STATUS_OPTIONS.find(s => s.value === pendingStatus)?.label}</b>?</>
                 )}
-                {confirmType === "staff" && pendingStaff && (
-                  <>Are you sure you want to assign to <b>{pendingStaff}</b>?</>
+                {confirmType === "staff" && selectedStaff && (
+                  <>Are you sure you want to assign to <b>{selectedStaff?.name}</b>?</>
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>

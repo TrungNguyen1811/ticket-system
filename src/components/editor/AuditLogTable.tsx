@@ -102,13 +102,14 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   
 
   const updateTicket = useMutation({
-    mutationFn: (data: { status?: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed"; staff_id?: string }) =>
+    mutationFn: (data: { status?: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed"; staff_id?: string }) =>
       ticketService.updateTicket(ticketId, {
         ...data,
         _method: "PUT",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
       setEditingType(null);
       setSelectedStatus("");
       setSelectedStaffId("");
@@ -128,7 +129,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     },
   });
 
-  const handleStatusChange = (status: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed") => {
+  const handleStatusChange = (status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed") => {
     updateTicket.mutate({ status });
   };
 
@@ -139,7 +140,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const deleteLog = useMutation({
     mutationFn: (logId: string) => LogService.deleteLog(logId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
       setDeletingLog(false);
       toast({
         title: "Success",
@@ -266,7 +267,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={selectedStatus}
-                onValueChange={(value: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed") => {
+                onValueChange={(value: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed") => {
                   setSelectedStatus(value);
                 }}
               >
@@ -292,7 +293,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             </Button>
             <Button 
               disabled={!selectedStatus || updateTicket.isPending} 
-              onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed")}
+              onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed")}
             >
               {updateTicket.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save

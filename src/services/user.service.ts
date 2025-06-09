@@ -2,14 +2,10 @@ import api from "@/lib/axios"
 import type { User, Client } from "@/types/user"
 import type { DataResponse, Response } from "@/types/reponse"
 
-export interface CreateUserData {
-  name: string
-  email: string
+export interface UpdateUserRoleData {
   role: "admin" | "user"
-  password: string
+  _method?: "PUT"
 }
-
-export interface UpdateUserData extends Partial<Omit<CreateUserData, "password">> {}
 
 export interface CreateClientData {
   name: string
@@ -28,6 +24,25 @@ export interface ParamsUser {
   search?: string
 }
 
+export interface UserFilters {
+  role?: string
+  client_id?: string
+  staff_id?: string
+  holder_id?: string
+  search?: string
+  page?: number
+  limit?: number
+  sort_by?: string
+  sort_order?: "asc" | "desc"
+  isPaginate?: boolean
+}
+
+export interface CreateUserData {
+  email: string
+  name: string
+  role: 'admin' | 'user'
+}
+
 class UserService {
   // Users
   async getUsers(params: ParamsUser): Promise<Response<DataResponse<User[]>>> {
@@ -42,6 +57,16 @@ class UserService {
   async getUser(id: string): Promise<User> {
     try {
       const response = await api.get<User>(`/users/${id}`)
+      return response.data
+    } catch (error) {
+      throw error
+    }
+  }
+
+  //update user role
+  async updateUserRole(id: string, data: UpdateUserRoleData): Promise<Response<User>> {
+    try {
+      const response = await api.post<Response<User>>(`/users/${id}`, data)
       return response.data
     } catch (error) {
       throw error

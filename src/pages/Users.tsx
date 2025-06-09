@@ -6,47 +6,117 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { Search, MoreHorizontal, Users as UsersIcon } from "lucide-react"
+import { Search, MoreHorizontal, Users as UsersIcon, UserCog, AlertTriangle } from "lucide-react"
 import type { User } from "@/types/user"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { userService } from "@/services/user.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { useToast } from "@/components/ui/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Loader2 } from "lucide-react"
+import { useDebounce } from "@/hooks/useDebouce"
 
+type UserRole = "admin" | "user"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+const ROLE_OPTIONS = [
+  { value: "admin" as const, label: "Admin", description: "Full system access and control" },
+  { value: "user" as const, label: "User", description: "Standard user access" },
+]
 
 export default function Users() {
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedRole, setSelectedRole] = useState<string>("")
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+  const [selectedRole, setSelectedRole] = useState<UserRole | "all">("all")
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)  
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false)
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [newRole, setNewRole] = useState<UserRole | "">("")
 
   // Fetch users with React Query
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["users", currentPage, itemsPerPage, searchTerm, selectedRole],
+    queryKey: ["users", currentPage, itemsPerPage, debouncedSearchTerm, selectedRole],
     queryFn: () =>
       userService.getUsers({
         limit: itemsPerPage,
         page: currentPage,
         isPaginate: true,
         role: selectedRole === "all" ? undefined : selectedRole,
-        search: searchTerm,
+        search: debouncedSearchTerm,
       }),
   })
 
+  // Update role mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: (data: { userId: string; role: UserRole; _method: "PUT" }) =>
+      userService.updateUserRole(data.userId, { role: data.role, _method: data._method }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast({
+        title: "Role updated",
+        description: "User role has been updated successfully.",
+      })
+      setIsRoleDialogOpen(false)
+      setIsConfirmDialogOpen(false)
+      setSelectedUser(null)
+      setNewRole("")
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update user role. Please try again.",
+        variant: "destructive",
+      })
+    },
+  })
 
+  const handleRoleUpdate = (user: User) => {
+    setSelectedUser(user)
+    setNewRole((user.role as UserRole) || "")
+    setIsRoleDialogOpen(true)
+  }
+
+  const handleConfirmRoleUpdate = () => {
+    if (selectedUser && newRole) {
+      updateRoleMutation.mutate({
+        userId: selectedUser.id,
+        role: newRole as UserRole,
+        _method: "PUT",
+      })
+    }
+  }
 
   const getRoleColor = (role: string) => {
     switch (role) {
       case "admin":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-      case "manager":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100"
-      case "staff":
+      case "user":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
@@ -78,7 +148,7 @@ export default function Users() {
                   className="pl-10"
                 />
               </div>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <Select value={selectedRole} onValueChange={(value: UserRole | "all") => setSelectedRole(value)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
@@ -120,6 +190,7 @@ export default function Users() {
                     <TableRow className="bg-muted/50">
                       <TableHead>User</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Updated At</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -137,6 +208,7 @@ export default function Users() {
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                        <TableCell className="text-muted-foreground">{user.updated_at}</TableCell>
                         <TableCell>
                           {user.role && (
                             <Badge className={getRoleColor(user.role)} variant="secondary">
@@ -151,6 +223,17 @@ export default function Users() {
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleRoleUpdate(user)}>
+                                <UserCog className="h-4 w-4 mr-2" />
+                                Update Role
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600">
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                Deactivate User
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
                       </TableRow>
@@ -234,6 +317,88 @@ export default function Users() {
           )}
         </CardContent>
       </Card>
+
+      {/* Role Update Dialog */}
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update User Role</DialogTitle>
+            <DialogDescription>
+              Change the role for {selectedUser?.name}. This will affect their system permissions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={newRole} onValueChange={(value: UserRole | "") => setNewRole(value)}  >
+                <SelectTrigger className="h-14">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-medium">{role.label}</span>
+                        <span className="text-xs text-muted-foreground">{role.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setIsRoleDialogOpen(false)
+                setIsConfirmDialogOpen(true)
+              }}
+              disabled={!newRole || newRole === selectedUser?.role}
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will change {selectedUser?.name}'s role from{" "}
+              <Badge variant="secondary" className={getRoleColor(selectedUser?.role || "")}>
+                {selectedUser?.role}
+              </Badge>{" "}
+              to{" "}
+              <Badge variant="secondary" className={getRoleColor(newRole)}>
+                {newRole}
+              </Badge>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRoleUpdate}
+              disabled={updateRoleMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {updateRoleMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Role"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
