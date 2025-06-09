@@ -108,7 +108,8 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
         _method: "PUT",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
       setEditingType(null);
       setSelectedStatus("");
       setSelectedStaffId("");
@@ -139,7 +140,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const deleteLog = useMutation({
     mutationFn: (logId: string) => LogService.deleteLog(logId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
       setDeletingLog(false);
       toast({
         title: "Success",

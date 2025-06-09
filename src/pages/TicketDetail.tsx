@@ -583,22 +583,13 @@ export default function TicketDetail() {
                           aria-expanded={isStatusOpen}
                           className="w-full justify-between"
                           disabled={isLoadingUsers}
-                        >
-                          {selectedStatus ? (
-                            <div className="flex items-center">
-                              {getStatusIcon(selectedStatus)}
-                              <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                              </span>
-                            </div>
-                          ) : (
+                        >                             
                             <div className="flex items-center">
                               {getStatusIcon(ticket.data.status)}
                               <span className="ml-2">
                                 {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
                               </span>
-                            </div>
-                          )}
+                            </div>                         
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
