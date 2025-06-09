@@ -18,7 +18,7 @@ import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, L
 import { Link } from "react-router-dom"
 import type { Ticket } from "@/types/ticket"
 import type { Response, DataResponse } from "@/types/reponse"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useDebounce } from "@/hooks/useDebouce"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
@@ -39,16 +40,18 @@ export default function Tickets() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+
 
   // Fetch tickets with React Query
   const { data, isLoading: isLoadingTickets, isError } = useApiQuery<Response<DataResponse<Ticket[]>>>({
-    queryKey: ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
+    queryKey: ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
     queryFn: () =>
       ticketService.getTickets({
         limit: itemsPerPage,
         page: currentPage,
         status: selectedStatus === "all" ? undefined : selectedStatus,
-        search: searchTerm,
+        search: debouncedSearchTerm,
       }),
   })
 
@@ -227,7 +230,7 @@ export default function Tickets() {
                 <Input
                   placeholder="Search tickets..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)  }
                   className="pl-10"
                 />
               </div>
@@ -342,7 +345,7 @@ export default function Tickets() {
                                 }}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
-                                Edit Ticket
+                                Quick Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {

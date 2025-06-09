@@ -11,8 +11,6 @@ export interface Comment {
     attachments?: Attachment[]
     user?: User
   }
-
-  
   
 export interface DataComment {
   attachments?: File[]

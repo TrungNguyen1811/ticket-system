@@ -2,60 +2,43 @@
 
 import { CommandEmpty } from "@/components/ui/command"
 
-import { useState, useEffect, useRef } from "react"
-import { useParams, Link, useNavigate } from "react-router-dom"
+import { useState, useEffect} from "react"
+import { useParams, Link} from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { mockTickets, mockUsers, mockClients, mockComments, mockAuditLogs } from "@/mock/data"
-import { formatDate, getStatusColor } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
-import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
-import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
 import { useToast } from "@/components/ui/use-toast"
 import {
   ArrowLeft,
-  UserPlus,
-  RefreshCw,
   MessageSquare,
   Paperclip,
-  Save,
-  X,
-  Edit2,
-  Tag,
   Search,
   FileText,
   ImageIcon,
   Download,
   Loader2,
   Clock,
-  CheckCircle2,
   AlertCircle,
   Calendar as CalendarIcon,
-  Filter,
-  File,
   ChevronDown,
-  ChevronUp,
+  Trash,
   AlertTriangle,
-  Trash
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation,  useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { DataResponse, Response } from "@/types/reponse"
 import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import commentService from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
 import attachmentService from "@/services/attachment"
@@ -64,6 +47,7 @@ import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
+import { useApiQuery } from "@/hooks/useApiQuery"
 
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
@@ -82,17 +66,17 @@ function formatFileSize(bytes: number): string {
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
+
   const { toast } = useToast()
   const queryClient = useQueryClient()
+
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [attachmentSearchTerm, setAttachmentSearchTerm] = useState("")
   const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isStaffOpen, setIsStaffOpen] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<string>("")
-  const [selectedStaff, setSelectedStaff] = useState<string>("")
+  const [selectedStaff, setSelectedStaff] = useState<User | null>(null)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
   const [editedTitle, setEditedTitle] = useState("")
@@ -106,25 +90,14 @@ export default function TicketDetail() {
   const [isViewingLogs, setIsViewingLogs] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
-  const [date, setDate] = useState<Date | undefined>(
-    new Date(2025, 5, 12)
-  )
-  const [commentDateRange, setCommentDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
-  })
-  const [logDateRange, setLogDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
-  })
-  const [commentSort, setCommentSort] = useState<"newest" | "oldest">("newest")
-  const [logActionType, setLogActionType] = useState<"all" | "status" | "assignment" | "comment">("all")
-  const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
+
+  // Queries
+  const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useApiQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
   })
 
-  const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<User[]>>>({
+  const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useApiQuery<Response<DataResponse<User[]>>>({
     queryKey: ["users"],
     queryFn: () => userService.getUsers({
       isPaginate: false,
@@ -132,24 +105,25 @@ export default function TicketDetail() {
     }),
   })
 
-  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
+  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useApiQuery<Response<Attachment[]>>({
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   })
 
-  const { data: logsData, isLoading: isLoadingLogs, isError: isErrorLogs } = useQuery<Response<DataResponse<TicketAuditLog[]>>>({
+  const { data: logsData, isLoading: isLoadingLogs, isError: isErrorLogs } = useApiQuery<Response<DataResponse<TicketAuditLog[]>>>({
     queryKey: ["ticket-logs", id],
     queryFn: () => logService.getTicketLogs(id || ""),
   })
 
-  const { data: commentsData } = useQuery<Response<DataResponse<Comment[]>>>({
+  const { data: commentsData } = useApiQuery<Response<DataResponse<Comment[]>>>({
     queryKey: ["ticket-comments", id],
     queryFn: () => commentService.getCommentsTicket(id || ""),
   })
 
   const comments = commentsData?.data.data || []
 
-  // Download attachment
+  // Mutations
+
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
     onMutate: (attachmentId) => {
@@ -188,7 +162,6 @@ export default function TicketDetail() {
     }
   })
 
-  // Delete attachment
   const deleteAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
     onMutate: (attachmentId) => {
@@ -221,14 +194,6 @@ export default function TicketDetail() {
     }
   })
 
-  // Get ticket audit logs
-  useEffect(() => {
-    if (ticket?.data) {
-      setEditedTitle(ticket.data.title)
-      setEditedDescription(ticket.data.description)
-    }
-  }, [ticket?.data])
-
   const createComment = useMutation({
     mutationFn: (data: CommentFormData) => commentService.createComment(id || "", data),
     onSuccess: () => {
@@ -260,7 +225,7 @@ export default function TicketDetail() {
       setIsStatusOpen(false)
       setIsStaffOpen(false)
       setSelectedStatus("")
-      setSelectedStaff("")
+      setSelectedStaff(null)
     },
     onError: () => {
       toast({
@@ -268,8 +233,21 @@ export default function TicketDetail() {
         description: "Failed to update ticket",
         variant: "destructive",
       })
+      setIsStatusOpen(false)
+      setIsStaffOpen(false)
+      setSelectedStatus("")
+      setSelectedStaff(null)
     },
   })
+
+
+  // Handlers
+  useEffect(() => {
+    if (ticket?.data) {
+      setEditedTitle(ticket.data.title)
+      setEditedDescription(ticket.data.description)
+    }
+  }, [ticket?.data])
 
   const handleStatusChange = (status: string) => {
     if (!id) return
@@ -316,7 +294,6 @@ export default function TicketDetail() {
     }
   }
   
-
   // const handleUploadAttachment = async (files: FileList) => {
   //   if (!id) return
   //   try {
@@ -336,31 +313,6 @@ export default function TicketDetail() {
   //   }
   // }
 
-  // Save handlers
-  const handleSaveTitle = async () => {
-    if (!id) return
-    try {
-      await ticketService.updateTicket(id, { title: editedTitle, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      setIsEditingTitle(false)
-      toast({ title: "Success", description: "Title updated successfully" })
-    } catch {
-      toast({ title: "Error", description: "Failed to update title", variant: "destructive" })
-    }
-  }
-  const handleSaveDescription = async () => {
-    if (!id) return
-    try {
-      await ticketService.updateTicket(id, { description: editedDescription, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      setIsEditingDescription(false)
-      toast({ title: "Success", description: "Description updated successfully" })
-    } catch {
-      toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
-    }
-  }
-
-  // Auto-save title on blur or Enter
   const handleTitleBlur = async () => {
     if (!id || editedTitle.trim() === ticket?.data?.title) {
       setIsEditingTitle(false)
@@ -379,6 +331,7 @@ export default function TicketDetail() {
       setIsEditingTitle(false)
     }
   }
+
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       (e.target as HTMLInputElement).blur()
@@ -388,17 +341,32 @@ export default function TicketDetail() {
     }
   }
 
-  // Xác nhận đổi status
+  const handleSaveDescription = async () => {
+    if (!id) return
+    try {
+      await ticketService.updateTicket(id, { description: editedDescription, _method: "PUT" })
+      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
+      setIsEditingDescription(false)
+      toast({ title: "Success", description: "Description updated successfully" })
+    } catch {
+      toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
+    }
+  }
+
+
+  // Confirm handlers
   const handleStatusSelect = (status: string) => {
     setPendingStatus(status)
     setConfirmType("status")
     setConfirmDialogOpen(true)
   }
+
   const handleStaffSelect = (staffId: string) => {
     setPendingStaff(staffId)
     setConfirmType("staff")
     setConfirmDialogOpen(true)
   }
+
   const handleConfirmChange = () => {
     if (confirmType === "status" && pendingStatus) {
       handleStatusChange(pendingStatus)
@@ -410,6 +378,7 @@ export default function TicketDetail() {
     setPendingStaff(null)
     setConfirmType(null)
   }
+
   const handleCancelChange = () => {
     setConfirmDialogOpen(false)
     setPendingStatus(null)
@@ -473,7 +442,7 @@ export default function TicketDetail() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header - Fixed height */}
+      {/* Header */}
       <div className="flex-none p-6 border-b">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -514,11 +483,10 @@ export default function TicketDetail() {
                           onClick={() => setIsEditingTitle(true)}
                           title="Click to edit title"
                         >
-                          {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
+                          {savingTitle ? <span className="text-sm text-gray-500">Saving...</span> : ticket.data.title}
                         </h1>
                       )}
-                    </div>
-                    
+                    </div>                    
                   </div>
                   <div className="flex items-center space-x-2">
                       <Badge variant="outline" className="text-xs font-normal">
@@ -581,7 +549,7 @@ export default function TicketDetail() {
                           className="self-start px-0 text-blue-500 mt-1"
                           onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
                         >
-                          {showFullDescription ? "Thu gọn" : "Xem thêm"}
+                          {showFullDescription ? "Collapse" : "View more"}
                         </Button>
                       )}
                     </div>
@@ -676,8 +644,8 @@ export default function TicketDetail() {
                         >
                           {selectedStaff ? (
                             <div className="flex items-center">
-                              <UserAvatar name={selectedStaff} size="sm" />
-                              <span className="ml-2">{selectedStaff}</span>
+                              <UserAvatar name={selectedStaff.name} size="sm" />
+                              <span className="ml-2">{selectedStaff.name}</span>
                             </div>
                           ) : (
                             <div className="flex items-center">
@@ -706,7 +674,7 @@ export default function TicketDetail() {
                                     key={user.id}
                                     value={user.id}
                                     onSelect={() => {
-                                      setSelectedStaff(user.id)
+                                      setSelectedStaff(user)
                                       handleStaffSelect(user.id)
                                     }}
                                   >
@@ -940,8 +908,8 @@ export default function TicketDetail() {
                 {confirmType === "status" && pendingStatus && (
                   <>Are you sure you want to change the status to <b>{STATUS_OPTIONS.find(s => s.value === pendingStatus)?.label}</b>?</>
                 )}
-                {confirmType === "staff" && pendingStaff && (
-                  <>Are you sure you want to assign to <b>{pendingStaff}</b>?</>
+                {confirmType === "staff" && selectedStaff && (
+                  <>Are you sure you want to assign to <b>{selectedStaff?.name}</b>?</>
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>
