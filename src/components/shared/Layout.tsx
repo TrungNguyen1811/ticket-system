@@ -3,7 +3,7 @@
 import React from "react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Ticket, Users, Building2, Settings, Menu, X, LogOut, User } from "lucide-react"
+import { LayoutDashboard, Ticket, Users, Building2, Settings, Menu, X, LogOut, User, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/shared/UserAvatar"
@@ -14,8 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 
-const navigation = [
+const adminNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Tickets", href: "/tickets", icon: Ticket },
   { name: "Clients", href: "/clients", icon: Building2 },
@@ -32,7 +33,91 @@ export default function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const { user, logout } = useAuth()
 
-  console.log(user)
+  // Check if user is admin
+  const isAdmin = user?.role === "admin"
+
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        {/* User Header */}
+        <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+          <div className="container flex h-16 items-center justify-between">
+            <div className="flex items-center gap-6">
+              <Link to="/" className="flex items-center space-x-2">
+                <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
+              </Link>
+              <nav className="hidden md:flex gap-6">
+                <Link
+                  to="/tickets"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-indigo-600",
+                    location.pathname === "/tickets" ? "text-indigo-600" : "text-gray-600"
+                  )}
+                >
+                  My Tickets
+                </Link>
+                <Link
+                  to="/profile"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-indigo-600",
+                    location.pathname === "/profile" ? "text-indigo-600" : "text-gray-600"
+                  )}
+                >
+                  Profile
+                </Link>
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">3</Badge>
+              </Button>
+              
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center space-x-2">
+                      <UserAvatar name={user.name} size="sm" />
+                      <div className="hidden md:block text-left">
+                        <p className="text-sm font-medium">{user.name}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem>
+                      <User className="h-4 w-4 mr-2" />
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="text-red-600">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button asChild>
+                  <Link to="/login">Sign in</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* User Main Content */}
+        <main className="flex-1">
+          <div className="container py-6">
+            {children}
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Admin Layout
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Mobile sidebar */}
@@ -46,7 +131,7 @@ export default function Layout({ children }: LayoutProps) {
             </Button>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => {
+            {adminNavigation.map((item) => {
               const isActive = location.pathname === item.href
               return (
                 <Link
@@ -80,7 +165,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <nav className="mt-8 flex-1 flex flex-col divide-y divide-gray-200 overflow-y-auto">
             <div className="px-2 space-y-1">
-              {navigation.map((item) => {
+              {adminNavigation.map((item) => {
                 const isActive = location.pathname === item.href
                 return (
                   <Link
@@ -146,25 +231,31 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex-1 px-4 flex justify-between items-center">
             <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
             {user && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2">
-                    <UserAvatar name={user.name} size="sm" />
-                    <span className="hidden sm:block text-sm font-medium">{user.name}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <User className="h-4 w-4 mr-2" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-red-600">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">3</Badge>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center space-x-2">
+                      <UserAvatar name={user.name} size="sm" />
+                      <span className="hidden sm:block text-sm font-medium">{user.name}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <User className="h-4 w-4 mr-2" />
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="text-red-600">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
           </div>
         </div>

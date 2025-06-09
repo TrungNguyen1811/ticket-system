@@ -1,15 +1,15 @@
 import api from "@/lib/axios"
 import { LoginSchema } from "@/schema/auth.schema"
-import type { AuthUser } from "@/types/auth"
+import type { User } from "@/types/user"
 import type { Response } from "@/types/reponse"
 
 export interface LoginResponse {
-  user: AuthUser
+  user: User
   token: string
   refreshToken?: string
 }
 export interface MeResponse {
-  user: AuthUser
+  user: User
 }
 
 export interface RefreshTokenResponse {
@@ -70,7 +70,7 @@ class AuthService {
   }
 
   // Get current user profile
-  async getCurrentUser(): Promise<AuthUser> {
+  async getCurrentUser(): Promise<User> {
     try {
       const response = await api.get<Response<MeResponse>>("/auth/me")
       return response.data.data.user
