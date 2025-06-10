@@ -67,6 +67,9 @@ import { userService } from "@/services/user.service"
 import { useTicketMutations } from "@/hooks/useTicketMutations"
 import { useTicketRealtime } from "@/hooks/useTicketRealtime"
 import { useCommentRealtime } from "@/hooks/useCommentRealtime"
+import { useLogRealtime } from "@/hooks/userLogRealtime"
+import { useTicketComments } from "@/hooks/useTicketComments"
+import { useTicketLogs } from "@/hooks/useTicketLogs"
 
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
@@ -109,13 +112,28 @@ export default function TicketDetail() {
   const [isViewingLogs, setIsViewingLogs] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
-  const [commentPage, setCommentPage] = useState(1)
-  const [commentPerPage, setCommentPerPage] = useState(10)
+
   const mutations = useTicketMutations()
+
+  // Use custom hooks for comments and logs
+  const { 
+    comments,
+    pagination: commentsPagination,
+    isLoading: isLoadingComments,
+    page: commentPage,
+    perPage: commentPerPage,
+    setPage: setCommentPage,
+    setPerPage: setCommentPerPage
+  } = useTicketComments({ ticketId: id || "" })
+
+  const {
+    logs,
+    pagination: logsPagination,
+    isLoading: isLoadingTicketLogs
+  } = useTicketLogs({ ticketId: id || "" })
 
   const handleTicketUpdate = useCallback((data: Ticket) => {
     try {
-      console.log("handleTicketUpdate", data)
       queryClient.setQueryData<Response<Ticket>>(
         ["ticket", id],
         (oldData) => {
@@ -131,24 +149,55 @@ export default function TicketDetail() {
     }
   }, [queryClient, id]);
   
-  // Subscribe to ticket updates only when a ticket is selected
+  // Subscribe to ticket updates
   useTicketRealtime(id || "", handleTicketUpdate);
 
   const handleCommentUpdate = useCallback((data: Comment) => {
-    console.log("handleCommentUpdate", data);
-    queryClient.setQueryData(
-      ["ticket-comments", id, commentPage, commentPerPage],
-      (oldData: DataResponse<Comment[]> | undefined) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          data: [...oldData.data, data]
-        };
-      }
+    // Get current comments data to check pagination
+    const currentData = queryClient.getQueryData<Response<DataResponse<Comment[]>>>(
+      ["ticket-comments", id, commentPage, commentPerPage]
     );
+
+    // Only update if we're on the first page (newest comments)
+    const shouldUpdate = currentData?.data && commentPage === 1;
+
+    if (shouldUpdate) {
+      console.log("handleCommentUpdate", data);
+      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+        ["ticket-comments", id, commentPage, commentPerPage],
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          
+          // Check if comment already exists
+          const commentExists = oldData.data.data.some(comment => comment.id === data.id);
+          if (commentExists) return oldData;
+
+          const newTotal = (oldData.data.pagination?.total || 0) + 1;
+          
+          // Add new comment at the beginning since backend sorts by newest first
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: [data, ...oldData.data.data],
+              pagination: {
+                ...oldData.data.pagination,
+                total: newTotal,
+                page: oldData.data.pagination?.page || 1,
+                perPage: oldData.data.pagination?.perPage || commentPerPage
+              }
+            }
+          };
+        }
+      );
+    } else {
+      // Just invalidate the query to refetch data
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
+    }
   }, [queryClient, id, commentPage, commentPerPage]);
 
   useCommentRealtime(id || "", handleCommentUpdate);
+
 
   const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
@@ -167,18 +216,6 @@ export default function TicketDetail() {
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   })
-
-  const { data: logsData, isLoading: isLoadingLogs, isError: isErrorLogs } = useQuery<Response<DataResponse<TicketAuditLog[]>>>({
-    queryKey: ["ticket-logs", id],
-    queryFn: () => logService.getTicketLogs(id || ""),
-  })
-
-  const { data: commentsData } = useQuery<Response<DataResponse<Comment[]>>>({
-    queryKey: ["ticket-comments", id],
-    queryFn: () => commentService.getCommentsTicket(id || ""),
-  })
-
-  const comments = commentsData?.data.data || []
 
   // Download attachment
   const downloadAttachment = useMutation({
@@ -883,25 +920,33 @@ export default function TicketDetail() {
                     {comments.length} comments
                   </Badge>
                 </div>
-                <CommentList ticketId={id || ""} pagination={{page: commentPage, perPage: commentPerPage, setPage: (page: number) => setCommentPage(page), setPerPage: (perPage: number) => setCommentPerPage(perPage) }} />
+                <CommentList 
+                  ticketId={id || ""} 
+                  pagination={{
+                    page: commentPage,
+                    perPage: commentPerPage,
+                    setPage: setCommentPage,
+                    setPerPage: setCommentPerPage
+                  }} 
+                />
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-end">                 
                   <Badge variant="outline" className="text-xs">
-                    {logsData?.data.data.length || 0} logs
+                    {logs.length} logs
                   </Badge>
                 </div>
-                {isLoadingLogs ? (
+                {isLoadingTicketLogs ? (
                   <div className="flex items-center justify-center p-4">
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
-                ) : isErrorLogs ? (
-                  <div className="text-center p-4 text-red-500">
-                    Failed to load audit logs
-                  </div>
                 ) : (
-                  <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff?.id || ""} />
+                  <AuditLogTable 
+                    logs={logs} 
+                    ticketId={id || ""} 
+                    currentUserId={ticket.data.staff?.id || ""} 
+                  />
                 )}
               </div>
             )}

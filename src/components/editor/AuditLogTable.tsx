@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -25,6 +25,8 @@ import { userService } from "@/services/user.service";
 import { UserAvatar } from "../shared/UserAvatar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { useInView } from "react-intersection-observer";
+import { useTicketLogs } from "@/hooks/useTicketLogs";
+import { Response, DataResponse } from "@/types/reponse";
 
 interface AuditLogTableProps {
   logs: TicketAuditLog[];
@@ -99,7 +101,71 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       });
     }
   }, [getUsers.data?.data.data]);
-  
+
+  const handleLogUpdate = useCallback((data: TicketAuditLog) => {
+    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+      ["ticket-logs", ticketId],
+      (oldData: Response<DataResponse<TicketAuditLog[]>> | undefined) => {
+        if (!oldData?.data) return oldData;
+
+        // Check if log already exists
+        const logExists = oldData.data.data.some((log: TicketAuditLog) => log.id === data.id);
+        if (logExists) {
+          // Update existing log
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: oldData.data.data.map((log: TicketAuditLog) => 
+                log.id === data.id ? data : log
+              )
+            }
+          };
+        }
+
+        // Add new log at the beginning
+        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: [data, ...oldData.data.data],
+            pagination: {
+              page: oldPagination.page,
+              perPage: oldPagination.perPage,
+              total: oldPagination.total + 1
+            }
+          }
+        };
+      }
+    );
+  }, [queryClient, ticketId]);
+
+  const handleLogDelete = useCallback((deletedLogId: string) => {
+    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+      ["ticket-logs", ticketId],
+      (oldData: Response<DataResponse<TicketAuditLog[]>> | undefined) => {
+        if (!oldData?.data) return oldData;
+
+        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.filter((log: TicketAuditLog) => log.id !== deletedLogId),
+            pagination: {
+              page: oldPagination.page,
+              perPage: oldPagination.perPage,
+              total: oldPagination.total - 1
+            }
+          }
+        };
+      }
+    );
+  }, [queryClient, ticketId]);
+
+  // Subscribe to realtime updates
+  useTicketLogs({ ticketId });
 
   const updateTicket = useMutation({
     mutationFn: (data: { status?: "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed"; staff_id?: string }) =>
@@ -108,7 +174,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
         _method: "PUT",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
+      // No need to invalidate queries as we're handling updates in realtime
       setEditingType(null);
       setSelectedStatus("");
       setSelectedStaffId("");
@@ -139,7 +205,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const deleteLog = useMutation({
     mutationFn: (logId: string) => LogService.deleteLog(logId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs"] });
+      // No need to invalidate queries as we're handling deletes in realtime
       setDeletingLog(false);
       toast({
         title: "Success",
