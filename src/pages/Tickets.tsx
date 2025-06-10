@@ -89,7 +89,7 @@ export default function Tickets() {
   }, [queryClient]);
 
   // Subscribe to ticket updates only when a ticket is selected
-  useTicketRealtime(selectedTicket?.id, handleTicketUpdate);
+  useTicketRealtime(selectedTicket?.id || "", handleTicketUpdate);
 
   // Handle Pusher reconnection
   useEffect(() => {
@@ -491,7 +491,7 @@ export default function Tickets() {
           <AssignStaffDialog
             open={dialogOpen === "assign"}
             onOpenChange={(open) => !open && setDialogOpen(null)}
-            currentStaffId={selectedTicket.staff_id}
+            currentStaffId={selectedTicket.staff?.id || ""}
             onSubmit={handleStaffAssign}
           />
 

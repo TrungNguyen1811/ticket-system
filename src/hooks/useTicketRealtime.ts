@@ -1,28 +1,23 @@
-
 import { useEffect } from "react"
-import { usePusher } from "@/contexts/PusherContext"
+import { echo } from "@/lib/echo"
 import type { Ticket } from "@/types/ticket"
 
-export function useTicketRealtime(
-  ticketId: string | undefined,
-  onUpdate: (ticket: Ticket) => void
-) {
-  const { pusher } = usePusher()
-
-  useEffect(() => {
-    if (!pusher || !ticketId) return
-
-    const channel = pusher.subscribe(`tickets.${ticketId}`)
-
-    const handleUpdate = (data: Ticket) => {
-      onUpdate(data)
-    }
-
-    channel.bind(`tickets.${ticketId}`, handleUpdate)
-
-    return () => {
-      channel.unbind(`tickets.${ticketId}`, handleUpdate)
-      pusher.unsubscribe(`tickets.${ticketId}`)
-    }
-  }, [pusher, ticketId, onUpdate])
+export const useTicketRealtime = (ticketId: string, onUpdate: (ticket: Ticket) => void) => {
+    useEffect(() => {
+      if (!ticketId) return
+    
+      console.log(`✅ Subscribing to tickets.${ticketId}`)
+    
+      const channel = echo.channel(`tickets.${ticketId}`)
+    
+      channel.listen('.ticket.updated', (data: Ticket ) => {
+        console.log("📬 Event received:", data)
+        onUpdate(data)
+      })
+    
+      return () => {
+        console.log(`⛔ Leaving tickets.${ticketId}`)
+        echo.leave(`tickets.${ticketId}`)
+      }
+    }, [ticketId, onUpdate])
 }

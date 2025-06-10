@@ -2,7 +2,7 @@
 
 import { CommandEmpty } from "@/components/ui/command"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams, Link, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -56,7 +56,7 @@ import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import commentService from "@/services/comment.services"
+import { commentService } from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
 import attachmentService from "@/services/attachment"
 import logService from "@/services/log.service"
@@ -64,6 +64,9 @@ import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
+import { useTicketMutations } from "@/hooks/useTicketMutations"
+import { useTicketRealtime } from "@/hooks/useTicketRealtime"
+import { useCommentRealtime } from "@/hooks/useCommentRealtime"
 
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
@@ -106,19 +109,47 @@ export default function TicketDetail() {
   const [isViewingLogs, setIsViewingLogs] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
-  const [date, setDate] = useState<Date | undefined>(
-    new Date(2025, 5, 12)
-  )
-  const [commentDateRange, setCommentDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
-  })
-  const [logDateRange, setLogDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
-  })
-  const [commentSort, setCommentSort] = useState<"newest" | "oldest">("newest")
-  const [logActionType, setLogActionType] = useState<"all" | "status" | "assignment" | "comment">("all")
+  const [commentPage, setCommentPage] = useState(1)
+  const [commentPerPage, setCommentPerPage] = useState(10)
+  const mutations = useTicketMutations()
+
+  const handleTicketUpdate = useCallback((data: Ticket) => {
+    try {
+      console.log("handleTicketUpdate", data)
+      queryClient.setQueryData<Response<Ticket>>(
+        ["ticket", id],
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: { ...oldData.data, ...data }
+          };
+        }
+      );
+    } catch (error) {
+      console.error("Failed to update ticket cache:", error);
+    }
+  }, [queryClient, id]);
+  
+  // Subscribe to ticket updates only when a ticket is selected
+  useTicketRealtime(id || "", handleTicketUpdate);
+
+  const handleCommentUpdate = useCallback((data: Comment) => {
+    console.log("handleCommentUpdate", data);
+    queryClient.setQueryData(
+      ["ticket-comments", id, commentPage, commentPerPage],
+      (oldData: DataResponse<Comment[]> | undefined) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          data: [...oldData.data, data]
+        };
+      }
+    );
+  }, [queryClient, id, commentPage, commentPerPage]);
+
+  useCommentRealtime(id || "", handleCommentUpdate);
+
   const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
     queryKey: ["ticket", id],
     queryFn: () => ticketService.getTicket(id || ""),
@@ -229,51 +260,10 @@ export default function TicketDetail() {
     }
   }, [ticket?.data])
 
-  const createComment = useMutation({
-    mutationFn: (data: CommentFormData) => commentService.createComment(id || "", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
-      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
-      toast({
-        title: "Success",
-        description: "Comment added successfully",
-      })
-      setDialogOpen(null)
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    }
-  })  
-
-  const updateTicketMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) => ticketService.updateTicket(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      toast({
-        title: "Success",
-        description: "Ticket updated successfully",
-      })
-      setIsStatusOpen(false)
-      setIsStaffOpen(false)
-      setSelectedStatus("")
-      setSelectedStaff("")
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update ticket",
-        variant: "destructive",
-      })
-    },
-  })
 
   const handleStatusChange = (status: string) => {
     if (!id) return
-    updateTicketMutation.mutate({
+    mutations.changeStatus.mutate({
       id,
       data: {
         status: status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed",
@@ -284,7 +274,7 @@ export default function TicketDetail() {
 
   const handleStaffAssign = (staffId: string) => {
     if (!id) return
-    updateTicketMutation.mutate({
+    mutations.assign.mutate({
       id,
       data: {
         staff_id: staffId,
@@ -306,7 +296,7 @@ export default function TicketDetail() {
         })
       }
   
-      createComment.mutate(formData as CommentFormData)
+      mutations.createComment.mutate({ id: id || "", data: formData as CommentFormData })
     } catch (error) {
       toast({
         title: "Error",
@@ -316,7 +306,6 @@ export default function TicketDetail() {
     }
   }
   
-
   // const handleUploadAttachment = async (files: FileList) => {
   //   if (!id) return
   //   try {
@@ -337,24 +326,18 @@ export default function TicketDetail() {
   // }
 
   // Save handlers
-  const handleSaveTitle = async () => {
-    if (!id) return
-    try {
-      await ticketService.updateTicket(id, { title: editedTitle, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      setIsEditingTitle(false)
-      toast({ title: "Success", description: "Title updated successfully" })
-    } catch {
-      toast({ title: "Error", description: "Failed to update title", variant: "destructive" })
-    }
-  }
+
   const handleSaveDescription = async () => {
     if (!id) return
     try {
-      await ticketService.updateTicket(id, { description: editedDescription, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
+      mutations.update.mutate({
+        id,
+        data: {
+          description: editedDescription,
+          _method: "PUT"
+        }
+      })
       setIsEditingDescription(false)
-      toast({ title: "Success", description: "Description updated successfully" })
     } catch {
       toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
     }
@@ -368,9 +351,13 @@ export default function TicketDetail() {
     }
     setSavingTitle(true)
     try {
-      await ticketService.updateTicket(id, { title: editedTitle, _method: "PUT" })
-      queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-      toast({ title: "Success", description: "Title updated successfully" })
+      mutations.update.mutate({
+        id,
+        data: {
+          title: editedTitle,
+          _method: "PUT"
+        }
+      })
     } catch {
       toast({ title: "Error", description: "Failed to update title", variant: "destructive" })
       setEditedTitle(ticket?.data?.title || "")
@@ -676,8 +663,8 @@ export default function TicketDetail() {
                         >
                           {selectedStaff ? (
                             <div className="flex items-center">
-                              <UserAvatar name={selectedStaff} size="sm" />
-                              <span className="ml-2">{selectedStaff}</span>
+                              <UserAvatar name={usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"} size="sm" />
+                              <span className="ml-2">{usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"}</span>
                             </div>
                           ) : (
                             <div className="flex items-center">
@@ -896,7 +883,7 @@ export default function TicketDetail() {
                     {comments.length} comments
                   </Badge>
                 </div>
-                <CommentList ticketId={id || ""}/>
+                <CommentList ticketId={id || ""} pagination={{page: commentPage, perPage: commentPerPage, setPage: (page: number) => setCommentPage(page), setPerPage: (perPage: number) => setCommentPerPage(perPage) }} />
               </div>
             ) : (
               <div className="space-y-4">
@@ -914,7 +901,7 @@ export default function TicketDetail() {
                     Failed to load audit logs
                   </div>
                 ) : (
-                  <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff_id} />
+                  <AuditLogTable logs={logsData?.data.data || []} ticketId={id || ""} currentUserId={ticket.data.staff?.id || ""} />
                 )}
               </div>
             )}
@@ -941,7 +928,7 @@ export default function TicketDetail() {
                   <>Are you sure you want to change the status to <b>{STATUS_OPTIONS.find(s => s.value === pendingStatus)?.label}</b>?</>
                 )}
                 {confirmType === "staff" && pendingStaff && (
-                  <>Are you sure you want to assign to <b>{pendingStaff}</b>?</>
+                  <>Are you sure you want to assign to <b>{usersData?.data.data.find(user => user.id === pendingStaff)?.name || "Unassigned"}</b>?</>
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>

@@ -9,8 +9,8 @@ import {
   import Pusher from "pusher-js";
   
   const PUSHER_CONFIG = {
-    key: "fca2ee2c68825ad341b1",
-    cluster: "ap1",
+    key: import.meta.env.VITE_PUSHER_KEY,
+    cluster: import.meta.env.VITE_PUSHER_CLUSTER,
   };
   
   const RETRY_CONFIG = {
