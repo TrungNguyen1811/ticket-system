@@ -56,10 +56,6 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
         ...data,
         status: selectedStatus as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed" | undefined,
       })
-      toast({
-        title: "Success",
-        description: `Status changed to ${selectedStatus}.`,
-      })
     } catch (error) {
       toast({
         title: "Error",

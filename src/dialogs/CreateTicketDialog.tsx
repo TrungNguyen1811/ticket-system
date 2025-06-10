@@ -39,7 +39,6 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
     setLoading(true)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
       onSubmit(data)
       form.reset()
       toast({

@@ -52,10 +52,6 @@ export function AssignStaffDialog({ open, onOpenChange, currentStaffId, onSubmit
         staff_id: selectedStaffId,
         _method: "PUT"
       })
-      toast({
-        title: "Success",
-        description: "Staff assigned successfully.",
-      })
     } catch (error) {
       toast({
         title: "Error",

@@ -6,6 +6,7 @@ import { routes } from '@/routes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PageTransition } from '@/components/ui/page-transition';
 import { ThemeProvider } from './components/theme-provider';
+import { PusherProvider } from '@/contexts/PusherContext';
 
 
 // Create a component to use useRoutes hook
@@ -41,10 +42,12 @@ export default function App() {
             enableSystem
             disableTransitionOnChange
           >
-            <Router>
-              <AppRoutes />
-              <Toaster />
-            </Router>
+            <PusherProvider>
+              <Router>
+                <AppRoutes />
+                <Toaster />
+              </Router>
+            </PusherProvider>
           </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>
