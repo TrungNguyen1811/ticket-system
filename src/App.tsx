@@ -4,15 +4,23 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { routes } from '@/routes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PageTransition } from '@/components/ui/page-transition';
+import { ThemeProvider } from './components/theme-provider';
+
 
 // Create a component to use useRoutes hook
 function AppRoutes() {
   const element = useRoutes(routes);
-  return element;
+  return (
+    <PageTransition>
+      {element}
+    </PageTransition>
+  );
 }
 
 export default function App() {
   const queryClient = new QueryClient();
+
   return (
     <Auth0Provider
       domain={import.meta.env.VITE_AUTH0_DOMAIN}
@@ -27,10 +35,17 @@ export default function App() {
     >
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Router>
-            <AppRoutes />
-            <Toaster />
-          </Router>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Router>
+              <AppRoutes />
+              <Toaster />
+            </Router>
+          </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>
     </Auth0Provider>

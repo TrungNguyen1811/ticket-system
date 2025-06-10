@@ -474,7 +474,7 @@ export default function TicketDetail() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header - Fixed height */}
-      <div className="flex-none p-6 border-b">
+      <div className="flex-none border-b">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button asChild variant="ghost" size="sm">
