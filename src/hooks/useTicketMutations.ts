@@ -23,7 +23,7 @@ export const useTicketMutations = () => {
         title: "Error",
         description: error.response.data.message,
         variant: "destructive",
-      });
+      });   
     },
   });
 
@@ -79,7 +79,6 @@ export const useTicketMutations = () => {
     }),
     deleteLog: useMutation({
       mutationFn: (id: string) => logService.deleteLog(id),
-      ...toastConfig("Log deleted"),
     }),
   };
 };

@@ -65,7 +65,9 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const {
     logs,
     pagination: logsPagination,
-    isLoading: isLoadingTicketLogs
+    isLoading: isLoadingTicketLogs,
+    handleLogUpdate,
+    handleLogDelete,
   } = useTicketLogs({ ticketId: ticketId || "" })
 
   React.useEffect(() => {
@@ -131,12 +133,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     setSearchQuery("");
     setPerPage(10);
   };
-
-  const handleDeleteLog = (logId: string) => {
-    mutations.deleteLog.mutate(logId);
-    setDeletingLog(false);
-  }
-
 
   const getStatusColor = (status: string) => {
     const statusOption = STATUS_OPTIONS.find(s => s.value === status);
@@ -381,7 +377,15 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
           </AlertDialogDescription>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setDeletingLog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => handleDeleteLog(logId)}>Delete</Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                handleLogDelete(logId);
+                setDeletingLog(false);
+              }}
+            >
+              Delete
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
