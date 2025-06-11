@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { Pencil, Trash2, FileIcon, MessageSquare, MoreVertical, Loader2 } from "lucide-react";
-import CommentService from "@/services/comment.services";
+import { commentService } from "@/services/comment.services";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -23,12 +23,16 @@ import { Attachment } from "@/types/ticket";
 
 interface CommentListProps {
   ticketId: string;
+  pagination: {
+    page: number;
+    perPage: number;
+    setPage: (page: number) => void;
+    setPerPage: (perPage: number) => void;
+  };
 }
 
-export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
-  const [showPagination, setShowPagination] = useState(false);
+export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }) => {
+  const { page, perPage, setPage, setPerPage } = pagination;
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
@@ -38,7 +42,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
 
   const { data: commentsData, isLoading, isError } = useQuery<Response<DataResponse<CommentType[]>>>({
     queryKey: ["ticket-comments", ticketId, page, perPage],
-    queryFn: () => CommentService.getCommentsTicket(ticketId, { page, limit: perPage, isPaginate: true }),
+    queryFn: () => commentService.getCommentsTicket(ticketId, { page, limit: perPage, isPaginate: true }),
   });
 
   const downloadAttachment = useMutation({
@@ -69,17 +73,47 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   };
 
   const updateComment = async (commentId: string, content: string) => {
+    // Store previous data for rollback
+    const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
+      ["ticket-comments", ticketId, page, perPage]
+    );
+
+    // Optimistically update the UI
+    queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
+      ["ticket-comments", ticketId, page, perPage],
+      (oldData) => {
+        if (!oldData?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.map(comment => 
+              comment.id === commentId 
+                ? { ...comment, content } 
+                : comment
+            )
+          }
+        };
+      }
+    );
+
     try {
-      const response = await CommentService.updateComment(commentId, { content, _method: "PUT" });
+      const response = await commentService.updateComment(commentId, { content, _method: "PUT" });
       if (response.success) {
         toast({
           title: "Success",
           description: "Comment updated successfully",
         });
         setEditingCommentId(null);
-        queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId, page, perPage] });
       }
     } catch (error) {
+      // Rollback on error
+      if (previousData) {
+        queryClient.setQueryData(
+          ["ticket-comments", ticketId, page, perPage],
+          previousData
+        );
+      }
       toast({
         title: "Error",
         description: "Failed to update comment",
@@ -89,15 +123,47 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId }) => {
   };
 
   const deleteComment = async (commentId: string) => {
+    // Store previous data for rollback
+    const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
+      ["ticket-comments", ticketId, page, perPage]
+    );
+
+    // Optimistically update the UI
+    queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
+      ["ticket-comments", ticketId, page, perPage],
+      (oldData) => {
+        if (!oldData?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.filter(comment => comment.id !== commentId),
+            pagination: {
+              ...oldData.data.pagination,
+              page: oldData.data.pagination?.page || 1,
+              perPage: oldData.data.pagination?.perPage || perPage,
+              total: (oldData.data.pagination?.total || 1) - 1
+            }
+          }
+        };
+      }
+    );
+
     try {
-      await CommentService.deleteComment(commentId);
+      await commentService.deleteComment(commentId);
       setDeleteCommentId(null);
       toast({
         title: "Success",
         description: "Comment deleted successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId] });  
     } catch (error) {
+      // Rollback on error
+      if (previousData) {
+        queryClient.setQueryData(
+          ["ticket-comments", ticketId, page, perPage],
+          previousData
+        );
+      }
       toast({
         title: "Error",
         description: "Failed to delete comment",

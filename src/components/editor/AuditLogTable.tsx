@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -10,30 +10,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { TicketAuditLog } from "@/types/ticket";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Tag, Trash, UserPlus, Check } from "lucide-react";
-import { ticketService } from "@/services/ticket.service";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS_OPTIONS } from "@/lib/constants";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import LogService from "@/services/log.service";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription } from "../ui/alert-dialog";
 import { userService } from "@/services/user.service";
 import { UserAvatar } from "../shared/UserAvatar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { useInView } from "react-intersection-observer";
+import { useTicketLogs } from "@/hooks/useTicketLogs"
+import { useTicketMutations } from "@/hooks/useTicketMutations";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import { TicketAuditLog } from "@/types/ticket";
 
 interface AuditLogTableProps {
-  logs: TicketAuditLog[];
   ticketId: string;
   currentUserId: string;
 }
 
 export const AuditLogTable: React.FC<AuditLogTableProps> = ({
-  logs,
   ticketId,
   currentUserId,
 }) => {
@@ -45,14 +43,12 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [allUsers, setAllUsers] = useState<any[]>([]);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.8
   });
 
-  const getUsers = useQuery({
+  const getUsers = useApiQuery ({
     queryKey: ["users", ticketId, searchQuery, perPage],
     queryFn: () => userService.getUsers({ 
       role: "user", 
@@ -66,6 +62,12 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const totalUsers = getUsers.data?.data.pagination?.total || 0;
   const hasNextPage = allUsers.length < totalUsers;
+
+  const {
+    logs,
+    isLoading: isLoadingTicketLogs,
+    handleLogDelete,
+  } = useTicketLogs({ ticketId: ticketId || "" })
 
   React.useEffect(() => {
     if (inView && hasNextPage && !getUsers.isLoading && !isFetchingMore) {
@@ -99,62 +101,37 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       });
     }
   }, [getUsers.data?.data.data]);
-  
 
-  const updateTicket = useMutation({
-    mutationFn: (data: { status?: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed"; staff_id?: string }) =>
-      ticketService.updateTicket(ticketId, {
-        ...data,
-        _method: "PUT",
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
-      setEditingType(null);
-      setSelectedStatus("");
-      setSelectedStaffId("");
-      setSearchQuery("");
-      setPerPage(10);
-      toast({
-        title: "Success",
-        description: "Ticket updated successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update ticket",
-        variant: "destructive",
-      });
-    },
-  });
+  const mutations = useTicketMutations()
 
-  const handleStatusChange = (status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed") => {
-    updateTicket.mutate({ status });
+
+  const handleStatusChange = (status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
+    mutations.changeStatus.mutate({
+      data: {
+        status,
+        _method: "PUT"
+      },
+      id: ticketId,
+    });
+    setEditingType(null);
+    setSelectedStatus("");
+    setSearchQuery("");
+    setPerPage(10); 
   };
 
   const handleStaffChange = (staffId: string) => {
-    updateTicket.mutate({ staff_id: staffId });
+    mutations.assign.mutate({
+      data: {
+        staff_id: staffId,
+        _method: "PUT"
+      },
+      id: ticketId,
+    });
+    setEditingType(null);
+    setSelectedStaffId("");
+    setSearchQuery("");
+    setPerPage(10);
   };
-
-  const deleteLog = useMutation({
-    mutationFn: (logId: string) => LogService.deleteLog(logId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
-      setDeletingLog(false);
-      toast({
-        title: "Success",
-        description: "Log deleted successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete log",
-        variant: "destructive",
-      });
-    },
-  });
 
   const getStatusColor = (status: string) => {
     const statusOption = STATUS_OPTIONS.find(s => s.value === status);
@@ -177,7 +154,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {logs.map((log) => (
+          {logs?.data?.data?.map((log: TicketAuditLog) => (
             <TableRow key={log.id}>
               <TableCell className="font-medium truncate max-w-[120px]" title={log.holder?.name || "-"}>
                 {log.holder?.name || "-"}
@@ -210,7 +187,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
-                  {log.id === logs[0].id && (
+                  {log.id === logs?.data?.data?.[0]?.id && (
                     <>
                       <Button
                         variant="ghost"
@@ -267,7 +244,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={selectedStatus}
-                onValueChange={(value: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed") => {
+                onValueChange={(value: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
                   setSelectedStatus(value);
                 }}
               >
@@ -292,10 +269,10 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               Cancel
             </Button>
             <Button 
-              disabled={!selectedStatus || updateTicket.isPending} 
-              onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed")}
+              disabled={!selectedStatus || mutations.changeStatus.isPending} 
+              onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived")}
             >
-              {updateTicket.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {mutations.changeStatus.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save
             </Button>
           </DialogFooter>
@@ -373,7 +350,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               Cancel
             </Button>
             <Button 
-              disabled={!selectedStaffId || updateTicket.isPending} 
+              disabled={!selectedStaffId || mutations.assign.isPending} 
               onClick={() => {
                 handleStaffChange(selectedStaffId);
                 setEditingType(null);
@@ -382,7 +359,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 setPerPage(10);
               }}
             >
-              {updateTicket.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {mutations.assign.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save
             </Button>
           </DialogFooter>
@@ -399,7 +376,15 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
           </AlertDialogDescription>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setDeletingLog(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => deleteLog.mutate(logId)}>Delete</Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                handleLogDelete(logId);
+                setDeletingLog(false);
+              }}
+            >
+              Delete
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

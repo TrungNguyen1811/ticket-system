@@ -23,4 +23,4 @@ class LogService {
   }
 }
 
-export default new LogService()
+export const logService = new LogService()

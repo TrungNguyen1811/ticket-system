@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,15 +18,19 @@ import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, L
 import { Link } from "react-router-dom"
 import type { Ticket } from "@/types/ticket"
 import type { Response, DataResponse } from "@/types/reponse"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
-import { useApiQuery } from '@/hooks/useApiQuery';
-import { useDebounce } from "@/hooks/useDebouce"
+import { useApiQuery } from '@/hooks/useApiQuery'
+import { useTicketMutations } from "@/hooks/useTicketMutations"
+import { usePusher } from "@/contexts/PusherContext"
+import { usePusherSubscription } from "@/hooks/usePusherSubscription"
+import { useTicketRealtime } from "@/hooks/useTicketRealtime"
+
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
@@ -34,171 +38,170 @@ const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
 export default function Tickets() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { isConnected, pusher } = usePusher()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStatus, setSelectedStatus] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
-  const debouncedSearchTerm = useDebounce(searchTerm, 500)
 
+  // Use custom mutations hook
+  const mutations = useTicketMutations()
+
+  // Store the latest query parameters in a ref
+  const queryParamsRef = useRef({
+    currentPage,
+    itemsPerPage,
+    searchTerm,
+    selectedStatus
+  });
+
+  // Update ref when params change
+  useEffect(() => {
+    queryParamsRef.current = {
+      currentPage,
+      itemsPerPage,
+      searchTerm,
+      selectedStatus
+    };
+  }, [currentPage, itemsPerPage, searchTerm, selectedStatus]);
+
+  // Handle ticket updates with Pusher
+  const handleTicketUpdate = useCallback((data: Ticket) => {
+    const { currentPage, itemsPerPage, searchTerm, selectedStatus } = queryParamsRef.current;
+    
+    queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
+      ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
+      (oldData) => {
+        if (!oldData?.data?.pagination) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.map((ticket) =>
+              ticket.id === data.id ? { ...ticket, ...data } : ticket
+            )
+          }
+        };
+      }
+    );
+  }, [queryClient]);
+
+  // Subscribe to ticket updates only when a ticket is selected
+  useTicketRealtime(selectedTicket?.id || "", handleTicketUpdate);
+
+  // Handle Pusher reconnection
+  useEffect(() => {
+    if (!pusher) return;
+
+    const handleReconnect = () => {
+      toast({
+        title: "Reconnected",
+        description: "Realtime updates reconnected",
+      });
+      // Only invalidate if we're disconnected for too long
+      if (!isConnected) {
+        queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      }
+    };
+
+    pusher.connection.bind("connected", handleReconnect);
+
+    return () => {
+      pusher.connection.unbind("connected", handleReconnect);
+    };
+  }, [pusher, toast, queryClient, isConnected]);
 
   // Fetch tickets with React Query
   const { data, isLoading: isLoadingTickets, isError } = useApiQuery<Response<DataResponse<Ticket[]>>>({
-    queryKey: ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
+    queryKey: ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
     queryFn: () =>
       ticketService.getTickets({
         limit: itemsPerPage,
         page: currentPage,
         status: selectedStatus === "all" ? undefined : selectedStatus,
-        search: debouncedSearchTerm,
+        search: searchTerm,
       }),
   })
 
-  // Mutations
-  const createTicketMutation = useMutation({
-    mutationFn: ticketService.createTicket,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] })
-      toast({
-        title: "Success",
-        description: "Ticket created successfully",
-      })
-      setDialogOpen(null)
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    },
-  })
-
-  const updateTicketMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) => ticketService.updateTicket(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] })
-      toast({
-        title: "Success",
-        description: "Ticket updated successfully",
-      })
-      setDialogOpen(null)
-      setSelectedTicket(null)
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    },
-  })
-
-  const deleteTicketMutation = useMutation({
-    mutationFn: (id: string) => ticketService.deleteTicket(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] })
-      toast({
-        title: "Success",
-        description: "Ticket deleted successfully",
-      })
-      setDialogOpen(null)
-      setSelectedTicket(null)
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    },
-  })
-
-  const assignStaffMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) =>
-      ticketService.updateTicket(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] })
-      toast({
-        title: "Success",
-        description: "Staff assigned successfully",
-      })
-      setDialogOpen(null)
-      setSelectedTicket(null)
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    },
-  })
-
-  const changeStatusMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateTicketData }) =>
-      ticketService.updateTicket(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] })
-      toast({
-        title: "Success",
-        description: "Status updated successfully",
-      })
-      setDialogOpen(null)
-      setSelectedTicket(null)
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    },
-  })
-
-  // Mutations handlers
+  // Mutation handlers
   const handleCreateTicket = (ticketData: CreateTicketSchema) => {
-    createTicketMutation.mutate(ticketData)
-  }
+    mutations.create.mutate(ticketData);
+  };
 
   const handleEditTicket = (ticketData: UpdateTicketSchema) => {
-    if (!selectedTicket) return
-    updateTicketMutation.mutate({ id: selectedTicket.id, data: {
-      ...ticketData,
-      _method: "PUT"
-    } })
-  }
+    if (!selectedTicket) return;
+    mutations.update.mutate(
+      {
+        id: selectedTicket.id,
+        data: {
+          ...ticketData,
+          _method: "PUT"
+        }
+      },
+      {
+        onSuccess: () => {
+          setDialogOpen(null);
+          setSelectedTicket(null);
+        }
+      }
+    );
+  };
 
   const handleStatusChange = (data: UpdateTicketSchema) => {
-    if (!selectedTicket) return
-    changeStatusMutation.mutate({ id: selectedTicket.id, data: {
-      ...data,
-      _method: "PUT"
-    } })
-  }
+    if (!selectedTicket) return;
+    mutations.changeStatus.mutate(
+      {
+        id: selectedTicket.id,
+        data: {
+          ...data,
+          _method: "PUT"
+        }
+      },
+      {
+        onSuccess: () => {
+          setDialogOpen(null);
+          setSelectedTicket(null);
+        }
+      }
+    );
+  };
 
   const handleStaffAssign = (data: UpdateTicketSchema) => {
-    if (!selectedTicket) return
-    assignStaffMutation.mutate({ id: selectedTicket.id, data: {
-      ...data,
-      _method: "PUT"
-    } })
-  }
+    if (!selectedTicket) return;
+    mutations.assign.mutate(
+      {
+        id: selectedTicket.id,
+        data: {
+          ...data,
+          _method: "PUT"
+        }
+      },
+      {
+        onSuccess: () => {
+          setDialogOpen(null);
+          setSelectedTicket(null);
+        }
+      }
+    );
+  };
 
   const handleDeleteTicket = () => {
-    if (!selectedTicket) return
-    deleteTicketMutation.mutate(selectedTicket.id)
-  }
+    if (!selectedTicket) return;
+    mutations.delete.mutate(selectedTicket.id);
+    setDialogOpen(null);
+    setSelectedTicket(null);
+  };
 
   // Loading state
   const isLoading =
     isLoadingTickets ||
-    createTicketMutation.isPending ||
-    updateTicketMutation.isPending ||
-    deleteTicketMutation.isPending ||
-    assignStaffMutation.isPending ||
-    changeStatusMutation.isPending
+    mutations.create.isPending ||
+    mutations.delete.isPending ||
+    mutations.update.isPending ||
+    mutations.assign.isPending ||
+    mutations.changeStatus.isPending;
 
   // Total pages
   const totalPages = data?.data.pagination?.total || 1
@@ -210,14 +213,18 @@ export default function Tickets() {
           <h1 className="text-3xl font-bold tracking-tight">Tickets</h1>
           <p className="text-muted-foreground">Manage and track all support tickets</p>
         </div>
-        <Button onClick={() => setDialogOpen("create")} disabled={isLoading}>
-          {createTicketMutation.isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
+            <span className="text-sm text-muted-foreground">
+              {isConnected ? "Realtime connected" : "Disconnected"}
+            </span>
+          </div>
+          <Button onClick={() => setDialogOpen("create")} disabled={isLoading}>
             <Plus className="h-4 w-4 mr-2" />
-          )}
-          New Ticket
-        </Button>
+            New Ticket
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-sm">
@@ -230,7 +237,7 @@ export default function Tickets() {
                 <Input
                   placeholder="Search tickets..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)  }
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -345,7 +352,7 @@ export default function Tickets() {
                                 }}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
-                                Quick Edit
+                                Edit Ticket
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
@@ -486,7 +493,7 @@ export default function Tickets() {
           <AssignStaffDialog
             open={dialogOpen === "assign"}
             onOpenChange={(open) => !open && setDialogOpen(null)}
-            currentStaffId={selectedTicket.staff_id}
+            currentStaffId={selectedTicket.staff?.id || ""}
             onSubmit={handleStaffAssign}
           />
 

@@ -5,9 +5,7 @@ export interface Ticket {
   client_id: string
   title: string
   description: string
-  holder_id: string
-  staff_id: string
-  status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed"
+  status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived"
   created_at: string
   updated_at: string
   client_email: string

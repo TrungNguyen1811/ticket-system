@@ -25,7 +25,6 @@ export function DeleteConfirmationDialog({
   const handleConfirm = async () => {
     setLoading(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500)) // Simulate API call
       onConfirm()
     } finally {
       setLoading(false)

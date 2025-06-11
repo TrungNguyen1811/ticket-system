@@ -15,7 +15,7 @@ async getCommentsTicket (ticketId: string, params?: ParamsComment): Promise<Resp
 }
 
 
-async createComment (ticketId: string, formData: CommentFormData): Promise<Response<DataResponse<Comment>>> {
+async createComment (ticketId: string, formData: CommentFormData): Promise<Response<Comment>> {
     try {
         const response = await api.post(`/tickets/${ticketId}/comments`, formData, {
             headers: {
@@ -47,4 +47,4 @@ async deleteComment (commentId: string): Promise<Response<DataResponse<Comment>>
 }
 }
 
-export default new CommentService()
+export const commentService = new CommentService()
