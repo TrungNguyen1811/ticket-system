@@ -54,7 +54,7 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
     try {
       onSubmit({
         ...data,
-        status: selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed" | undefined,
+        status: selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived" | undefined,
       })
     } catch (error) {
       toast({
@@ -83,7 +83,7 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
 
           <div className="space-y-2">
             <Label htmlFor="status">New Status</Label>
-            <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed" | '') }>
+            <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived" | '') }>
               <SelectTrigger>
                 <SelectValue placeholder="Select new status" />
               </SelectTrigger>
