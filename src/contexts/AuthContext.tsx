@@ -1,46 +1,45 @@
-// "use client"
+"use client";
 
-// import type React from "react"
-// import { createContext, useContext, useState, useEffect } from "react"
-// import type { AuthUser, LoginCredentials, AuthContextType } from "@/types/auth"
-// import { authService } from "@/services/auth.service"
-// import { useToast } from "@/components/ui/use-toast"
-
-import { createContext, useContext, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import { useToast } from '@/components/ui/use-toast';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useToast } from "@/components/ui/use-toast";
+import type { User } from "@/types/user";
+import { authService } from "@/services/auth.service";
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: any;
+  user: User | null;
   login: () => void;
   logout: () => void;
   getAccessToken: () => Promise<string | undefined>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { 
-    isAuthenticated, 
-    isLoading, 
-    user, 
-    loginWithRedirect, 
+  const {
+    isAuthenticated,
+    isLoading,
+    user: auth0User,
+    loginWithRedirect,
     logout: auth0Logout,
-    getAccessTokenSilently 
+    getAccessTokenSilently,
   } = useAuth0();
+
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
 
   const login = async () => {
     try {
       await loginWithRedirect({
-        appState: { returnTo: window.location.pathname }
+        appState: { returnTo: window.location.pathname },
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to login",
+        title: "Login failed",
+        description: "Could not redirect to login.",
         variant: "destructive",
       });
     }
@@ -48,89 +47,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     auth0Logout({
-      logoutParams: {
-        returnTo: window.location.origin
-      }
+      logoutParams: { returnTo: window.location.origin },
     });
+    localStorage.removeItem("auth_token");
+    setUser(null);
   };
 
-  const getAccessToken = async () => {
+  const getAccessToken = async (): Promise<string | undefined> => {
     try {
       const token = await getAccessTokenSilently();
-      console.log('Got new token:', token ? 'Token received' : 'No token');
-      // Store token in localStorage
-      localStorage.setItem('auth_token', token);
+      localStorage.setItem("auth_token", token);
       return token;
     } catch (error) {
-      console.error('Error getting access token:', error);
+      console.error("Failed to get access token:", error);
+      localStorage.removeItem("auth_token");
+      setUser(null);
       return undefined;
     }
   };
 
-  useEffect(() => {
-    console.log('Auth state changed:', { isAuthenticated, isLoading, hasUser: !!user });
-    
-    const initializeAuth = async () => {
-      // If still loading, wait
-      if (isLoading) {
-        console.log('Auth0 is still loading, pending...');
-        return;
+  const refreshUser = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("No token found");
       }
 
-      // If authenticated, update token and user info
-      if (isAuthenticated && user) {
-        console.log('User is authenticated, updating session...');
-        try {
-          const token = await getAccessToken();
-          if (token) {
-            localStorage.setItem('user', JSON.stringify(user));
-            (window as any).auth0 = {
-              getAccessTokenSilently
-            };
-            console.log('Session updated successfully');
-          } else {
-            console.error('Failed to get token');
-          }
-        } catch (error) {
-          console.error('Error updating session:', error);
-        }
-      } 
-      // If not authenticated and not loading, check if we need to clear session
-      else if (!isLoading) {
-        console.log('Not authenticated, checking stored session...');
-        const storedToken = localStorage.getItem('auth_token');
-        const storedUser = localStorage.getItem('user');
-        
-        // Only clear if we have no stored data
-        if (!storedToken || !storedUser) {
-          console.log('No stored session found, clearing...');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          delete (window as any).auth0;
-        } else {
-          console.log('Found stored session, keeping it for now');
-        }
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to fetch user from backend", error);
+      toast({
+        title: "Session error",
+        description: "Could not fetch user data. Please login again.",
+        variant: "destructive",
+      });
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      if (isLoading) return;
+
+      if (isAuthenticated && auth0User) {
+        await refreshUser();
+      } else if (!isAuthenticated) {
+        localStorage.removeItem("auth_token");
+        setUser(null);
       }
     };
 
     initializeAuth();
-  }, [isAuthenticated, isLoading, user, getAccessTokenSilently]);
+  }, [isAuthenticated, isLoading, auth0User]);
 
-  // Add a separate effect to handle token refresh
+  // Refresh token and user data every 30 mins
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const refreshInterval = setInterval(async () => {
+    if (isAuthenticated) {
+      const interval = setInterval(async () => {
         try {
           await getAccessToken();
-          console.log('Token refreshed successfully');
+          await refreshUser();
         } catch (error) {
-          console.error('Error refreshing token:', error);
+          console.error("Failed to refresh session:", error);
+          logout();
         }
-      }, 1000 * 60 * 30); // Refresh every 30 minutes
+      }, 1000 * 60 * 30); // 30 mins
 
-      return () => clearInterval(refreshInterval);
+      return () => clearInterval(interval);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated]);
 
   return (
     <AuthContext.Provider
@@ -141,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         getAccessToken,
+        refreshUser,
       }}
     >
       {children}
@@ -150,8 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

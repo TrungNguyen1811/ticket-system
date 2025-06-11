@@ -58,7 +58,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { commentService } from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
-import attachmentService from "@/services/attachment"
+import attachmentService from "@/services/attachment.service"
 import { logService } from "@/services/log.service"
 import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"

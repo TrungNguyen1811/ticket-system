@@ -7,23 +7,31 @@ import { mockTickets, mockUsers, mockClients } from "@/mock/data"
 import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
-import { Ticket, TrendingUp, Building2, Eye } from "lucide-react"
+import { Ticket as TicketIcon, TrendingUp, Building2, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts"
+import { useQuery } from "@tanstack/react-query"
+import { ticketService } from "@/services/ticket.service"
+import { DataResponse, Response } from "@/types/reponse"
+import { Ticket } from "@/types/ticket"
+
 
 export default function Dashboard() {
   const { user } = useAuth()
   const openTickets = mockTickets.filter((t) => t.status === "Open").length
   const inProgressTickets = mockTickets.filter((t) => t.status === "In Progress").length
   const doneTickets = mockTickets.filter((t) => t.status === "Done").length
-  const recentTickets = mockTickets.slice(0, 5)
+  const { data: recentTickets } = useQuery<Response<DataResponse<Ticket[]>>, Error>({
+    queryKey: ["dashboard", "recent-tickets"],
+    queryFn: () => ticketService.getTickets({ limit: 5, page: 1, status: "new" }),
+  })
 
   const stats = [
     {
       title: "Open Tickets",
       value: openTickets,
-      icon: Ticket,
+      icon: TicketIcon,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
     },
@@ -37,7 +45,7 @@ export default function Dashboard() {
     {
       title: "Completed",
       value: doneTickets,
-      icon: Ticket,
+      icon: TicketIcon,
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
@@ -54,9 +62,6 @@ export default function Dashboard() {
     return mockUsers.find((u) => u.id === userId)?.name || "Unknown"
   }
 
-  const getClientName = (clientId: string) => {
-    return mockClients.find((c) => c.id === clientId)?.name || "Unknown"
-  }
 
   return (
     <div className="space-y-6">
@@ -112,14 +117,14 @@ export default function Dashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentTickets.map((ticket) => (
+              {recentTickets?.data?.data.map((ticket) => (
                 <TableRow key={ticket.id}>
                   <TableCell className="font-medium">{ticket.title}</TableCell>
-                  <TableCell>{getClientName(ticket.client_id)}</TableCell>
+                  <TableCell>{ticket.client_email}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <UserAvatar name={getUserName(ticket.staff_id)} size="sm" />
-                      <span className="text-sm">{getUserName(ticket.staff_id)}</span>
+                      <UserAvatar name={getUserName(ticket.staff?.name || "")} size="sm" />
+                      <span className="text-sm">{getUserName(ticket.staff?.name || "")}</span>
                     </div>
                   </TableCell>
                   <TableCell>

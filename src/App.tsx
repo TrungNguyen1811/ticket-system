@@ -33,7 +33,8 @@ export default function App() {
       }}
       cacheLocation="localstorage"
       useRefreshTokens={true}
-    >
+    >              
+    <Router>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProvider
@@ -43,14 +44,13 @@ export default function App() {
             disableTransitionOnChange
           >
             <PusherProvider>
-              <Router>
                 <AppRoutes />
                 <Toaster />
-              </Router>
             </PusherProvider>
           </ThemeProvider>
         </AuthProvider>
-      </QueryClientProvider>
+      </QueryClientProvider>                  
+      </Router>
     </Auth0Provider>
   );
 }

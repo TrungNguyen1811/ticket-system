@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
 import { Comment as CommentType } from "@/types/comment";
-import AttachmentService from "@/services/attachment";
+import AttachmentService from "@/services/attachment.service";
 import { Attachment } from "@/types/ticket";
 
 interface CommentListProps {
