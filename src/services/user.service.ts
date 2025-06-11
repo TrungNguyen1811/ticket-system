@@ -24,6 +24,25 @@ export interface ParamsUser {
   search?: string
 }
 
+export interface UserFilters {
+  role?: string
+  client_id?: string
+  staff_id?: string
+  holder_id?: string
+  search?: string
+  page?: number
+  limit?: number
+  sort_by?: string
+  sort_order?: "asc" | "desc"
+  isPaginate?: boolean
+}
+
+export interface CreateUserData {
+  email: string
+  name: string
+  role: 'admin' | 'user'
+}
+
 class UserService {
   // Users
   async getUsers(params: ParamsUser): Promise<Response<DataResponse<User[]>>> {

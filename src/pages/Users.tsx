@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { Search, MoreHorizontal, Users as UsersIcon, User as UserIcon, Shield, UserCog, AlertTriangle } from "lucide-react"
+import { Search, MoreHorizontal, Users as UsersIcon, UserCog, AlertTriangle } from "lucide-react"
 import type { User } from "@/types/user"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { userService } from "@/services/user.service"
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
+import { useDebounce } from "@/hooks/useDebouce"
 
 type UserRole = "admin" | "user"
 
@@ -49,6 +50,7 @@ export default function Users() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
   const [selectedRole, setSelectedRole] = useState<UserRole | "all">("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -59,14 +61,14 @@ export default function Users() {
 
   // Fetch users with React Query
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["users", currentPage, itemsPerPage, searchTerm, selectedRole],
+    queryKey: ["users", currentPage, itemsPerPage, debouncedSearchTerm, selectedRole],
     queryFn: () =>
       userService.getUsers({
         limit: itemsPerPage,
         page: currentPage,
         isPaginate: true,
         role: selectedRole === "all" ? undefined : selectedRole,
-        search: searchTerm,
+        search: debouncedSearchTerm,
       }),
   })
 
@@ -114,9 +116,7 @@ export default function Users() {
     switch (role) {
       case "admin":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-      case "manager":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100"
-      case "staff":
+      case "user":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
@@ -330,16 +330,16 @@ export default function Users() {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={newRole} onValueChange={(value: UserRole | "") => setNewRole(value)}>
-                <SelectTrigger>
+              <Select value={newRole} onValueChange={(value: UserRole | "") => setNewRole(value)}  >
+                <SelectTrigger className="h-14">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
                   {ROLE_OPTIONS.map((role) => (
                     <SelectItem key={role.value} value={role.value}>
-                      <div className="flex flex-col">
-                        <span>{role.label}</span>
-                        <span className="text-sm text-muted-foreground">{role.description}</span>
+                      <div className="flex flex-col items-start">
+                        <span className="text-sm font-medium">{role.label}</span>
+                        <span className="text-xs text-muted-foreground">{role.description}</span>
                       </div>
                     </SelectItem>
                   ))}

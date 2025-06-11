@@ -1,8 +1,8 @@
 import { z } from "zod"
 
 export const createTicketSchema = z.object({
-  title: z.string().min(5),
-  description: z.string().min(5),
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
   client_email: z.string().email(),
 })
 export type CreateTicketSchema = z.infer<typeof createTicketSchema>
