@@ -12,11 +12,13 @@ export const useLogRealtime = (
 
     const channel = echo.channel(`tickets.${ticketId}.logs`)
 
+    // Listen for new logs
     channel.listen('.audit.logged', (data: TicketAuditLog) => {
       console.log("AuditLogCreated", data)
       onUpdate(data)
     })
 
+    // Listen for deleted logs
     if (onDelete) {
       channel.listen('.audit.logged.deleted', (data: { id: string }) => {
         console.log("AuditLogDeleted", data)

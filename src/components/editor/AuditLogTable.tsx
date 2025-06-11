@@ -66,7 +66,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     logs,
     pagination: logsPagination,
     isLoading: isLoadingTicketLogs,
-    handleLogUpdate,
     handleLogDelete,
   } = useTicketLogs({ ticketId: ticketId || "" })
 

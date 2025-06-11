@@ -68,7 +68,16 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     );
   }, [queryClient, queryKey]);
 
-  const updateLogsAfterDelete = useCallback((logId: string) => {
+  const handleLogDelete = useCallback((logId: string) => {
+    // Skip if log was already deleted
+    if (deletedLogIds.current.has(logId)) {
+      return;
+    }
+
+    // Store the previous data for rollback
+    const previousData = queryClient.getQueryData<Response<DataResponse<TicketAuditLog[]>>>(queryKey);
+
+    // Optimistically update the cache
     queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
       queryKey,
       (oldData) => {
@@ -89,19 +98,6 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
         };
       }
     );
-  }, [queryClient, queryKey]);
-
-  const handleLogDelete = useCallback((logId: string) => {
-    // Skip if log was already deleted
-    if (deletedLogIds.current.has(logId)) {
-      return;
-    }
-
-    // Store the previous data for rollback
-    const previousData = queryClient.getQueryData<Response<DataResponse<TicketAuditLog[]>>>(queryKey);
-
-    // Optimistically update the cache
-    updateLogsAfterDelete(logId);
 
     // Add to deleted logs set
     deletedLogIds.current.add(logId);
@@ -124,7 +120,7 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
         });
       }
     });
-  }, [queryClient, queryKey, mutations, handleMutationError, updateLogsAfterDelete]);
+  }, [queryClient, queryKey, mutations, handleMutationError]);
 
   // Handle websocket delete events
   const handleWebsocketDelete = useCallback((logId: string) => {
@@ -134,8 +130,27 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     }
 
     // Update UI for external deletes
-    updateLogsAfterDelete(logId);
-  }, [updateLogsAfterDelete]);
+    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+      queryKey,
+      (oldData) => {
+        if (!oldData?.data) return oldData;
+
+        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.filter(log => log.id !== logId),
+            pagination: {
+              page: oldPagination.page,
+              perPage: oldPagination.perPage,
+              total: oldPagination.total - 1
+            }
+          }
+        };
+      }
+    );
+  }, [queryClient, queryKey]);
 
   // Subscribe to realtime updates
   useLogRealtime(ticketId, handleLogUpdate, handleWebsocketDelete);
@@ -144,7 +159,6 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     logs: logsData?.data.data || [],
     pagination: logsData?.data.pagination,
     isLoading,
-    handleLogUpdate,
     handleLogDelete,
   };
 }; 
