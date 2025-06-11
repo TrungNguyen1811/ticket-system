@@ -24,6 +24,7 @@ import { useInView } from "react-intersection-observer";
 import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicketMutations } from "@/hooks/useTicketMutations";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import { TicketAuditLog } from "@/types/ticket";
 
 interface AuditLogTableProps {
   ticketId: string;
@@ -64,7 +65,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
 
   const {
     logs,
-    pagination: logsPagination,
     isLoading: isLoadingTicketLogs,
     handleLogDelete,
   } = useTicketLogs({ ticketId: ticketId || "" })
@@ -105,7 +105,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const mutations = useTicketMutations()
 
 
-  const handleStatusChange = (status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed") => {
+  const handleStatusChange = (status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
     mutations.changeStatus.mutate({
       data: {
         status,
@@ -154,7 +154,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {logs.map((log) => (
+          {logs?.data?.data?.map((log: TicketAuditLog) => (
             <TableRow key={log.id}>
               <TableCell className="font-medium truncate max-w-[120px]" title={log.holder?.name || "-"}>
                 {log.holder?.name || "-"}
@@ -187,7 +187,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               </TableCell>
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
-                  {log.id === logs[0].id && (
+                  {log.id === logs?.data?.data?.[0]?.id && (
                     <>
                       <Button
                         variant="ghost"
@@ -244,7 +244,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={selectedStatus}
-                onValueChange={(value: "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed") => {
+                onValueChange={(value: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
                   setSelectedStatus(value);
                 }}
               >
@@ -270,7 +270,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             </Button>
             <Button 
               disabled={!selectedStatus || mutations.changeStatus.isPending} 
-              onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed")}
+              onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived")}
             >
               {mutations.changeStatus.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save

@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { usePusher } from "@/contexts/PusherContext";
-
+import { Channel } from "pusher-js";
+  
 type EventCallback = (data: any) => void;
 
 export function usePusherSubscription(
@@ -10,7 +11,7 @@ export function usePusherSubscription(
 ) {
   const { pusher, isConnected } = usePusher();
   const callbackRef = useRef<EventCallback>(callback);
-
+  const [channel, setChannel] = useState<Channel | null>(null);
   // Always use latest callback
   useEffect(() => {
     callbackRef.current = callback;
@@ -27,6 +28,7 @@ export function usePusherSubscription(
     }
 
     const channel = pusher.subscribe(channelName);
+    setChannel(channel);
     channel.bind(eventName, stableCallback);
     console.log(`📡 Subscribed to ${channelName}:${eventName}`);
 
@@ -37,5 +39,5 @@ export function usePusherSubscription(
     };
   }, [pusher, isConnected, channelName, eventName, stableCallback]);
 
-  return { isConnected };
+  return { isConnected, pusher, channel };
 }

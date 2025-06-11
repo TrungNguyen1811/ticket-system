@@ -69,6 +69,8 @@ import { useTicketRealtime } from "@/hooks/useTicketRealtime"
 import { useCommentRealtime } from "@/hooks/useCommentRealtime"
 import { useTicketComments } from "@/hooks/useTicketComments"
 import { useTicketLogs } from "@/hooks/useTicketLogs"
+import { useTicket } from "@/hooks/useTicket"
+import { useTicketUpdate } from "@/hooks/useTicketUpdate"
 
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
@@ -127,29 +129,10 @@ export default function TicketDetail() {
 
   const {
     logs,
-    pagination: logsPagination,
     isLoading: isLoadingTicketLogs
   } = useTicketLogs({ ticketId: id || "" })
 
-  const handleTicketUpdate = useCallback((data: Ticket) => {
-    try {
-      queryClient.setQueryData<Response<Ticket>>(
-        ["ticket", id],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
-          return {
-            ...oldData,
-            data: { ...oldData.data, ...data }
-          };
-        }
-      );
-    } catch (error) {
-      console.error("Failed to update ticket cache:", error);
-    }
-  }, [queryClient, id]);
-  
-  // Subscribe to ticket updates
-  useTicketRealtime(id || "", handleTicketUpdate);
+  const { ticket: ticketData, isLoading: isLoadingTicket, isError: isErrorTicket, handleUpdate, handleAssign, handleChangeStatus, markAsUpdated } = useTicket({ ticketId: id || "" })
 
   const handleCommentUpdate = useCallback((data: Comment) => {
     // Get current comments data to check pagination
@@ -197,11 +180,6 @@ export default function TicketDetail() {
 
   useCommentRealtime(id || "", handleCommentUpdate);
 
-
-  const { data: ticket, isLoading: isLoadingTicket, isError: isErrorTicket } = useQuery<Response<Ticket>>({
-    queryKey: ["ticket", id],
-    queryFn: () => ticketService.getTicket(id || ""),
-  })
 
   const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<User[]>>>({
     queryKey: ["users"],
@@ -290,32 +268,27 @@ export default function TicketDetail() {
 
   // Get ticket audit logs
   useEffect(() => {
-    if (ticket?.data) {
-      setEditedTitle(ticket.data.title)
-      setEditedDescription(ticket.data.description)
+    if (ticketData) {
+      setEditedTitle(ticketData.title)
+      setEditedDescription(ticketData.description)
     }
-  }, [ticket?.data])
-
-
+  }, [ticketData])
+  
   const handleStatusChange = (status: string) => {
     if (!id) return
-    mutations.changeStatus.mutate({
-      id,
-      data: {
-        status: status as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed",
-        _method: "PUT"
-      }
+    markAsUpdated(id);
+    handleChangeStatus({
+      status: status as "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived",
+      _method: "PUT"
     })
   }
 
   const handleStaffAssign = (staffId: string) => {
     if (!id) return
-    mutations.assign.mutate({
-      id,
-      data: {
-        staff_id: staffId,
-        _method: "PUT"
-      }
+    markAsUpdated(id);
+    handleAssign({
+      staff_id: staffId,
+      _method: "PUT"
     })
   }
 
@@ -366,12 +339,10 @@ export default function TicketDetail() {
   const handleSaveDescription = async () => {
     if (!id) return
     try {
-      mutations.update.mutate({
-        id,
-        data: {
-          description: editedDescription,
-          _method: "PUT"
-        }
+      markAsUpdated(id);
+      handleUpdate({
+        description: editedDescription,
+        _method: "PUT"
       })
       setIsEditingDescription(false)
     } catch {
@@ -381,22 +352,20 @@ export default function TicketDetail() {
 
   // Auto-save title on blur or Enter
   const handleTitleBlur = async () => {
-    if (!id || editedTitle.trim() === ticket?.data?.title) {
+    if (!id || editedTitle.trim() === ticketData?.title) {
       setIsEditingTitle(false)
       return
     }
     setSavingTitle(true)
     try {
-      mutations.update.mutate({
-        id,
-        data: {
-          title: editedTitle,
-          _method: "PUT"
-        }
+      markAsUpdated(id);
+      handleUpdate({
+        title: editedTitle,
+        _method: "PUT"
       })
     } catch {
       toast({ title: "Error", description: "Failed to update title", variant: "destructive" })
-      setEditedTitle(ticket?.data?.title || "")
+      setEditedTitle(ticketData?.title || "")
     } finally {
       setSavingTitle(false)
       setIsEditingTitle(false)
@@ -406,7 +375,7 @@ export default function TicketDetail() {
     if (e.key === "Enter") {
       (e.target as HTMLInputElement).blur()
     } else if (e.key === "Escape") {
-      setEditedTitle(ticket?.data?.title || "")
+      setEditedTitle(ticketData?.title || "")
       setIsEditingTitle(false)
     }
   }
@@ -422,6 +391,7 @@ export default function TicketDetail() {
     setConfirmType("staff")
     setConfirmDialogOpen(true)
   }
+  
   const handleConfirmChange = () => {
     if (confirmType === "status" && pendingStatus) {
       handleStatusChange(pendingStatus)
@@ -434,11 +404,26 @@ export default function TicketDetail() {
     setConfirmType(null)
   }
   const handleCancelChange = () => {
-    setConfirmDialogOpen(false)
-    setPendingStatus(null)
-    setPendingStaff(null)
-    setConfirmType(null)
+    // Reset selectedStatus and selectedStaff to original values
+    if (ticketData) {
+      setSelectedStatus(ticketData.status);
+      setSelectedStaff(ticketData.staff?.id || "");
+    }
+    setConfirmDialogOpen(false);
+    setPendingStatus(null);
+    setPendingStaff(null);
+    setConfirmType(null);
   }
+
+
+
+  // Update selectedStatus when ticket data changes
+  useEffect(() => {
+    if (ticketData) {
+      setSelectedStatus(ticketData.status);
+    }
+  }, [ticketData]);
+
 
   if (isLoadingTicket) {
     return (
@@ -464,7 +449,7 @@ export default function TicketDetail() {
     )
   }
 
-  if (!ticket?.data) {
+  if (!ticketData) {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -537,7 +522,7 @@ export default function TicketDetail() {
                           onClick={() => setIsEditingTitle(true)}
                           title="Click to edit title"
                         >
-                          {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticket.data.title}
+                          {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticketData.title}
                         </h1>
                       )}
                     </div>
@@ -545,18 +530,18 @@ export default function TicketDetail() {
                   </div>
                   <div className="flex items-center space-x-2">
                       <Badge variant="outline" className="text-xs font-normal">
-                        #{ticket.data.id}
+                        #{ticketData.id}
                       </Badge>
-                      <StatusBadge status={ticket.data.status} />
+                      <StatusBadge status={ticketData.status} />
                     </div>
                   <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
                     <div className="flex items-center">
                       <CalendarIcon className="h-4 w-4 mr-1" />
-                      Created {formatDate(ticket.data.created_at)}
+                      Created {formatDate(ticketData.created_at)}
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-1" />
-                      Updated {formatDate(ticket.data.updated_at)}
+                      Updated {formatDate(ticketData.updated_at)}
                     </div>
                   </div>
                 </div>
@@ -579,7 +564,7 @@ export default function TicketDetail() {
                         <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
                           Save
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditedDescription(ticket?.data?.description || "") }}>
+                        <Button size="sm" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditedDescription(ticketData?.description || "") }}>
                           Cancel
                         </Button>
                       </div>
@@ -616,10 +601,10 @@ export default function TicketDetail() {
                   <h3 className="font-medium text-gray-900">Client Information</h3>
                   <div className="bg-gray-50 p-4 rounded-md border">
                     <div className="flex items-center space-x-3">
-                      <UserAvatar name={ticket.data.client_name} />
+                      <UserAvatar name={ticketData.client_name} />
                       <div>
-                        <p className="font-medium text-gray-900">{ticket.data.client_name}</p>
-                        <p className="text-sm text-gray-500">{ticket.data.client_email}</p>
+                        <p className="font-medium text-gray-900">{ticketData.client_name}</p>
+                        <p className="text-sm text-gray-500">{ticketData.client_email}</p>
                       </div>
                     </div>
                   </div>
@@ -648,9 +633,9 @@ export default function TicketDetail() {
                             </div>
                           ) : (
                             <div className="flex items-center">
-                              {getStatusIcon(ticket.data.status)}
+                              {getStatusIcon(ticketData.status)}
                               <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === ticket.data.status)?.label}
+                                {STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
                               </span>
                             </div>
                           )}
@@ -698,14 +683,14 @@ export default function TicketDetail() {
                           disabled={isLoadingUsers}
                         >
                           {selectedStaff ? (
-                            <div className="flex items-center">
+                          <div className="flex items-center">
                               <UserAvatar name={usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"} size="sm" />
                               <span className="ml-2">{usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"}</span>
                             </div>
                           ) : (
                             <div className="flex items-center">
-                              <UserAvatar name={ticket.data.staff?.name || "Unassigned"} size="sm" />
-                              <span className="ml-2">{ticket.data.staff?.name || "Unassigned"}</span>
+                              <UserAvatar name={ticketData.staff?.name || "Unassigned"} size="sm" />
+                              <span className="ml-2">{ticketData.staff?.name || "Unassigned"}</span>
                             </div>
                           )}
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -933,7 +918,7 @@ export default function TicketDetail() {
               <div className="space-y-4">
                 <div className="flex items-center justify-end">                 
                   <Badge variant="outline" className="text-xs">
-                    {logs.length} logs
+                    {logs?.data?.data?.length} logs
                   </Badge>
                 </div>
                 {isLoadingTicketLogs ? (
@@ -943,7 +928,7 @@ export default function TicketDetail() {
                 ) : (
                   <AuditLogTable 
                     ticketId={id || ""} 
-                    currentUserId={ticket.data.staff?.id || ""} 
+                    currentUserId={ticketData?.staff?.id || ""} 
                   />
                 )}
               </div>

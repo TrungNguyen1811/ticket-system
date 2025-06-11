@@ -27,6 +27,7 @@ export const useTicketMutations = () => {
     },
   });
 
+
   return {
     create: useMutation({
       mutationFn: (data: CreateTicketSchema) => ticketService.createTicket(data),
@@ -37,7 +38,13 @@ export const useTicketMutations = () => {
           description: "Ticket created successfully",
         });
       },
-      onError: toastConfig("Ticket created").onError,
+      onError: (error: { response: { data: { message: string } } }) => {
+        toast({
+          title: "Error",
+          description: error.response.data.message,
+          variant: "destructive",
+        });
+      },
     }),
     delete: useMutation({
       mutationFn: (id: string) => ticketService.deleteTicket(id),
@@ -48,22 +55,25 @@ export const useTicketMutations = () => {
           description: "Ticket deleted successfully",
         });
       },
-      onError: toastConfig("Ticket deleted").onError,
+      onError: (error: { response: { data: { message: string } } }) => {
+        toast({
+          title: "Error",
+          description: error.response.data.message,
+          variant: "destructive",
+        });
+      },
     }),
     update: useMutation({
       mutationFn: ({ id, data }: { id: string; data: UpdateTicketSchema }) =>
         ticketService.updateTicket(id, { ...data, _method: "PUT" }),
-      ...toastConfig("Ticket updated"), // No invalidate needed
     }),
     assign: useMutation({
       mutationFn: ({ id, data }: { id: string; data: UpdateTicketSchema }) =>
-        ticketService.updateTicket(id, { ...data, _method: "PUT" }),
-      ...toastConfig("Staff assigned"), // No invalidate needed
+        ticketService.updateTicket(id, { ...data, _method: "PUT" })
     }),
     changeStatus: useMutation({
       mutationFn: ({ id, data }: { id: string; data: UpdateTicketSchema }) =>
         ticketService.updateTicket(id, { ...data, _method: "PUT" }),
-      ...toastConfig("Status updated"), // No invalidate needed
     }),
     createComment: useMutation({
       mutationFn: ({ id, data }: { id: string; data: CommentFormData }) => commentService.createComment(id, data),

@@ -1,11 +1,11 @@
 import { useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { TicketAuditLog } from "@/types/ticket";
-import { Response, DataResponse } from "@/types/reponse";
+import { useToast } from "@/components/ui/use-toast";
 import { useLogRealtime } from "./userLogRealtime";
+import { useTicketLogMutations } from "./useTicketLogMutations";
+import { TicketAuditLog } from "@/types/ticket";
 import { logService } from "@/services/log.service";
-import { useTicketMutations } from "./useTicketMutations";
-import { toast } from "@/components/ui/use-toast";
+import { Response, DataResponse } from "@/types/reponse";
 
 interface UseTicketLogsProps {
   ticketId: string;
@@ -13,55 +13,33 @@ interface UseTicketLogsProps {
 
 export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
   const queryClient = useQueryClient();
-  const mutations = useTicketMutations();
+  const { toast } = useToast();
+  const mutations = useTicketLogMutations();
   const queryKey = ["ticket-logs", ticketId];
   const deletedLogIds = useRef<Set<string>>(new Set());
 
-  const { data: logsData, isLoading } = useQuery<Response<DataResponse<TicketAuditLog[]>>>({
+  const { data: logs, isLoading, isError } = useQuery({
     queryKey,
     queryFn: () => logService.getTicketLogs(ticketId),
   });
 
-  const handleMutationError = useCallback(({
-    error,
-    fallback,
-    queryKey,
-  }: {
-    error: { response: { data: { message: string } } };
-    fallback?: any;
-    queryKey: any[];
-  }) => {
-    if (fallback) {
-      queryClient.setQueryData(queryKey, fallback);
-    }
-    toast({
-      title: "Error",
-      description: error.response.data.message,
-      variant: "destructive",
-    });
-  }, [queryClient]);
-
   const handleLogUpdate = useCallback((data: TicketAuditLog) => {
+    // Update UI for new logs
     queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
       queryKey,
       (oldData) => {
-        if (!oldData?.data) return oldData;
-
+        if (!oldData?.data?.data) return oldData;
+        
         // Check if log already exists
         const logExists = oldData.data.data.some(log => log.id === data.id);
         if (logExists) return oldData;
 
-        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        // Add new log at the beginning
         return {
           ...oldData,
           data: {
             ...oldData.data,
-            data: [data, ...oldData.data.data],
-            pagination: {
-              page: oldPagination.page,
-              perPage: oldPagination.perPage,
-              total: oldPagination.total + 1
-            }
+            data: [data, ...oldData.data.data]
           }
         };
       }
@@ -69,7 +47,7 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
   }, [queryClient, queryKey]);
 
   const handleLogDelete = useCallback((logId: string) => {
-    // Skip if log was already deleted
+    // Skip if already deleted
     if (deletedLogIds.current.has(logId)) {
       return;
     }
@@ -81,25 +59,18 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
       queryKey,
       (oldData) => {
-        if (!oldData?.data) return oldData;
-
-        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        if (!oldData?.data?.data) return oldData;
         return {
           ...oldData,
           data: {
             ...oldData.data,
-            data: oldData.data.data.filter(log => log.id !== logId),
-            pagination: {
-              page: oldPagination.page,
-              perPage: oldPagination.perPage,
-              total: oldPagination.total - 1
-            }
+            data: oldData.data.data.filter((log) => log.id !== logId)
           }
         };
       }
     );
 
-    // Add to deleted logs set
+    // Add to deleted set
     deletedLogIds.current.add(logId);
 
     // Perform the mutation with rollback on error
@@ -111,18 +82,26 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
         });
       },
       onError: (error: Error) => {
-        // Remove from deleted logs set on error
+        // Remove from deleted set
         deletedLogIds.current.delete(logId);
-        handleMutationError({ 
-          error: error as unknown as { response: { data: { message: string } } },
-          fallback: previousData, 
-          queryKey 
+
+        // Rollback on error
+        if (previousData) {
+          queryClient.setQueryData(queryKey, previousData);
+        }
+
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
         });
       }
     });
-  }, [queryClient, queryKey, mutations, handleMutationError]);
 
-  // Handle websocket delete events
+    return { previousData };
+  }, [queryClient, queryKey, mutations, toast]);
+
+  // Handle websocket updates
   const handleWebsocketDelete = useCallback((logId: string) => {
     // Skip if we initiated this delete
     if (deletedLogIds.current.has(logId)) {
@@ -133,19 +112,12 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
       queryKey,
       (oldData) => {
-        if (!oldData?.data) return oldData;
-
-        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        if (!oldData?.data?.data) return oldData;
         return {
           ...oldData,
           data: {
             ...oldData.data,
-            data: oldData.data.data.filter(log => log.id !== logId),
-            pagination: {
-              page: oldPagination.page,
-              perPage: oldPagination.perPage,
-              total: oldPagination.total - 1
-            }
+            data: oldData.data.data.filter((log) => log.id !== logId)
           }
         };
       }
@@ -156,9 +128,10 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
   useLogRealtime(ticketId, handleLogUpdate, handleWebsocketDelete);
 
   return {
-    logs: logsData?.data.data || [],
-    pagination: logsData?.data.pagination,
+    logs,
     isLoading,
+    isError,
+    handleLogUpdate,
     handleLogDelete,
   };
 }; 
