@@ -71,6 +71,7 @@ import { useTicketComments } from "@/hooks/useTicketComments"
 import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicket } from "@/hooks/useTicket"
 import { useTicketUpdate } from "@/hooks/useTicketUpdate"
+import { useAuth } from "@/contexts/AuthContext"
 
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
@@ -92,6 +93,7 @@ export default function TicketDetail() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -163,7 +165,6 @@ export default function TicketDetail() {
               ...oldData.data,
               data: [data, ...oldData.data.data],
               pagination: {
-                ...oldData.data.pagination,
                 total: newTotal,
                 page: oldData.data.pagination?.page || 1,
                 perPage: oldData.data.pagination?.perPage || commentPerPage
@@ -173,10 +174,41 @@ export default function TicketDetail() {
         }
       );
     } else {
-      // Just invalidate the query to refetch data
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
+      // If not on page 1, just update the total count
+      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+        ["ticket-comments", id, commentPage, commentPerPage],
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              pagination: {
+                total: (oldData.data.pagination?.total || 0) + 1,
+                page: oldData.data.pagination?.page || commentPage,
+                perPage: oldData.data.pagination?.perPage || commentPerPage
+              }
+            }
+          };
+        }
+      );
     }
-  }, [queryClient, id, commentPage, commentPerPage]);
+
+    // Always show notification for new comment
+    toast({
+      title: "New Comment",
+      description: `${data.user?.name || 'Someone'} added a new comment`,
+      action: commentPage !== 1 ? (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setCommentPage(1)}
+        >
+          View Latest
+        </Button>
+      ) : undefined
+    });
+  }, [queryClient, id, commentPage, commentPerPage, toast]);
 
   useCommentRealtime(id || "", handleCommentUpdate);
 
@@ -295,6 +327,67 @@ export default function TicketDetail() {
   const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
     if (!id) return
   
+    // Only update UI if we're on the first page
+    const shouldUpdateUI = commentPage === 1;
+
+    // Store previous data for rollback if we're updating UI
+    const previousData = shouldUpdateUI ? queryClient.getQueryData<Response<DataResponse<Comment[]>>>(
+      ["ticket-comments", id, commentPage, commentPerPage]
+    ) : null;
+
+    // Create temporary comment for optimistic update
+    const tempComment: Comment = {
+      id: `temp-${Date.now()}`,
+      content: data.editorContent.html,
+      user_id: user?.id || "",
+      ticket_id: id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user: user || undefined,
+      attachments: []
+    };
+
+    // Optimistically update the UI only if we're on page 1
+    if (shouldUpdateUI) {
+      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+        ["ticket-comments", id, commentPage, commentPerPage],
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: [tempComment, ...oldData.data.data],
+              pagination: {
+                total: (oldData.data.pagination?.total || 0) + 1,
+                page: oldData.data.pagination?.page || 1,
+                perPage: oldData.data.pagination?.perPage || commentPerPage
+              }
+            }
+          };
+        }
+      );
+    } else {
+      // If not on page 1, just update the total count
+      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+        ["ticket-comments", id, commentPage, commentPerPage],
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              pagination: {
+                total: (oldData.data.pagination?.total || 0) + 1,
+                page: oldData.data.pagination?.page || commentPage,
+                perPage: oldData.data.pagination?.perPage || commentPerPage
+              }
+            }
+          };
+        }
+      );
+    }
+
     try {
       const formData = new FormData()
       formData.append("content", data.editorContent.html)
@@ -305,13 +398,55 @@ export default function TicketDetail() {
         })
       }
   
-      mutations.createComment.mutate({ id: id || "", data: formData as CommentFormData })
+      const response = await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
+      
+      // Update the temporary comment with the real one only if we're on page 1
+      if (shouldUpdateUI) {
+        queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+          ["ticket-comments", id, commentPage, commentPerPage],
+          (oldData) => {
+            if (!oldData?.data) return oldData;
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: oldData.data.data.map(comment => 
+                  comment.id === tempComment.id 
+                    ? response.data 
+                    : comment
+                )
+              }
+            };
+          }
+        );
+      }
+
+      toast({
+        title: "Success",
+        description: "Comment created successfully",
+        action: !shouldUpdateUI ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCommentPage(1)}
+          >
+            View Latest
+          </Button>
+        ) : undefined
+      });
     } catch (error) {
+      // Rollback on error only if we're on page 1
+      if (shouldUpdateUI && previousData) {
+        queryClient.setQueryData(
+          ["ticket-comments", id, commentPage, commentPerPage],
+          previousData
+        );
+      }
       toast({
         title: "Error",
         description: "Failed to add comment",
         variant: "destructive",
-      })
+      });
     }
   }
   
