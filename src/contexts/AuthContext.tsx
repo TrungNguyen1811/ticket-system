@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       // If still loading, wait
       if (isLoading) {
-        console.log('Auth0 is still loading, waiting...');
+        console.log('Auth0 is still loading, pending...');
         return;
       }
 

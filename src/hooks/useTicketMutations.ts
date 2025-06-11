@@ -5,6 +5,7 @@ import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useToast } from "@/components/ui/use-toast";
 import { CommentFormData, DataUpdateComment } from "@/types/comment";
 import { commentService } from "@/services/comment.services";
+import { logService } from "@/services/log.service";
 
 export const useTicketMutations = () => {
   const queryClient = useQueryClient();
@@ -75,6 +76,10 @@ export const useTicketMutations = () => {
     deleteComment: useMutation({
       mutationFn: (id: string) => commentService.deleteComment(id),
       ...toastConfig("Comment deleted"),
+    }),
+    deleteLog: useMutation({
+      mutationFn: (id: string) => logService.deleteLog(id),
+      ...toastConfig("Log deleted"),
     }),
   };
 };

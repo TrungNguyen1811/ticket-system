@@ -59,7 +59,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { commentService } from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
 import attachmentService from "@/services/attachment"
-import logService from "@/services/log.service"
+import { logService } from "@/services/log.service"
 import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
@@ -67,7 +67,6 @@ import { userService } from "@/services/user.service"
 import { useTicketMutations } from "@/hooks/useTicketMutations"
 import { useTicketRealtime } from "@/hooks/useTicketRealtime"
 import { useCommentRealtime } from "@/hooks/useCommentRealtime"
-import { useLogRealtime } from "@/hooks/userLogRealtime"
 import { useTicketComments } from "@/hooks/useTicketComments"
 import { useTicketLogs } from "@/hooks/useTicketLogs"
 
@@ -303,7 +302,7 @@ export default function TicketDetail() {
     mutations.changeStatus.mutate({
       id,
       data: {
-        status: status as "new" | "in_progress" | "waiting" | "assigned" | "complete" | "force_closed",
+        status: status as "new" | "in_progress" | "pending" | "assigned" | "complete" | "force_closed",
         _method: "PUT"
       }
     })
@@ -943,7 +942,6 @@ export default function TicketDetail() {
                   </div>
                 ) : (
                   <AuditLogTable 
-                    logs={logs} 
                     ticketId={id || ""} 
                     currentUserId={ticket.data.staff?.id || ""} 
                   />

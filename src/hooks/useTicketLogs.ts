@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TicketAuditLog } from "@/types/ticket";
 import { Response, DataResponse } from "@/types/reponse";
 import { useLogRealtime } from "./userLogRealtime";
-import logService from "@/services/log.service";
+import { logService } from "@/services/log.service";
 
 interface UseTicketLogsProps {
   ticketId: string;
@@ -44,34 +44,31 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     );
   }, [queryClient, ticketId]);
 
-  // Subscribe to realtime updates
-  useLogRealtime(ticketId, (data: TicketAuditLog) => {
-    // If the log has a deleted_at field, it means it was deleted
-    if (data.deleted_at) {
-      queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
-        ["ticket-logs", ticketId],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
+  const handleLogDelete = useCallback((logId: string) => {
+    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+      ["ticket-logs", ticketId],
+      (oldData) => {
+        if (!oldData?.data) return oldData;
 
-          const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: oldData.data.data.filter(log => log.id !== data.id),
-              pagination: {
-                page: oldPagination.page,
-                perPage: oldPagination.perPage,
-                total: oldPagination.total - 1
-              }
+        const oldPagination = oldData.data.pagination || { page: 1, perPage: 10, total: 0 };
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.filter(log => log.id !== logId),
+            pagination: {
+              page: oldPagination.page,
+              perPage: oldPagination.perPage,
+              total: oldPagination.total - 1
             }
-          };
-        }
-      );
-    } else {
-      handleLogUpdate(data);
-    }
-  });
+          }
+        };
+      }
+    );
+  }, [queryClient, ticketId]);
+
+  // Subscribe to realtime updates
+  useLogRealtime(ticketId, handleLogUpdate, handleLogDelete);
 
   return {
     logs: logsData?.data.data || [],

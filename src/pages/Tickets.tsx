@@ -190,6 +190,8 @@ export default function Tickets() {
   const handleDeleteTicket = () => {
     if (!selectedTicket) return;
     mutations.delete.mutate(selectedTicket.id);
+    setDialogOpen(null);
+    setSelectedTicket(null);
   };
 
   // Loading state

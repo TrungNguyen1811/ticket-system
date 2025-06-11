@@ -42,10 +42,6 @@ export function EditTicketDialog({ open, onOpenChange, ticket, onSubmit }: EditT
 
     try {
       onSubmit(data)
-      toast({
-        title: "Success",
-        description: "Ticket updated successfully.",
-      })
     } catch (error) {
       toast({
         title: "Error",
