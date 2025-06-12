@@ -34,6 +34,11 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
         const logExists = oldData.data.data.some(log => log.id === data.id);
         if (logExists) return oldData;
 
+        if(oldData.data.data.length > 0){
+          oldData.data.data[0].end_at = data.start_at;
+          oldData.data.data[0].to_status = data.status;
+        }
+
         // Add new log at the beginning
         return {
           ...oldData,

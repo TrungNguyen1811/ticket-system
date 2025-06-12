@@ -30,10 +30,10 @@ import { useTicketMutations } from "@/hooks/useTicketMutations"
 import { usePusher } from "@/contexts/PusherContext"
 import { usePusherSubscription } from "@/hooks/usePusherSubscription"
 import { useTicketRealtime } from "@/hooks/useTicketRealtime"
-
+import { SEARCH_STATUS_OPTIONS } from "@/lib/constants"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
-const STATUS_OPTIONS = ["Open", "In Progress", "Done", "Cancelled"]
+// const STATUS_OPTIONS = ["New", "In Progress", "Pending", "Assigned", "Complete", "Archived"]
 
 export default function Tickets() {
   const { toast } = useToast()
@@ -204,7 +204,7 @@ export default function Tickets() {
     mutations.changeStatus.isPending;
 
   // Total pages
-  const totalPages = data?.data.pagination?.total || 1
+  const totalPages = data?.data.pagination ? Math.ceil(data.data.pagination.total / itemsPerPage) : 1
 
   return (
     <div className="space-y-6 p-6">
@@ -247,9 +247,9 @@ export default function Tickets() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  {STATUS_OPTIONS.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
+                  {SEARCH_STATUS_OPTIONS.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>

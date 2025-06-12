@@ -11,10 +11,30 @@ export const COLORS = {
 } as const
 
 export const STATUS_OPTIONS = [
-  { value: "new", label: "Open", color: "blue" },
+  // { value: "new", label: "Open", color: "blue" },
   { value: "in_progress", label: "In Progress", color: "yellow" },
   { value: "pending", label: "pending", color: "orange" },
   // { value: "assigned", label: "Assigned", color: "purple" },
   { value: "complete", label: "Complete", color: "green" },
-  { value: "archived", label: "Cancelled", color: "red" },
+  { value: "archived", label: "Archived", color: "red" },
 ]
+
+export const SEARCH_STATUS_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "pending", label: "Pending" },
+  { value: "assigned", label: "Assigned" },
+  { value: "complete", label: "Complete" },
+  { value: "archived", label: "Archived" },
+]
+
+export const SHOW_STATUS_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "pending", label: "Pending" },
+  { value: "assigned", label: "Assigned" },
+  { value: "complete", label: "Complete" },
+  { value: "archived", label: "Archived" },
+]
+  
+ 

@@ -72,7 +72,7 @@ import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicket } from "@/hooks/useTicket"
 import { useTicketUpdate } from "@/hooks/useTicketUpdate"
 import { useAuth } from "@/contexts/AuthContext"
-
+import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
 
 // Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
 function isDescriptionClamped(text: string, maxLines = 4) {
@@ -763,14 +763,14 @@ export default function TicketDetail() {
                             <div className="flex items-center">
                               {getStatusIcon(selectedStatus)}
                               <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
+                                {SHOW_STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
                               </span>
                             </div>
                           ) : (
                             <div className="flex items-center">
                               {getStatusIcon(ticketData.status)}
                               <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
+                                {SHOW_STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
                               </span>
                             </div>
                           )}
