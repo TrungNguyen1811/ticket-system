@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +32,7 @@ import { usePusherSubscription } from "@/hooks/usePusherSubscription"
 import { useTicketRealtime } from "@/hooks/useTicketRealtime"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { SEARCH_STATUS_OPTIONS } from "@/lib/constants"
+import { useDebounce } from "@/hooks/useDebouce"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 // const STATUS_OPTIONS = ["New", "In Progress", "Pending", "Assigned", "Complete", "Archived"]
@@ -41,11 +42,26 @@ export default function Tickets() {
   const queryClient = useQueryClient()
   const { isConnected, pusher } = usePusher()
   const [searchTerm, setSearchTerm] = useState("")
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
   const [selectedStatus, setSelectedStatus] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [dialogOpen, setDialogOpen] = useState<string | null>(null)
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    // Reset to page 1 when search changes
+    setCurrentPage(1);
+  };
+
+  // Handle search input clear
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setCurrentPage(1);
+  };
 
   // Use custom mutations hook
   const mutations = useTicketMutations()
@@ -54,7 +70,7 @@ export default function Tickets() {
   const queryParamsRef = useRef({
     currentPage,
     itemsPerPage,
-    searchTerm,
+    debouncedSearchTerm,
     selectedStatus
   });
 
@@ -63,17 +79,17 @@ export default function Tickets() {
     queryParamsRef.current = {
       currentPage,
       itemsPerPage,
-      searchTerm,
+      debouncedSearchTerm,
       selectedStatus
     };
-  }, [currentPage, itemsPerPage, searchTerm, selectedStatus]);
+  }, [currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus]);
 
   // Handle ticket updates with Pusher
   const handleTicketUpdate = useCallback((data: Ticket) => {
-    const { currentPage, itemsPerPage, searchTerm, selectedStatus } = queryParamsRef.current;
+    const { currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus } = queryParamsRef.current;
     
     queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
-      ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
+      ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
       (oldData) => {
         if (!oldData?.data?.pagination) return oldData;
         return {
@@ -116,19 +132,66 @@ export default function Tickets() {
 
   // Fetch tickets with React Query
   const { data, isLoading: isLoadingTickets, isError } = useApiQuery<Response<DataResponse<Ticket[]>>>({
-    queryKey: ["tickets", currentPage, itemsPerPage, searchTerm, selectedStatus],
+    queryKey: ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
     queryFn: () =>
       ticketService.getTickets({
         limit: itemsPerPage,
         page: currentPage,
         status: selectedStatus === "all" ? undefined : selectedStatus,
-        search: searchTerm,
+        search: debouncedSearchTerm,
       }),
   })
 
+  // Loading states for each action
+  const isLoadingStates = {
+    create: mutations.create.isPending,
+    update: mutations.update.isPending,
+    delete: mutations.delete.isPending,
+    assign: mutations.assign.isPending,
+    changeStatus: mutations.changeStatus.isPending,
+  };
+
+  // Common success handler for mutations
+  const handleMutationSuccess = (response: any, action: string) => {
+    const updatedTicket = response.data;
+    queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
+      ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
+      (oldData) => {
+        if (!oldData?.data?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            data: oldData.data.data.map((ticket) =>
+              ticket.id === updatedTicket.id ? { ...ticket, ...updatedTicket } : ticket
+            )
+          }
+        };
+      }
+    );
+    setDialogOpen(null);
+    setSelectedTicket(null);
+    toast({
+      title: "Success",
+      description: `Ticket ${action} successfully`,
+    });
+  };
+
+  // Common error handler for mutations
+  const handleMutationError = (error: any, action: string) => {
+    toast({
+      title: "Error",
+      description: error.message || `Failed to ${action} ticket`,
+      variant: "destructive",
+    });
+  };
+
   // Mutation handlers
   const handleCreateTicket = (ticketData: CreateTicketSchema) => {
-    mutations.create.mutate(ticketData);
+    mutations.create.mutate(ticketData, {
+      onSuccess: (response) => handleMutationSuccess(response, "created"),
+      onError: (error) => handleMutationError(error, "create"),
+    });
   };
 
   const handleEditTicket = (ticketData: UpdateTicketSchema) => {
@@ -142,10 +205,8 @@ export default function Tickets() {
         }
       },
       {
-        onSuccess: () => {
-          setDialogOpen(null);
-          setSelectedTicket(null);
-        }
+        onSuccess: (response) => handleMutationSuccess(response, "updated"),
+        onError: (error) => handleMutationError(error, "update"),
       }
     );
   };
@@ -161,10 +222,8 @@ export default function Tickets() {
         }
       },
       {
-        onSuccess: () => {
-          setDialogOpen(null);
-          setSelectedTicket(null);
-        }
+        onSuccess: (response) => handleMutationSuccess(response, "status changed"),
+        onError: (error) => handleMutationError(error, "change status"),
       }
     );
   };
@@ -180,32 +239,34 @@ export default function Tickets() {
         }
       },
       {
-        onSuccess: () => {
-          setDialogOpen(null);
-          setSelectedTicket(null);
-        }
+        onSuccess: (response) => handleMutationSuccess(response, "staff assigned"),
+        onError: (error) => handleMutationError(error, "assign staff"),
       }
     );
   };
 
   const handleDeleteTicket = () => {
     if (!selectedTicket) return;
-    mutations.delete.mutate(selectedTicket.id);
-    setDialogOpen(null);
-    setSelectedTicket(null);
+    mutations.delete.mutate(selectedTicket.id, {
+      onSuccess: () => {
+        setDialogOpen(null);
+        setSelectedTicket(null);
+        toast({
+          title: "Success",
+          description: "Ticket deleted successfully",
+        });
+      },
+      onError: (error) => handleMutationError(error, "delete"),
+    });
   };
 
   // Loading state
-  const isLoading =
-    isLoadingTickets ||
-    mutations.create.isPending ||
-    mutations.delete.isPending ||
-    mutations.update.isPending ||
-    mutations.assign.isPending ||
-    mutations.changeStatus.isPending;
+  const isLoading = isLoadingTickets || Object.values(isLoadingStates).some(Boolean);
 
   // Total pages
-  const totalPages = data?.data.pagination ? Math.ceil(data.data.pagination.total / itemsPerPage) : 1
+  const totalPages = useMemo(() => {
+    return data?.data.pagination ? Math.ceil(data.data.pagination.total / itemsPerPage) : 1;
+  }, [data?.data.pagination, itemsPerPage]);
 
   return (
     <div className="space-y-6 p-6">
@@ -215,8 +276,15 @@ export default function Tickets() {
           <p className="text-muted-foreground">Manage and track all support tickets</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button onClick={() => setDialogOpen("create")} disabled={isLoading}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button 
+            onClick={() => setDialogOpen("create")} 
+            disabled={isLoading}
+          >
+            {isLoadingStates.create ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
             New Ticket
           </Button>
         </div>
@@ -232,9 +300,39 @@ export default function Tickets() {
                 <Input
                   placeholder="Search tickets..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace' && searchTerm.length === 1) {
+                      handleSearchClear();
+                    }
+                  }}
                   className="pl-10"
                 />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                    onClick={handleSearchClear}
+                  >
+                    <span className="sr-only">Clear search</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </Button>
+                )}
               </div>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-full sm:w-[180px]">
@@ -345,8 +443,13 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("edit")
                                 }}
+                                disabled={isLoadingStates.update}
                               >
-                                <Edit className="h-4 w-4 mr-2" />
+                                {isLoadingStates.update ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Edit className="h-4 w-4 mr-2" />
+                                )}
                                 Edit Ticket
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -354,8 +457,13 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("assign")
                                 }}
+                                disabled={isLoadingStates.assign}
                               >
-                                <UserPlus className="h-4 w-4 mr-2" />
+                                {isLoadingStates.assign ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <UserPlus className="h-4 w-4 mr-2" />
+                                )}
                                 Assign Staff
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -363,8 +471,13 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("status")
                                 }}
+                                disabled={isLoadingStates.changeStatus}
                               >
-                                <RefreshCw className="h-4 w-4 mr-2" />
+                                {isLoadingStates.changeStatus ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                )}
                                 Change Status
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -372,9 +485,14 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("delete")
                                 }}
+                                disabled={isLoadingStates.delete}
                                 className="text-red-600"
                               >
-                                <Trash2 className="h-4 w-4 mr-2" />
+                                {isLoadingStates.delete ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                )}
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -476,6 +594,7 @@ export default function Tickets() {
             onOpenChange={(open) => !open && setDialogOpen(null)}
             ticket={selectedTicket}
             onSubmit={handleEditTicket}
+            isLoading={isLoadingStates.update}
           />
 
           <ChangeStatusDialog
@@ -483,6 +602,7 @@ export default function Tickets() {
             onOpenChange={(open) => !open && setDialogOpen(null)}
             currentStatus={selectedTicket.status}
             onSubmit={handleStatusChange}
+            isLoading={isLoadingStates.changeStatus}
           />
 
           <AssignStaffDialog
@@ -490,14 +610,16 @@ export default function Tickets() {
             onOpenChange={(open) => !open && setDialogOpen(null)}
             currentStaffId={selectedTicket.staff?.id || ""}
             onSubmit={handleStaffAssign}
+            isLoading={isLoadingStates.assign}
           />
 
           <DeleteConfirmationDialog
             open={dialogOpen === "delete"}
             onOpenChange={(open) => !open && setDialogOpen(null)}
-            title="Delete Ticket"
+            title={`Delete Ticket`}
             description={`Are you sure you want to delete "${selectedTicket.title}"? This action cannot be undone.`}
             onConfirm={handleDeleteTicket}
+            isLoading={isLoadingStates.delete}
           />
         </>
       )}

@@ -4,28 +4,13 @@ import { useState, useEffect } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/AuthContext"
 import { useToast } from "@/components/ui/use-toast"
-import { Eye, EyeOff, Ticket, AlertCircle } from "lucide-react"
-import { LoginSchema, loginSchema } from "@/schema/auth.schema"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Separator } from "@/components/ui/separator"
+import { AlertCircle, Ticket } from "lucide-react"
 import { useAuth0 } from "@auth0/auth0-react"
 
 export default function Login() {
-  const form = useForm<LoginSchema>({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-    resolver: zodResolver(loginSchema),
-  })
-
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [isRedirecting, setIsRedirecting] = useState(false)
 
@@ -35,7 +20,6 @@ export default function Login() {
   const location = useLocation()
 
   const from = location.state?.from?.pathname || "/"
-
 
   // Handle redirect after successful login
   useEffect(() => {
@@ -47,20 +31,6 @@ export default function Login() {
   // Redirect if already authenticated
   if (isAuthenticated && isRedirecting) {
     return <Navigate to={from} replace />
-  }
-
-  const onSubmit = async (data: any) => {
-    setError("")
-
-    try {
-      await login()
-      toast({
-        title: "Welcome back!",
-        description: "You have been successfully logged in.",
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
-    }
   }
 
   const handleSlackLogin = async () => {
@@ -79,141 +49,77 @@ export default function Login() {
     }
   }
 
-  // const fillDemoCredentials = (role: "admin" | "manager" | "staff") => {
-  //   const demoCredentials = {
-  //     admin: { email: "admin@example.com", password: "admin123" },
-  //     manager: { email: "manager@example.com", password: "manager123" },
-  //     staff: { email: "staff@example.com", password: "staff123" },
-  //   }
-  //   setCredentials(demoCredentials[role])
-  // }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-8">
         {/* Logo and Title */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="p-3 bg-indigo-600 rounded-2xl">
-              <Ticket className="h-8 w-8 text-white" />
+            <div className="p-4 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-2xl shadow-lg transform hover:scale-105 transition-transform duration-300">
+              <Ticket className="h-10 w-10 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">TasketES</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+              TasketES
+            </h1>
+            <p className="text-gray-600 text-lg">Your Ticket Management Solution</p>
+          </div>
         </div>
 
-        {/* Login Form */}
-        <Card className="shadow-xl border-0">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-            <CardDescription className="text-center">Enter your credentials to access your dashboard</CardDescription>
+        {/* Login Card */}
+        <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="space-y-2">
+            <CardTitle className="text-2xl text-center font-bold text-gray-800">
+              Welcome Back!
+            </CardTitle>
+            <CardDescription className="text-center text-gray-600">
+              Sign in with your Slack account to continue
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            {/* <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  {...form.register("email")}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    {...form.register("password")}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              <Button variant="default" type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
-                {isLoading ? "Signing in..." : "Sign in"}
-              </Button>
-            </form> */}
-
-            <Separator />
-
-            <div className="text-center">
+            <div className="flex flex-col items-center space-y-4">
               <Button 
                 variant="outline" 
-                size="sm" 
-                className="sm:w-56 sm:h-11 md:w-64 md:h-12" 
+                size="lg"
+                className="w-full max-w-sm h-14 bg-white hover:bg-gray-50 border-2 border-gray-200 shadow-sm hover:shadow-md transition-all duration-300"
                 onClick={handleSlackLogin}
                 disabled={isLoading}
               >
-                <img src="src/assets/Slack_icon.svg" alt="Slack Logo" className="sm:h-4 sm:w-4 md:h-5 md:w-5" />
-                <p className="sm:text-sm md:text-md ml-4 Lato font-bold">
-                  {isLoading ? "Signing in..." : "Sign in with Slack"}
-                </p>
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src="src/assets/Slack_icon.svg" 
+                    alt="Slack Logo" 
+                    className="h-6 w-6"
+                  />
+                  <span className="text-gray-700 font-semibold text-lg">
+                    {isLoading ? "Connecting..." : "Continue with Slack"}
+                  </span>
+                </div>
               </Button>
+
+              <p className="text-sm text-gray-500 text-center max-w-sm">
+                By continuing, you agree to our Terms of Service and Privacy Policy
+              </p>
             </div>
-            {/* Demo Credentials
-            <div className="pt-4 border-t">
-              <p className="text-sm text-gray-600 text-center mb-3">Demo Accounts:</p>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fillDemoCredentials("admin")}
-                  className="text-xs"
-                >
-                  Admin
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fillDemoCredentials("manager")}
-                  className="text-xs"
-                >
-                  Manager
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fillDemoCredentials("staff")}
-                  className="text-xs"
-                >
-                  Staff
-                </Button>
-              </div>
-            </div> */}
           </CardContent>
         </Card>
 
         {/* Footer */}
-        <div className="text-center text-sm text-gray-500">
-          <p>© 2025 TasketES. All rights reserved.</p>
+        <div className="text-center space-y-2">
+          <p className="text-sm text-gray-500">
+            Need help? Contact your administrator
+          </p>
+          <p className="text-xs text-gray-400">
+            © 2025 TasketES. All rights reserved.
+          </p>
         </div>
       </div>
     </div>

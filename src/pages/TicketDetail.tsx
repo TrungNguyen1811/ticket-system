@@ -70,9 +70,8 @@ import { useTicketUpdate } from "@/hooks/useTicketUpdate"
 import { useAuth } from "@/contexts/AuthContext"
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
 
-// Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
+
 function isDescriptionClamped(text: string, maxLines = 4) {
-  // Tạm thời: nếu có hơn 300 ký tự hoặc có hơn 4 dòng thì xem là cần xem thêm
   return text.split("\n").length > maxLines || text.length > 300
 }
 
@@ -701,7 +700,7 @@ export default function TicketDetail() {
                           className="self-start px-0 text-blue-500 mt-1"
                           onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
                         >
-                          {showFullDescription ? "Thu gọn" : "Xem thêm"}
+                          {showFullDescription ? "Hide" : "Show more"}
                         </Button>
                       )}
                     </div>
