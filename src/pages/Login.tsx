@@ -115,7 +115,7 @@ export default function Login() {
               </Alert>
             )}
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -156,7 +156,7 @@ export default function Login() {
               <Button type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
-            </form>
+            </form> */}
 
             <Separator />
 
