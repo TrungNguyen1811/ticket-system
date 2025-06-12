@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,7 @@ export default function Login() {
 
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   const { login, isLoading, isAuthenticated } = useAuth()
   const { loginWithRedirect } = useAuth0()
@@ -35,8 +36,15 @@ export default function Login() {
 
   const from = location.state?.from?.pathname || "/"
 
+  // Handle redirect after successful login
+  useEffect(() => {
+    if (isAuthenticated && !isRedirecting) {
+      setIsRedirecting(true)
+    }
+  }, [isAuthenticated, isRedirecting])
+
   // Redirect if already authenticated
-  if (isAuthenticated) {
+  if (isAuthenticated && isRedirecting) {
     return <Navigate to={from} replace />
   }
 

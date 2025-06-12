@@ -11,6 +11,12 @@ export interface DashboardSummary {
         in_progress: number
         complete: number
     }
+    as_admin: {
+        total: number
+        new: number
+        in_progress: number
+        complete: number
+    }
 }
 
 export interface UserStats {
@@ -25,6 +31,7 @@ export interface UserStats {
         avg: {
             avg_seconds: number
             avg_hms: string
+            total: string
         }
     }
     as_staff: {
@@ -38,19 +45,9 @@ export interface UserStats {
         avg: {
             avg_seconds: number
             avg_hms: string
+            total: string
         }
     }
-    time_series: {
-        date: string
-        tickets: number
-        resolved: number
-        inProgress: number
-    }[]
-    activity: {
-        day: string
-        hour: string
-        value: number
-    }[]
 }
 
 export interface AdminStats {
@@ -65,23 +62,28 @@ export interface AdminStats {
         avg_seconds: number
         avg_hms: string
     }
-    time_series: {
-        date: string
-        tickets: number
-        resolved: number
-        inProgress: number
-    }[]
-    staff_performance: {
-        name: string
-        "Total Tickets": number
-        "Resolved": number
-        "In Progress": number
-        "Avg. Resolution Time": number
-    }[]
-    activity: {
-        day: string
-        hour: string
-        value: number
-    }[]
-    active_staff: number
+    staff_performance: StaffPerformance
 }
+
+export interface TimeSeries {
+    date: string
+    tickets: number
+    resolved: number
+    inProgress: number
+}[]
+
+export interface Activity {
+    day: string
+    hour: string
+    value: number
+}[]
+
+export interface StaffPerformanceItem {
+    name: string
+    total_tickets: number
+    resolved: number
+    in_progress: number
+    avg_resolution_time: number
+}
+
+export type StaffPerformance = StaffPerformanceItem[]

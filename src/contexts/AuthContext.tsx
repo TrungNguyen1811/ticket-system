@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const login = async () => {
     try {
@@ -45,12 +46,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    auth0Logout({
-      logoutParams: { returnTo: window.location.origin },
-    });
-    localStorage.removeItem("auth_token");
-    setUser(null);
+  const logout = async () => {
+    try {
+      // Clear local state first
+      localStorage.removeItem("auth_token");
+      setUser(null);
+      
+      // Then logout from Auth0
+      await auth0Logout({
+        logoutParams: { returnTo: window.location.origin },
+      });
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getAccessToken = async (): Promise<string | undefined> => {
@@ -86,15 +99,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
       if (isLoading) return;
 
-      if (isAuthenticated && auth0User) {
-        await refreshUser();
-      } else if (!isAuthenticated) {
-        localStorage.removeItem("auth_token");
-        setUser(null);
+      try {
+        if (isAuthenticated && auth0User) {
+          await refreshUser();
+        } else if (!isAuthenticated) {
+          localStorage.removeItem("auth_token");
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Failed to initialize auth:", error);
+      } finally {
+        setIsInitialized(true);
       }
     };
 
@@ -103,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Refresh token and user data every 30 mins
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && isInitialized) {
       const interval = setInterval(async () => {
         try {
           await getAccessToken();
@@ -116,7 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isInitialized]);
+
+  // Don't render children until auth is initialized
+  if (!isInitialized) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider

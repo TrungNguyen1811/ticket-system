@@ -1,5 +1,5 @@
 import api from "@/lib/axios"
-import { DataResponse, Response } from "@/types/reponse"
+import { Response } from "@/types/reponse"
 import { AdminStats, DashboardSummary, UserStats } from "@/types/dashboard"
 
 export interface DashboardParams {
@@ -8,17 +8,17 @@ export interface DashboardParams {
 
 class DashboardService {
   async getSummary() {
-    const response = await api.get<Response<DataResponse<DashboardSummary>>>("/dashboard/summary")
+    const response = await api.get<Response<DashboardSummary>>("/dashboard/summary")
     return response.data
   }
 
   async getUserStats(params: DashboardParams) {
-    const response = await api.get<Response<DataResponse<UserStats>>>("/dashboard/user-stats", { params })
+    const response = await api.get<Response<UserStats>>("/dashboard/user-stats", { params })
     return response.data
   }
   
   async getAdminStats(params: DashboardParams) {
-    const response = await api.get<Response<DataResponse<AdminStats>>>("/dashboard/admin-stats", { params })
+    const response = await api.get<Response<AdminStats>>("/dashboard/admin-stats", { params })
     return response.data
   }
 }

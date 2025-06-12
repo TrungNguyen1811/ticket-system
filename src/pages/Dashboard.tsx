@@ -7,7 +7,7 @@ import { mockTickets, mockUsers, mockClients } from "@/mock/data"
 import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
-import { Ticket as TicketIcon, TrendingUp, Building2, Eye } from "lucide-react"
+import { Ticket as TicketIcon, TrendingUp, Building2, Eye, User, Users } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts"
@@ -15,53 +15,85 @@ import { useQuery } from "@tanstack/react-query"
 import { ticketService } from "@/services/ticket.service"
 import { DataResponse, Response } from "@/types/reponse"
 import { Ticket } from "@/types/ticket"
+import { DashboardSummary } from "@/types/dashboard"
+import { dashboardService } from "@/services/dashboard.service"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+type RoleData = {
+  total: number
+  new: number
+  in_progress: number
+  complete: number
+}
+
+type UserRoleData = {
+  holder: RoleData | undefined
+  staff: RoleData | undefined
+}
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const openTickets = mockTickets.filter((t) => t.status === "Open").length
-  const inProgressTickets = mockTickets.filter((t) => t.status === "In Progress").length
-  const doneTickets = mockTickets.filter((t) => t.status === "Done").length
+  const isAdmin = user?.role === "admin"
+
+  const { data: summary, isLoading: isLoadingSummary } = useQuery<Response<DashboardSummary>, Error>({
+    queryKey: ["dashboard", "summary"],
+    queryFn: () => dashboardService.getSummary(),
+  })
+
+  const getRoleData = (): RoleData | UserRoleData => {
+    if (isAdmin) {
+      return summary?.data.as_admin || {
+        total: 0,
+        new: 0,
+        in_progress: 0,
+        complete: 0
+      }
+    }
+    return {
+      holder: summary?.data.as_holder,
+      staff: summary?.data.as_staff
+    }
+  }
+
+  const roleData = getRoleData()
+
   const { data: recentTickets } = useQuery<Response<DataResponse<Ticket[]>>, Error>({
     queryKey: ["dashboard", "recent-tickets"],
     queryFn: () => ticketService.getTickets({ limit: 5, page: 1, status: "new" }),
   })
 
-  const stats = [
+
+
+  const getStats = (data: RoleData | undefined) => [
     {
       title: "Open Tickets",
-      value: openTickets,
+      value: data?.new || 0,
       icon: TicketIcon,
       color: "text-blue-600",
       bgColor: "bg-blue-100",
     },
     {
       title: "In Progress",
-      value: inProgressTickets,
+      value: data?.in_progress || 0,
       icon: TrendingUp,
       color: "text-yellow-600",
       bgColor: "bg-yellow-100",
     },
     {
       title: "Completed",
-      value: doneTickets,
+      value: data?.complete || 0,
       icon: TicketIcon,
       color: "text-green-600",
       bgColor: "bg-green-100",
     },
     {
-      title: "Total Clients",
-      value: mockClients.length,
+      title: "Total Tickets",
+      value: data?.total || 0,
       icon: Building2,
       color: "text-purple-600",
       bgColor: "bg-purple-100",
     },
   ]
-
-  const getUserName = (userId: string) => {
-    return mockUsers.find((u) => u.id === userId)?.name || "Unknown"
-  }
-
 
   return (
     <div className="space-y-6">
@@ -70,29 +102,100 @@ export default function Dashboard() {
         <p className="mt-2 text-gray-600">Welcome back, {user?.name}! Here's your ticket management overview.</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
+      {isAdmin ? (
+        // Admin Dashboard
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {getStats(roleData as RoleData).map((stat) => (
+              <Card key={stat.title} className="overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <div className={`p-3 rounded-lg ${stat.bgColor}`}>
+                        <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                      <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* Charts Section */}
-      <DashboardCharts />
+          {/* Charts Section */}
+          <DashboardCharts />
+        </>
+      ) : (
+        // User Dashboard
+        <Tabs defaultValue="holder" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="holder" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              My Tickets
+            </TabsTrigger>
+            <TabsTrigger value="staff" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Assigned Tickets
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="holder" className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {getStats((roleData as UserRoleData).holder).map((stat) => (
+                <Card key={stat.title} className="overflow-hidden">
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className={`p-3 rounded-lg ${stat.bgColor}`}>
+                          <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Charts Section */}
+            <DashboardCharts />
+          </TabsContent>
+
+          <TabsContent value="staff" className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {getStats((roleData as UserRoleData).staff).map((stat) => (
+                <Card key={stat.title} className="overflow-hidden">
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <div className={`p-3 rounded-lg ${stat.bgColor}`}>
+                          <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Charts Section */}
+            <DashboardCharts />
+          </TabsContent>
+        </Tabs>
+      )}
 
       {/* Recent Tickets */}
       <Card>
@@ -123,8 +226,8 @@ export default function Dashboard() {
                   <TableCell>{ticket.client_email}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <UserAvatar name={getUserName(ticket.staff?.name || "")} size="sm" />
-                      <span className="text-sm">{getUserName(ticket.staff?.name || "")}</span>
+                      <UserAvatar name={ticket.staff?.name || "Unknown"} size="sm" />
+                      <span className="text-sm">{ticket.staff?.name || "Unknown"}</span>
                     </div>
                   </TableCell>
                   <TableCell>
