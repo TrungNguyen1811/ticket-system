@@ -27,7 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout: auth0Logout,
     getAccessTokenSilently,
   } = useAuth0();
-
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -47,17 +46,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    console.log('🔄 Starting logout process...');
     try {
       // Clear local state first
+      console.log('🧹 Clearing local state...');
       localStorage.removeItem("auth_token");
       setUser(null);
       
       // Then logout from Auth0
+      console.log('🚪 Logging out from Auth0...');
       await auth0Logout({
-        logoutParams: { returnTo: window.location.origin },
+        logoutParams: { 
+          returnTo: window.location.origin
+        },
       });
+      console.log('✅ Logout completed');
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("❌ Logout failed:", error);
       toast({
         title: "Logout failed",
         description: "There was an error logging out. Please try again.",
@@ -82,64 +87,99 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     try {
       const token = await getAccessToken();
-      if (!token) {
-        throw new Error("No token found");
-      }
-
+      if (!token) throw new Error("No token found");
+    
       const userData = await authService.getCurrentUser();
       setUser(userData);
     } catch (error) {
       console.error("Failed to fetch user from backend", error);
-      toast({
-        title: "Session error",
-        description: "Could not fetch user data. Please login again.",
-        variant: "destructive",
-      });
-      logout();
+      localStorage.removeItem("auth_token");
+      setUser(null);
     }
   };
+  
 
   // Initialize auth state
   useEffect(() => {
+    let isMounted = true;
+    console.log('🔄 Auth state changed:', { isAuthenticated, isLoading, hasUser: !!auth0User });
+
     const initializeAuth = async () => {
-      if (isLoading) return;
+      if (isLoading || !isMounted) {
+        console.log('⏳ Skipping initialization:', { isLoading, isMounted });
+        return;
+      }
 
       try {
         if (isAuthenticated && auth0User) {
+          console.log('🔄 Refreshing user data...');
           await refreshUser();
         } else if (!isAuthenticated) {
+          console.log('🧹 Clearing auth state...');
           localStorage.removeItem("auth_token");
           setUser(null);
         }
       } catch (error) {
-        console.error("Failed to initialize auth:", error);
+        console.error("❌ Failed to initialize auth:", error);
       } finally {
-        setIsInitialized(true);
+        if (isMounted) {
+          console.log('✅ Auth initialization completed');
+          setIsInitialized(true);
+        }
       }
     };
 
     initializeAuth();
+
+    return () => {
+      console.log('🧹 Cleaning up auth effect');
+      isMounted = false;
+    };
   }, [isAuthenticated, isLoading, auth0User]);
 
   // Refresh token and user data every 30 mins
   useEffect(() => {
-    if (isAuthenticated && isInitialized) {
-      const interval = setInterval(async () => {
-        try {
-          await getAccessToken();
-          await refreshUser();
-        } catch (error) {
-          console.error("Failed to refresh session:", error);
-          logout();
-        }
-      }, 1000 * 60 * 30); // 30 mins
+    let interval: NodeJS.Timeout;
+    let isMounted = true;
+    
+    const refreshSession = async () => {
+      if (!isMounted || !isAuthenticated || !isInitialized) {
+        console.log('⏳ Skipping refresh:', { isMounted, isAuthenticated, isInitialized });
+        return;
+      }
 
-      return () => clearInterval(interval);
+      console.log('🔄 Refreshing session...');
+      try {
+        await getAccessToken();
+        await refreshUser();
+        console.log('✅ Session refreshed');
+      } catch (error) {
+        console.error("❌ Failed to refresh session:", error);
+        if (isMounted) {
+          console.log('🧹 Clearing auth state after refresh failure');
+          localStorage.removeItem("auth_token");
+          setUser(null);
+        }
+      }
+    };
+    
+    if (isAuthenticated && isInitialized) {
+      console.log('⏰ Setting up refresh interval');
+      interval = setInterval(refreshSession, 1000 * 60 * 30); // 30 mins
     }
+
+    return () => {
+      console.log('🧹 Cleaning up refresh effect');
+      isMounted = false;
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [isAuthenticated, isInitialized]);
 
   // Don't render children until auth is initialized
   if (!isInitialized) {
+    console.log('⏳ Waiting for auth initialization...');
     return null;
   }
 

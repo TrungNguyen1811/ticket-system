@@ -36,6 +36,7 @@ export default function Login() {
 
   const from = location.state?.from?.pathname || "/"
 
+
   // Handle redirect after successful login
   useEffect(() => {
     if (isAuthenticated && !isRedirecting) {
@@ -153,7 +154,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
+              <Button variant="default" type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form> */}

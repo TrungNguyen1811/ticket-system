@@ -2,23 +2,20 @@
 
 import { CommandEmpty } from "@/components/ui/command"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, Link, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { mockTickets, mockUsers, mockClients, mockComments, mockAuditLogs } from "@/mock/data"
 import { formatDate, getStatusColor } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
 import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
+import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog" 
 import { useToast } from "@/components/ui/use-toast"
 import {
   ArrowLeft,
@@ -50,7 +47,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { DataResponse, Response } from "@/types/reponse"
 import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
@@ -449,25 +445,6 @@ export default function TicketDetail() {
       });
     }
   }
-  
-  // const handleUploadAttachment = async (files: FileList) => {
-  //   if (!id) return
-  //   try {
-  //     const fileArray = Array.from(files)
-  //     await ticketService.uploadAttachments(id, fileArray)
-  //     queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-  //     toast({
-  //       title: "Success",
-  //       description: "Attachment uploaded successfully",
-  //     })
-  //   } catch (error) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Failed to upload attachment",
-  //       variant: "destructive",
-  //     })
-  //   }
-  // }
 
   // Save handlers
 
@@ -876,7 +853,7 @@ export default function TicketDetail() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <CardTitle className="text-lg font-medium">Attachments</CardTitle>
-                <Button 
+                {/* <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setDialogOpen("attachment")}
@@ -884,7 +861,7 @@ export default function TicketDetail() {
                 >
                   <Paperclip className="h-4 w-4 mr-2" />
                   Upload
-                </Button>
+                </Button> */}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
@@ -1078,6 +1055,12 @@ export default function TicketDetail() {
         onOpenChange={(open) => !open && setDialogOpen(null)}
         onSubmit={handleAddComment}
         ticketId={id}
+      />
+
+      <UploadAttachmentDialog
+        open={dialogOpen === "attachment"}
+        onOpenChange={(open) => !open && setDialogOpen(null)}
+        ticketId={id || ""}
       />
 
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>

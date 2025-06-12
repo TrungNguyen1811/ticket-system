@@ -61,6 +61,7 @@ export interface AdminStats {
     avg: {
         avg_seconds: number
         avg_hms: string
+        total: string
     }
     staff_performance: StaffPerformance
 }

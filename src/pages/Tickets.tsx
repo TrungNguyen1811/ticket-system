@@ -30,6 +30,7 @@ import { useTicketMutations } from "@/hooks/useTicketMutations"
 import { usePusher } from "@/contexts/PusherContext"
 import { usePusherSubscription } from "@/hooks/usePusherSubscription"
 import { useTicketRealtime } from "@/hooks/useTicketRealtime"
+import { STATUS_OPTIONS } from "@/lib/constants"
 import { SEARCH_STATUS_OPTIONS } from "@/lib/constants"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
@@ -214,12 +215,6 @@ export default function Tickets() {
           <p className="text-muted-foreground">Manage and track all support tickets</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
-            <span className="text-sm text-muted-foreground">
-              {isConnected ? "Realtime connected" : "Disconnected"}
-            </span>
-          </div>
           <Button onClick={() => setDialogOpen("create")} disabled={isLoading}>
             <Plus className="h-4 w-4 mr-2" />
             New Ticket

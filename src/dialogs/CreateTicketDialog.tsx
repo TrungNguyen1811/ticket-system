@@ -41,10 +41,7 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit }: CreateTicke
     try {
       onSubmit(data)
       form.reset()
-      toast({
-        title: "Success",
-        description: "Ticket created successfully.",
-      })
+      onOpenChange(false)
     } catch (error) {
       toast({
         title: "Error",

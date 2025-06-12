@@ -5,15 +5,14 @@ import { useQuery } from "@tanstack/react-query"
 import { dashboardService } from "@/services/dashboard.service"
 import type { AdminStats, DashboardSummary, UserStats, StaffPerformance } from "@/types/dashboard"
 import { useAuth } from "@/contexts/AuthContext"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataResponse, Response } from "@/types/reponse"
-import { AreaChart, BarChart, DonutChart, Title, LineChart, Metric, Text } from "@tremor/react"
+import { AreaChart, BarChart, Metric, Text } from "@tremor/react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Eye, EyeOff, Download, RefreshCw, BarChartIcon } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { AreaChartIcon, LineChartIcon } from "lucide-react"
+import { AreaChartIcon } from "lucide-react"
 import { useState } from "react"
 import { toast } from "../ui/use-toast"
 import { ticketService } from "@/services/ticket.service"
@@ -39,7 +38,6 @@ export function DashboardCharts() {
   const { user } = useAuth()
   const isAdmin = user?.role === "admin"
   const [timeRange, setTimeRange] = useState("last_7_days")
-  const [chartType, setChartType] = useState("area")
   const [showMetrics, setShowMetrics] = useState(true)
   const [loading, setLoading] = useState(false)
 
@@ -153,24 +151,6 @@ export function DashboardCharts() {
               ))} 
             </SelectContent>
           </Select>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={chartType === "area" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setChartType("area")}
-            >
-              <AreaChartIcon className="h-4 w-4 mr-2" />
-              Area
-            </Button>
-            <Button
-              variant={chartType === "line" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setChartType("line")}
-            >
-              <LineChartIcon className="h-4 w-4 mr-2" />
-              Line
-            </Button>
-          </div>
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -253,7 +233,7 @@ export function DashboardCharts() {
               <Metric>Total Resolution Time</Metric>
               <Text>Last 30 days</Text>
               <div className="mt-2 text-2xl font-bold text-yellow-600">
-                {isAdmin ? adminStats?.data.avg.avg_seconds : userStats?.data.as_holder.avg.avg_seconds}
+                {isAdmin ? adminStats?.data.avg.total : userStats?.data.as_holder.avg.total}
               </div>
             </CardContent>
           </Card>
@@ -261,25 +241,6 @@ export function DashboardCharts() {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Tickets by Status */}
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <PieChart className="h-5 w-5 mr-2" />
-              Tickets by Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DonutChart
-              className="h-72"
-              data={statusData}
-              category="value"
-              index="name"
-              colors={["blue", "yellow", "green"]}
-              showAnimation={true}
-            />
-          </CardContent>
-        </Card>
 
         {/* Ticket Volume Over Time */}
         <Card className="col-span-1">
@@ -290,7 +251,6 @@ export function DashboardCharts() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {chartType === "area" ? (
               <AreaChart
                 className="h-72"
                 data={isAdmin ? adminStats?.data.stat || [] : userStats?.data.as_holder.stat || []}
@@ -299,16 +259,6 @@ export function DashboardCharts() {
                 colors={["blue", "green", "yellow", "red"]}
                 showAnimation={true}
               />
-            ) : (
-              <LineChart
-                className="h-72"
-                data={isAdmin ? adminStats?.data.stat || [] : userStats?.data.as_holder.stat || []}
-                index="date"
-                categories={["total", "new", "in_progress", "complete"]}
-                colors={["blue", "green", "yellow", "red"]}
-                showAnimation={true}
-              />
-            )}
           </CardContent>
         </Card>
 

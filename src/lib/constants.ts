@@ -13,7 +13,7 @@ export const COLORS = {
 export const STATUS_OPTIONS = [
   // { value: "new", label: "Open", color: "blue" },
   { value: "in_progress", label: "In Progress", color: "yellow" },
-  { value: "pending", label: "pending", color: "orange" },
+  { value: "pending", label: "Pending", color: "orange" },
   // { value: "assigned", label: "Assigned", color: "purple" },
   { value: "complete", label: "Complete", color: "green" },
   { value: "archived", label: "Archived", color: "red" },
