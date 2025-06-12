@@ -149,7 +149,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             <TableHead className="w-[150px]">End Time</TableHead>
             <TableHead className="w-[100px]">Status</TableHead>
             <TableHead className="w-[100px]">To Status</TableHead>
-            <TableHead className="w-[120px]">Action</TableHead>
+            {/* <TableHead className="w-[120px]">Action</TableHead> */}
             <TableHead className="w-[120px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -182,9 +182,9 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                   </Badge>
                 )}
               </TableCell>
-              <TableCell className="truncate max-w-[120px]" title={log.action}>
+              {/* <TableCell className="truncate max-w-[120px]" title={log.action}>
                 {log.action}
-              </TableCell>
+              </TableCell> */}
               <TableCell>
                 <div className="flex items-center justify-end gap-2">
                   {log.id === logs?.data?.data?.[0]?.id && (
