@@ -19,9 +19,9 @@ import { Badge } from "@/components/ui/badge"
 const adminNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Tickets", href: "/tickets", icon: Ticket },
-  { name: "Clients", href: "/clients", icon: Building2 },
+  // { name: "Clients", href: "/clients", icon: Building2 },
   { name: "Users", href: "/users", icon: Users },
-  { name: "Settings", href: "/settings", icon: Settings },
+  // { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 interface LayoutProps {
@@ -57,7 +57,7 @@ export default function Layout({ children }: LayoutProps) {
                 >
                   My Tickets
                 </Link>
-                <Link
+                {/* <Link
                   to="/profile"
                   className={cn(
                     "text-sm font-medium transition-colors hover:text-indigo-600",
@@ -65,15 +65,15 @@ export default function Layout({ children }: LayoutProps) {
                   )}
                 >
                   Profile
-                </Link>
+                </Link> */}
               </nav>
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
+              {/* <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
                 <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">3</Badge>
-              </Button>
+              </Button> */}
               
               {user ? (
                 <DropdownMenu>
@@ -201,11 +201,11 @@ export default function Layout({ children }: LayoutProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem>
+                  {/* <DropdownMenuItem>
                     <User className="h-4 w-4 mr-2" />
                     Profile Settings
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator /> */}
                   <DropdownMenuItem onClick={logout} className="text-red-600">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign out
@@ -232,10 +232,10 @@ export default function Layout({ children }: LayoutProps) {
             <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
             {user && (
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" className="relative">
+                {/* <Button variant="ghost" size="icon" className="relative">
                   <Bell className="h-5 w-5" />
                   <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">3</Badge>
-                </Button>
+                </Button> */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center space-x-2">
