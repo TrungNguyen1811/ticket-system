@@ -2,23 +2,20 @@
 
 import { CommandEmpty } from "@/components/ui/command"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, Link, useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { mockTickets, mockUsers, mockClients, mockComments, mockAuditLogs } from "@/mock/data"
 import { formatDate, getStatusColor } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { StatusBadge } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
 import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
+import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog" 
 import { useToast } from "@/components/ui/use-toast"
 import {
   ArrowLeft,
@@ -44,13 +41,13 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
-  Trash
+  Trash,
+  Check
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ticketService, UpdateTicketData } from "@/services/ticket.service"
 import { DataResponse, Response } from "@/types/reponse"
 import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
@@ -58,7 +55,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { commentService } from "@/services/comment.services"
 import { CommentList } from "@/components/editor/CommentList"
-import attachmentService from "@/services/attachment"
+import attachmentService from "@/services/attachment.service"
 import { logService } from "@/services/log.service"
 import { AuditLogTable } from "@/components/editor/AuditLogTable"
 import { STATUS_OPTIONS } from "@/lib/constants"
@@ -72,11 +69,10 @@ import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicket } from "@/hooks/useTicket"
 import { useTicketUpdate } from "@/hooks/useTicketUpdate"
 import { useAuth } from "@/contexts/AuthContext"
+import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
 
 
-// Helper: kiểm tra có cần xem thêm không (dựa vào số dòng)
 function isDescriptionClamped(text: string, maxLines = 4) {
-  // Tạm thời: nếu có hơn 300 ký tự hoặc có hơn 4 dòng thì xem là cần xem thêm
   return text.split("\n").length > maxLines || text.length > 300
 }
 
@@ -146,33 +142,76 @@ export default function TicketDetail() {
     const shouldUpdate = currentData?.data && commentPage === 1;
 
     if (shouldUpdate) {
-      console.log("handleCommentUpdate", data);
-      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-        ["ticket-comments", id, commentPage, commentPerPage],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
-          
-          // Check if comment already exists
-          const commentExists = oldData.data.data.some(comment => comment.id === data.id);
-          if (commentExists) return oldData;
-
-          const newTotal = (oldData.data.pagination?.total || 0) + 1;
-          
-          // Add new comment at the beginning since backend sorts by newest first
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: [data, ...oldData.data.data],
-              pagination: {
-                total: newTotal,
-                page: oldData.data.pagination?.page || 1,
-                perPage: oldData.data.pagination?.perPage || commentPerPage
-              }
-            }
-          };
-        }
+      // Check if this is a temporary comment being updated
+      const isUpdatingTempComment = currentData.data.data.some(comment => 
+        comment.id.startsWith('temp-') && 
+        comment.user_id === data.user_id && 
+        comment.created_at === data.created_at
       );
+
+      if (isUpdatingTempComment) {
+        // If it's updating a temp comment, just replace it
+        queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+          ["ticket-comments", id, commentPage, commentPerPage],
+          (oldData) => {
+            if (!oldData?.data) return oldData;
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: oldData.data.data.map(comment => 
+                  comment.id.startsWith('temp-') && 
+                  comment.user_id === data.user_id && 
+                  comment.created_at === data.created_at
+                    ? data 
+                    : comment
+                )
+              }
+            };
+          }
+        );
+      } else {
+        // If it's a new comment, add it to the beginning
+        queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
+          ["ticket-comments", id, commentPage, commentPerPage],
+          (oldData) => {
+            if (!oldData?.data) return oldData;
+            
+            // Check if comment already exists
+            const commentExists = oldData.data.data.some(comment => comment.id === data.id);
+            if (commentExists) return oldData;
+
+            const newTotal = (oldData.data.pagination?.total || 0) + 1;
+            
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: [data, ...oldData.data.data],
+                pagination: {
+                  total: newTotal,
+                  page: oldData.data.pagination?.page || 1,
+                  perPage: oldData.data.pagination?.perPage || commentPerPage
+                }
+              }
+            };
+          }
+        );
+
+        // Update attachments if the comment has attachments
+        if (data.attachments && data.attachments.length > 0) {
+          queryClient.setQueryData<Response<Attachment[]>>(
+            ["ticket-attachments", id],
+            (oldData) => {
+              if (!oldData?.data) return oldData;
+              return {
+                ...oldData,
+                data: [...(data.attachments || []), ...(oldData.data || [])]
+              };
+            }
+          );
+        }
+      }
     } else {
       // If not on page 1, just update the total count
       queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
@@ -192,22 +231,38 @@ export default function TicketDetail() {
           };
         }
       );
+
+      // Update attachments even if not on page 1
+      if (data.attachments && data.attachments.length > 0) {
+        queryClient.setQueryData<Response<Attachment[]>>(
+          ["ticket-attachments", id],
+          (oldData) => {
+            if (!oldData?.data) return oldData;
+            return {
+              ...oldData,
+              data: [...(data.attachments || []), ...(oldData.data || [])]
+            };
+          }
+        );
+      }
     }
 
-    // Always show notification for new comment
-    toast({
-      title: "New Comment",
-      description: `${data.user?.name || 'Someone'} added a new comment`,
-      action: commentPage !== 1 ? (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setCommentPage(1)}
-        >
-          View Latest
-        </Button>
-      ) : undefined
-    });
+    // Only show notification for new comments (not updates)
+    if (!data.id.startsWith('temp-')) {
+      toast({
+        title: "New Comment",
+        description: `${data.user?.name || 'Someone'} added a new comment`,
+        action: commentPage !== 1 ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCommentPage(1)}
+          >
+            View Latest
+          </Button>
+        ) : undefined
+      });
+    }
   }, [queryClient, id, commentPage, commentPerPage, toast]);
 
   useCommentRealtime(id || "", handleCommentUpdate);
@@ -318,6 +373,25 @@ export default function TicketDetail() {
   const handleStaffAssign = (staffId: string) => {
     if (!id) return
     markAsUpdated(id);
+
+    // Get the new staff user data
+    const newStaff = usersData?.data.data.find(user => user.id === staffId);
+
+    // Optimistically update the UI
+    queryClient.setQueryData<Response<Ticket>>(
+      ["ticket", id],
+      (oldData) => {
+        if (!oldData?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            staff: newStaff || null
+          }
+        };
+      }
+    );
+
     handleAssign({
       staff_id: staffId,
       _method: "PUT"
@@ -326,67 +400,6 @@ export default function TicketDetail() {
 
   const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
     if (!id) return
-  
-    // Only update UI if we're on the first page
-    const shouldUpdateUI = commentPage === 1;
-
-    // Store previous data for rollback if we're updating UI
-    const previousData = shouldUpdateUI ? queryClient.getQueryData<Response<DataResponse<Comment[]>>>(
-      ["ticket-comments", id, commentPage, commentPerPage]
-    ) : null;
-
-    // Create temporary comment for optimistic update
-    const tempComment: Comment = {
-      id: `temp-${Date.now()}`,
-      content: data.editorContent.html,
-      user_id: user?.id || "",
-      ticket_id: id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      user: user || undefined,
-      attachments: []
-    };
-
-    // Optimistically update the UI only if we're on page 1
-    if (shouldUpdateUI) {
-      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-        ["ticket-comments", id, commentPage, commentPerPage],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: [tempComment, ...oldData.data.data],
-              pagination: {
-                total: (oldData.data.pagination?.total || 0) + 1,
-                page: oldData.data.pagination?.page || 1,
-                perPage: oldData.data.pagination?.perPage || commentPerPage
-              }
-            }
-          };
-        }
-      );
-    } else {
-      // If not on page 1, just update the total count
-      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-        ["ticket-comments", id, commentPage, commentPerPage],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              pagination: {
-                total: (oldData.data.pagination?.total || 0) + 1,
-                page: oldData.data.pagination?.page || commentPage,
-                perPage: oldData.data.pagination?.perPage || commentPerPage
-              }
-            }
-          };
-        }
-      );
-    }
 
     try {
       const formData = new FormData()
@@ -398,33 +411,12 @@ export default function TicketDetail() {
         })
       }
   
-      const response = await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
-      
-      // Update the temporary comment with the real one only if we're on page 1
-      if (shouldUpdateUI) {
-        queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-          ["ticket-comments", id, commentPage, commentPerPage],
-          (oldData) => {
-            if (!oldData?.data) return oldData;
-            return {
-              ...oldData,
-              data: {
-                ...oldData.data,
-                data: oldData.data.data.map(comment => 
-                  comment.id === tempComment.id 
-                    ? response.data 
-                    : comment
-                )
-              }
-            };
-          }
-        );
-      }
+      await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
 
       toast({
         title: "Success",
         description: "Comment created successfully",
-        action: !shouldUpdateUI ? (
+        action: commentPage !== 1 ? (
           <Button 
             variant="outline" 
             size="sm" 
@@ -435,13 +427,6 @@ export default function TicketDetail() {
         ) : undefined
       });
     } catch (error) {
-      // Rollback on error only if we're on page 1
-      if (shouldUpdateUI && previousData) {
-        queryClient.setQueryData(
-          ["ticket-comments", id, commentPage, commentPerPage],
-          previousData
-        );
-      }
       toast({
         title: "Error",
         description: "Failed to add comment",
@@ -449,25 +434,6 @@ export default function TicketDetail() {
       });
     }
   }
-  
-  // const handleUploadAttachment = async (files: FileList) => {
-  //   if (!id) return
-  //   try {
-  //     const fileArray = Array.from(files)
-  //     await ticketService.uploadAttachments(id, fileArray)
-  //     queryClient.invalidateQueries({ queryKey: ["ticket", id] })
-  //     toast({
-  //       title: "Success",
-  //       description: "Attachment uploaded successfully",
-  //     })
-  //   } catch (error) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Failed to upload attachment",
-  //       variant: "destructive",
-  //     })
-  //   }
-  // }
 
   // Save handlers
 
@@ -552,13 +518,25 @@ export default function TicketDetail() {
 
 
 
-  // Update selectedStatus when ticket data changes
+  // Update selectedStatus and selectedStaff when ticket data changes
   useEffect(() => {
     if (ticketData) {
       setSelectedStatus(ticketData.status);
+      setSelectedStaff(ticketData.staff?.id || "");
     }
   }, [ticketData]);
 
+  const handleOptimisticStatusChange = (status: string) => {
+    setSelectedStatus(status);
+  };
+
+  const handleOptimisticStaffChange = (staffId: string) => {
+    setSelectedStaff(staffId);
+  };
+
+  const isAdmin = user?.role === "admin"
+  const isHolder = ticketData?.holder?.id === user?.id
+  const canArchive = isAdmin || isHolder
 
   if (isLoadingTicket) {
     return (
@@ -724,7 +702,7 @@ export default function TicketDetail() {
                           className="self-start px-0 text-blue-500 mt-1"
                           onClick={e => { e.stopPropagation(); setShowFullDescription(v => !v) }}
                         >
-                          {showFullDescription ? "Thu gọn" : "Xem thêm"}
+                          {showFullDescription ? "Hide" : "Show more"}
                         </Button>
                       )}
                     </div>
@@ -763,14 +741,14 @@ export default function TicketDetail() {
                             <div className="flex items-center">
                               {getStatusIcon(selectedStatus)}
                               <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
+                                {SHOW_STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
                               </span>
                             </div>
                           ) : (
                             <div className="flex items-center">
                               {getStatusIcon(ticketData.status)}
                               <span className="ml-2">
-                                {STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
+                                {SHOW_STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
                               </span>
                             </div>
                           )}
@@ -783,21 +761,29 @@ export default function TicketDetail() {
                           <CommandList>
                             <CommandEmpty>No status found.</CommandEmpty>
                             <CommandGroup>
-                              {STATUS_OPTIONS.map((status) => (
-                                <CommandItem
-                                  key={status.value}
-                                  value={status.value}
-                                  onSelect={() => {
-                                    setSelectedStatus(status.value)
-                                    handleStatusSelect(status.value)
-                                  }}
-                                >
-                                  <div className="flex items-center">
-                                    {getStatusIcon(status.value)}
-                                    <span className="ml-2">{status.label}</span>
-                                  </div>
-                                </CommandItem>
-                              ))}
+                              {STATUS_OPTIONS.map((status) => {
+                                // Skip archived status if user doesn't have permission
+                                if (status.value === "archived" && !canArchive) {
+                                  return null
+                                }
+                                
+                                return (
+                                  <CommandItem
+                                    key={status.value}
+                                    value={status.value}
+                                    onSelect={() => {
+                                      setSelectedStatus(status.value)
+                                      handleStatusSelect(status.value)
+                                    }}
+                                  >
+                                    <div className="flex items-center">
+                                      {getStatusIcon(status.value)}
+                                      <span className="ml-2">{status.label}</span>
+                                      {status.value === ticketData.status && <Check className="h-4 w-4 ml-2 text-green-500" />}
+                                    </div>
+                                  </CommandItem>
+                                )
+                              })}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -856,6 +842,7 @@ export default function TicketDetail() {
                                     <div className="flex items-center">
                                       <UserAvatar name={user.name} size="sm" />
                                       <span className="ml-2">{user.name}</span>
+                                      {user.id === ticketData.staff?.id && <Check className="h-4 w-4 ml-2 text-green-500" />}
                                     </div>
                                   </CommandItem>
                                 ))
@@ -876,15 +863,6 @@ export default function TicketDetail() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <CardTitle className="text-lg font-medium">Attachments</CardTitle>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setDialogOpen("attachment")}
-                  className="h-8"
-                >
-                  <Paperclip className="h-4 w-4 mr-2" />
-                  Upload
-                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
@@ -897,7 +875,7 @@ export default function TicketDetail() {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[calc(100vh-535px)] overflow-y-auto pr-2">
                   {isLoadingAttachments ? (
                     <div className="flex items-center justify-center p-4">
                       <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -984,14 +962,6 @@ export default function TicketDetail() {
                     <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
                       <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                       <p className="text-sm text-gray-500">No attachments found</p>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => setDialogOpen("attachment")}
-                        className="mt-2"
-                      >
-                        Upload files
-                      </Button>
                     </div>
                   )}
                 </div>
@@ -1063,7 +1033,10 @@ export default function TicketDetail() {
                 ) : (
                   <AuditLogTable 
                     ticketId={id || ""} 
-                    currentUserId={ticketData?.staff?.id || ""} 
+                    currentUserId={ticketData?.holder?.id || ""}
+                    currentStatus={ticketData?.status || ""}
+                    onStatusChange={handleOptimisticStatusChange}
+                    onStaffChange={handleOptimisticStaffChange}
                   />
                 )}
               </div>
@@ -1078,6 +1051,12 @@ export default function TicketDetail() {
         onOpenChange={(open) => !open && setDialogOpen(null)}
         onSubmit={handleAddComment}
         ticketId={id}
+      />
+
+      <UploadAttachmentDialog
+        open={dialogOpen === "attachment"}
+        onOpenChange={(open) => !open && setDialogOpen(null)}
+        ticketId={id || ""}
       />
 
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>

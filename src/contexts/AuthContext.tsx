@@ -1,136 +1,187 @@
-// "use client"
+"use client";
 
-// import type React from "react"
-// import { createContext, useContext, useState, useEffect } from "react"
-// import type { AuthUser, LoginCredentials, AuthContextType } from "@/types/auth"
-// import { authService } from "@/services/auth.service"
-// import { useToast } from "@/components/ui/use-toast"
-
-import { createContext, useContext, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import { useToast } from '@/components/ui/use-toast';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useToast } from "@/components/ui/use-toast";
+import type { User } from "@/types/user";
+import { authService } from "@/services/auth.service";
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: any;
+  user: User | null;
   login: () => void;
   logout: () => void;
   getAccessToken: () => Promise<string | undefined>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { 
-    isAuthenticated, 
-    isLoading, 
-    user, 
-    loginWithRedirect, 
+  const {
+    isAuthenticated,
+    isLoading,
+    user: auth0User,
+    loginWithRedirect,
     logout: auth0Logout,
-    getAccessTokenSilently 
+    getAccessTokenSilently,
   } = useAuth0();
   const { toast } = useToast();
+  const [user, setUser] = useState<User | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const login = async () => {
     try {
       await loginWithRedirect({
-        appState: { returnTo: window.location.pathname }
+        appState: { returnTo: window.location.pathname },
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to login",
+        title: "Login failed",
+        description: "Could not redirect to login.",
         variant: "destructive",
       });
     }
   };
 
-  const logout = () => {
-    auth0Logout({
-      logoutParams: {
-        returnTo: window.location.origin
-      }
-    });
+  const logout = async () => {
+    console.log('🔄 Starting logout process...');
+    try {
+      // Clear local state first
+      console.log('🧹 Clearing local state...');
+      localStorage.removeItem("auth_token");
+      setUser(null);
+      
+      // Then logout from Auth0
+      console.log('🚪 Logging out from Auth0...');
+      await auth0Logout({
+        logoutParams: { 
+          returnTo: window.location.origin
+        },
+      });
+      console.log('✅ Logout completed');
+    } catch (error) {
+      console.error("❌ Logout failed:", error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const getAccessToken = async () => {
+  const getAccessToken = async (): Promise<string | undefined> => {
     try {
       const token = await getAccessTokenSilently();
-      console.log('Got new token:', token ? 'Token received' : 'No token');
-      // Store token in localStorage
-      localStorage.setItem('auth_token', token);
+      localStorage.setItem("auth_token", token);
       return token;
     } catch (error) {
-      console.error('Error getting access token:', error);
+      console.error("Failed to get access token:", error);
+      localStorage.removeItem("auth_token");
+      setUser(null);
       return undefined;
     }
   };
 
-  useEffect(() => {
-    console.log('Auth state changed:', { isAuthenticated, isLoading, hasUser: !!user });
+  const refreshUser = async () => {
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("No token found");
     
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to fetch user from backend", error);
+      localStorage.removeItem("auth_token");
+      setUser(null);
+    }
+  };
+  
+
+  // Initialize auth state
+  useEffect(() => {
+    let isMounted = true;
+    console.log('🔄 Auth state changed:', { isAuthenticated, isLoading, hasUser: !!auth0User });
+
     const initializeAuth = async () => {
-      // If still loading, wait
-      if (isLoading) {
-        console.log('Auth0 is still loading, pending...');
+      if (isLoading || !isMounted) {
+        console.log('⏳ Skipping initialization:', { isLoading, isMounted });
         return;
       }
 
-      // If authenticated, update token and user info
-      if (isAuthenticated && user) {
-        console.log('User is authenticated, updating session...');
-        try {
-          const token = await getAccessToken();
-          if (token) {
-            localStorage.setItem('user', JSON.stringify(user));
-            (window as any).auth0 = {
-              getAccessTokenSilently
-            };
-            console.log('Session updated successfully');
-          } else {
-            console.error('Failed to get token');
-          }
-        } catch (error) {
-          console.error('Error updating session:', error);
+      try {
+        if (isAuthenticated && auth0User) {
+          console.log('🔄 Refreshing user data...');
+          await refreshUser();
+        } else if (!isAuthenticated) {
+          console.log('🧹 Clearing auth state...');
+          localStorage.removeItem("auth_token");
+          setUser(null);
         }
-      } 
-      // If not authenticated and not loading, check if we need to clear session
-      else if (!isLoading) {
-        console.log('Not authenticated, checking stored session...');
-        const storedToken = localStorage.getItem('auth_token');
-        const storedUser = localStorage.getItem('user');
-        
-        // Only clear if we have no stored data
-        if (!storedToken || !storedUser) {
-          console.log('No stored session found, clearing...');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          delete (window as any).auth0;
-        } else {
-          console.log('Found stored session, keeping it for now');
+      } catch (error) {
+        console.error("❌ Failed to initialize auth:", error);
+      } finally {
+        if (isMounted) {
+          console.log('✅ Auth initialization completed');
+          setIsInitialized(true);
         }
       }
     };
 
     initializeAuth();
-  }, [isAuthenticated, isLoading, user, getAccessTokenSilently]);
 
-  // Add a separate effect to handle token refresh
+    return () => {
+      console.log('🧹 Cleaning up auth effect');
+      isMounted = false;
+    };
+  }, [isAuthenticated, isLoading, auth0User]);
+
+  // Refresh token and user data every 30 mins
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const refreshInterval = setInterval(async () => {
-        try {
-          await getAccessToken();
-          console.log('Token refreshed successfully');
-        } catch (error) {
-          console.error('Error refreshing token:', error);
-        }
-      }, 1000 * 60 * 30); // Refresh every 30 minutes
+    let interval: NodeJS.Timeout;
+    let isMounted = true;
+    
+    const refreshSession = async () => {
+      if (!isMounted || !isAuthenticated || !isInitialized) {
+        console.log('⏳ Skipping refresh:', { isMounted, isAuthenticated, isInitialized });
+        return;
+      }
 
-      return () => clearInterval(refreshInterval);
+      console.log('🔄 Refreshing session...');
+      try {
+        await getAccessToken();
+        await refreshUser();
+        console.log('✅ Session refreshed');
+      } catch (error) {
+        console.error("❌ Failed to refresh session:", error);
+        if (isMounted) {
+          console.log('🧹 Clearing auth state after refresh failure');
+          localStorage.removeItem("auth_token");
+          setUser(null);
+        }
+      }
+    };
+    
+    if (isAuthenticated && isInitialized) {
+      console.log('⏰ Setting up refresh interval');
+      interval = setInterval(refreshSession, 1000 * 60 * 30); // 30 mins
     }
-  }, [isAuthenticated, user]);
+
+    return () => {
+      console.log('🧹 Cleaning up refresh effect');
+      isMounted = false;
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isAuthenticated, isInitialized]);
+
+  // Don't render children until auth is initialized
+  if (!isInitialized) {
+    console.log('⏳ Waiting for auth initialization...');
+    return null;
+  }
 
   return (
     <AuthContext.Provider
@@ -141,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         getAccessToken,
+        refreshUser,
       }}
     >
       {children}
@@ -150,8 +202,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

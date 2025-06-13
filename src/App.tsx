@@ -1,27 +1,30 @@
-import { BrowserRouter as Router, useRoutes } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Auth0Provider } from '@auth0/auth0-react';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { routes } from '@/routes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PageTransition } from '@/components/ui/page-transition';
 import { ThemeProvider } from './components/theme-provider';
 import { PusherProvider } from '@/contexts/PusherContext';
+import { routes } from '@/routes';
 
+// Create router with future flags
+const router = createBrowserRouter(routes, {
+  future: {
+    v7_relativeSplatPath: true,
+  },
+});
 
-// Create a component to use useRoutes hook
-function AppRoutes() {
-  const element = useRoutes(routes);
-  return (
-    <PageTransition>
-      {element}
-    </PageTransition>
-  );
-}
+// Create a single instance of QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
-export default function App() {
-  const queryClient = new QueryClient();
-
+function App() {
   return (
     <Auth0Provider
       domain={import.meta.env.VITE_AUTH0_DOMAIN}
@@ -43,10 +46,8 @@ export default function App() {
             disableTransitionOnChange
           >
             <PusherProvider>
-              <Router>
-                <AppRoutes />
-                <Toaster />
-              </Router>
+              <RouterProvider router={router} />
+              <Toaster />
             </PusherProvider>
           </ThemeProvider>
         </AuthProvider>
@@ -54,3 +55,5 @@ export default function App() {
     </Auth0Provider>
   );
 }
+
+export default App;

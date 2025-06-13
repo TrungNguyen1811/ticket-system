@@ -7,6 +7,7 @@ import {
     useCallback,
   } from "react";
   import Pusher from "pusher-js";
+  import { useAuth } from "./AuthContext";
   
   const PUSHER_CONFIG = {
     key: import.meta.env.VITE_PUSHER_KEY,
@@ -29,11 +30,13 @@ import {
   const PusherContext = createContext<PusherContextType | undefined>(undefined);
   
   export function PusherProvider({ children }: { children: React.ReactNode }) {
+    const { isAuthenticated } = useAuth();
     const [pusher, setPusher] = useState<Pusher | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
     const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const pusherRef = useRef<Pusher | null>(null);
+    const isInitializedRef = useRef(false);
   
     const clearRetryTimeout = () => {
       if (retryTimeoutRef.current) {
@@ -47,19 +50,41 @@ import {
       return Math.min(baseDelay, RETRY_CONFIG.maxDelay) + Math.random() * 1000; // jitter
     };
   
-    const initializePusher = useCallback(() => {
-      clearRetryTimeout();
-  
+    const cleanupPusher = useCallback(() => {
       if (pusherRef.current) {
         pusherRef.current.disconnect();
         pusherRef.current = null;
       }
+      setPusher(null);
+      setIsConnected(false);
+      clearRetryTimeout();
+      setRetryCount(0);
+    }, []);
+  
+    const initializePusher = useCallback(() => {
+      // Prevent multiple initializations
+      if (isInitializedRef.current) return;
+      isInitializedRef.current = true;
+  
+      clearRetryTimeout();
+  
+      if (pusherRef.current) {
+        cleanupPusher();
+      }
   
       const client = new Pusher(PUSHER_CONFIG.key, {
         cluster: PUSHER_CONFIG.cluster,
-        enabledTransports: ["ws", "wss"],
+        authEndpoint: `${import.meta.env.VITE_API_URL}/api/pusher/auth`,
+        auth: {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          },
+        },
+        enabledTransports: ['ws', 'wss'],
+        disabledTransports: ['xhr_streaming', 'xhr_polling'],
+        forceTLS: true,
         activityTimeout: 30000,
-        pongTimeout: 5000,
+        pongTimeout: 15000,
       });
   
       pusherRef.current = client;
@@ -83,7 +108,11 @@ import {
         setIsConnected(false);
         scheduleReconnect();
       });
-    }, []);
+  
+      client.connection.bind('state_change', (states: any) => {
+        console.log(`Pusher connection state changed from ${states.previous} to ${states.current}`);
+      });
+    }, [cleanupPusher]);
   
     const scheduleReconnect = useCallback(() => {
       if (retryCount >= RETRY_CONFIG.maxRetries) {
@@ -99,21 +128,30 @@ import {
       }, delay);
     }, [retryCount]);
   
-    // Initial connect
+    // Handle authentication state changes
     useEffect(() => {
-      initializePusher();
+      if (!isAuthenticated) {
+        cleanupPusher();
+        isInitializedRef.current = false;
+        return;
+      }
+  
+      if (!isInitializedRef.current) {
+        initializePusher();
+      }
+  
       return () => {
-        clearRetryTimeout();
-        pusherRef.current?.disconnect();
+        cleanupPusher();
+        isInitializedRef.current = false;
       };
-    }, [initializePusher]);
+    }, [isAuthenticated, initializePusher, cleanupPusher]);
   
     // Retry logic
     useEffect(() => {
-      if (retryCount > 0 && retryCount <= RETRY_CONFIG.maxRetries) {
+      if (retryCount > 0 && retryCount <= RETRY_CONFIG.maxRetries && isAuthenticated) {
         initializePusher();
       }
-    }, [retryCount, initializePusher]);
+    }, [retryCount, initializePusher, isAuthenticated]);
   
     return (
       <PusherContext.Provider value={{ pusher, isConnected, retryCount }}>

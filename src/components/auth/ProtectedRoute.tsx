@@ -27,7 +27,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     )
   }
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated && location.pathname !== "/login") {
     return <Navigate to="/login" state={{ from: location }} replace />
   }  
 

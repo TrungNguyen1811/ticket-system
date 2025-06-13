@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Tag, Trash, UserPlus, Check } from "lucide-react";
+import { Loader2, Tag, Trash, UserPlus, Check, Clock, Calendar } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS_OPTIONS } from "@/lib/constants";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -25,24 +25,39 @@ import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicketMutations } from "@/hooks/useTicketMutations";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { TicketAuditLog } from "@/types/ticket";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AuditLogTableProps {
   ticketId: string;
   currentUserId: string;
+  currentStatus: string;
+  onStatusChange?: (status: string) => void;
+  onStaffChange?: (staffId: string) => void;
 }
 
 export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   ticketId,
   currentUserId,
+  currentStatus,
+  onStatusChange,
+  onStaffChange,
 }) => {
+  const {
+    logs,
+    isLoading: isLoadingTicketLogs,
+    handleLogDelete,
+  } = useTicketLogs({ ticketId: ticketId || "" })
+
   const [editingType, setEditingType] = useState<'status' | 'staff' | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
   const [deletingLog, setDeletingLog] = useState<boolean>(false);
   const [logId, setLogId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [perPage, setPerPage] = useState(10);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const { user } = useAuth();
 
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.8
@@ -63,12 +78,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   const totalUsers = getUsers.data?.data.pagination?.total || 0;
   const hasNextPage = allUsers.length < totalUsers;
 
-  const {
-    logs,
-    isLoading: isLoadingTicketLogs,
-    handleLogDelete,
-  } = useTicketLogs({ ticketId: ticketId || "" })
-
   React.useEffect(() => {
     if (inView && hasNextPage && !getUsers.isLoading && !isFetchingMore) {
       if (allUsers.length >= totalUsers) {
@@ -79,14 +88,12 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     }
   }, [inView, hasNextPage, getUsers.isLoading, isFetchingMore, allUsers.length, totalUsers]);
   
-  // Reset cờ sau khi getUsers đã hoàn thành
   React.useEffect(() => {
     if (!getUsers.isLoading) {
       setIsFetchingMore(false);
     }
   }, [getUsers.isLoading]);
 
-  // Reset users when search changes
   React.useEffect(() => {
     setAllUsers([]);
     setPerPage(10);
@@ -104,15 +111,25 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
 
   const mutations = useTicketMutations()
 
+  useEffect(() => {
+    setSelectedStatus(currentStatus);
+  }, [currentStatus]);
 
   const handleStatusChange = (status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
+    onStatusChange?.(status);
+    
     mutations.changeStatus.mutate({
       data: {
         status,
         _method: "PUT"
       },
       id: ticketId,
+    }, {
+      onError: () => {
+        onStatusChange?.(currentStatus);
+      }
     });
+    
     setEditingType(null);
     setSelectedStatus("");
     setSearchQuery("");
@@ -120,13 +137,20 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   };
 
   const handleStaffChange = (staffId: string) => {
+    onStaffChange?.(staffId);
+    
     mutations.assign.mutate({
       data: {
         staff_id: staffId,
         _method: "PUT"
       },
       id: ticketId,
+    }, {
+      onError: () => {
+        onStaffChange?.(currentUserId);
+      }
     });
+    
     setEditingType(null);
     setSelectedStaffId("");
     setSearchQuery("");
@@ -138,98 +162,148 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
     return statusOption?.color || "gray";
   };
 
+  const isAdmin = user?.role === "admin"
+  const isHolder = logs?.data?.data?.[0]?.holder?.id === user?.id
+  const canArchive = isAdmin || isHolder
+
   return (
     <div className="space-y-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[120px]">By</TableHead>
-            <TableHead className="w-[120px]">Staff</TableHead>
-            <TableHead className="w-[150px]">Start Time</TableHead>
-            <TableHead className="w-[150px]">End Time</TableHead>
-            <TableHead className="w-[100px]">Status</TableHead>
-            <TableHead className="w-[100px]">To Status</TableHead>
-            <TableHead className="w-[120px]">Action</TableHead>
-            <TableHead className="w-[120px] text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {logs?.data?.data?.map((log: TicketAuditLog) => (
-            <TableRow key={log.id}>
-              <TableCell className="font-medium truncate max-w-[120px]" title={log.holder?.name || "-"}>
-                {log.holder?.name || "-"}
-              </TableCell>
-              <TableCell className="truncate max-w-[120px]" title={log.staff?.name || "-"}>
-                {log.staff?.name || "-"}
-              </TableCell>
-              <TableCell className="whitespace-nowrap">{formatDate(log.start_at)}</TableCell>
-              <TableCell className="whitespace-nowrap">{log.end_at ? formatDate(log.end_at) : "-"}</TableCell>
-              <TableCell>
-                <Badge
-                  variant="outline"
-                  className={`bg-${getStatusColor(log.status)}-100 text-${getStatusColor(log.status)}-800 whitespace-nowrap`}
-                >
-                  {STATUS_OPTIONS.find(s => s.value === log.status)?.label || log.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {log.to_status && (
-                  <Badge
-                    variant="outline"
-                    className={`bg-${getStatusColor(log.to_status)}-100 text-${getStatusColor(log.to_status)}-800 whitespace-nowrap`}
-                  >
-                    {STATUS_OPTIONS.find(s => s.value === log.to_status)?.label || log.to_status}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="truncate max-w-[120px]" title={log.action}>
-                {log.action}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end gap-2">
-                  {log.id === logs?.data?.data?.[0]?.id && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingType('status');
-                          setSelectedStatus(log.status);
-                        }}
-                        className="h-8 w-8"
-                      >
-                        <Tag className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingType('staff');
-                          setSelectedStaffId(log.staff_id || '');
-                        }}
-                        className="h-8 w-8"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setDeletingLog(true);
-                      setLogId(log.id);
-                    }}
-                    className="h-8 w-8"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[120px]">By</TableHead>
+              <TableHead className="w-[120px]">Staff</TableHead>
+              <TableHead className="w-[150px]">Start Time</TableHead>
+              <TableHead className="w-[150px]">End Time</TableHead>
+              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead className="w-[100px]">To Status</TableHead>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {isLoadingTicketLogs ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : !logs?.data?.data?.length ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  No logs found
+                </TableCell>
+              </TableRow>
+            ) : (
+              logs?.data?.data?.map((log: TicketAuditLog) => (
+                <TableRow key={log.id} className={cn(
+                  "transition-colors",
+                  log.id === logs?.data?.data?.[0]?.id && "bg-muted/50"
+                )}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center space-x-2">
+                      <UserAvatar name={log.holder?.name || "-"} size="sm" />
+                      <span className="truncate max-w-[100px]" title={log.holder?.name || "-"}>
+                        {log.holder?.name || "-"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <UserAvatar name={log.staff?.name || "-"} size="sm" />
+                      <span className="truncate max-w-[100px]" title={log.staff?.name || "-"}>
+                        {log.staff?.name || "-"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span>{formatDate(log.start_at)}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>{log.end_at ? formatDate(log.end_at) : "-"}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "whitespace-nowrap",
+                        `bg-${getStatusColor(log.status)}-100 text-${getStatusColor(log.status)}-800`
+                      )}
+                    >
+                      {STATUS_OPTIONS.find(s => s.value === log.status)?.label || log.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {log.to_status && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "whitespace-nowrap",
+                          `bg-${getStatusColor(log.to_status)}-100 text-${getStatusColor(log.to_status)}-800`
+                        )}
+                      >
+                        {STATUS_OPTIONS.find(s => s.value === log.to_status)?.label || log.to_status}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-2">
+                      {log.id === logs?.data?.data?.[0]?.id && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingType('status');
+                              setSelectedStatus(log.status);
+                            }}
+                            className="h-8 w-8 hover:bg-primary/10"
+                            title="Change Status"
+                          >
+                            <Tag className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingType('staff');
+                              setSelectedStaffId(log.staff_id || '');
+                            }}
+                            className="h-8 w-8 hover:bg-primary/10"
+                            title="Reassign Staff"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setDeletingLog(true);
+                          setLogId(log.id);
+                        }}
+                        className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                        title="Delete Log"
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <Dialog open={editingType === 'status'} onOpenChange={() => {
         setEditingType(null);
@@ -249,12 +323,27 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder="Select status" className="text-sm" />
                 </SelectTrigger>
                 <SelectContent>
                   {STATUS_OPTIONS.map((status) => (
                     <SelectItem key={status.value} value={status.value}>
-                      {status.label}
+                      {status.value === "archived" && !canArchive ? null : (
+                        <div className="flex items-center justify-between w-full">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "whitespace-nowrap",
+                              `bg-${status.color}-100 text-${status.color}-800`
+                            )}
+                          >
+                            {status.label}
+                          </Badge>
+                          {status.value === currentStatus && (
+                            <Check className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -271,9 +360,16 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             <Button 
               disabled={!selectedStatus || mutations.changeStatus.isPending} 
               onClick={() => handleStatusChange(selectedStatus as "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived")}
+              className="min-w-[100px]"
             >
-              {mutations.changeStatus.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save
+              {mutations.changeStatus.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -324,7 +420,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                         <UserAvatar name={user.name} size="sm" />
                         <span>{user.name}</span>
                         {selectedStaffId === user.id && (
-                          <Check className="ml-auto h-4 w-4" />
+                          <Check className="ml-auto h-4 w-4 text-green-500" />
                         )}
                       </CommandItem>
                     ))}
@@ -350,7 +446,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               Cancel
             </Button>
             <Button 
-              disabled={!selectedStaffId || mutations.assign.isPending} 
+              disabled={!selectedStaffId || mutations.assign.isPending || selectedStaffId === currentUserId} 
               onClick={() => {
                 handleStaffChange(selectedStaffId);
                 setEditingType(null);
@@ -358,9 +454,16 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 setSearchQuery("");
                 setPerPage(10);
               }}
+              className="min-w-[100px]"
             >
-              {mutations.assign.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save
+              {mutations.assign.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -372,7 +475,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             <AlertDialogTitle>Delete Log</AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogDescription>
-            Are you sure you want to delete this log?
+            Are you sure you want to delete this log? This action cannot be undone.
           </AlertDialogDescription>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setDeletingLog(false)}>Cancel</Button>
@@ -382,8 +485,16 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 handleLogDelete(logId);
                 setDeletingLog(false);
               }}
+              className="min-w-[100px]"
             >
-              Delete
+              {deletingLog ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Pencil, Trash2, FileIcon, MessageSquare, MoreVertical, Loader2 } from "lucide-react";
+import { Pencil, Trash2, FileIcon, MessageSquare, MoreVertical, Loader2, AlertCircle } from "lucide-react";
 import { commentService } from "@/services/comment.services";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -18,8 +18,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
 import { Comment as CommentType } from "@/types/comment";
-import AttachmentService from "@/services/attachment";
+import AttachmentService from "@/services/attachment.service";
 import { Attachment } from "@/types/ticket";
+import { useCommentRealtime } from "@/hooks/useCommentRealtime";
 
 interface CommentListProps {
   ticketId: string;
@@ -36,6 +37,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -47,6 +49,12 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
 
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => AttachmentService.downloadAttachment(attachmentId),
+    onMutate: () => {
+      toast({
+        title: "Downloading...",
+        description: "Please wait while we prepare your download",
+      });
+    },
     onSuccess: (data) => {
       const url = window.URL.createObjectURL(data);
       window.open(url, '_blank');
@@ -72,34 +80,50 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
     setPage(newPage);
   };
 
+
   const updateComment = async (commentId: string, content: string) => {
+    if (!content.trim()) {
+      toast({
+        title: "Error",
+        description: "Comment cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
     // Store previous data for rollback
     const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
       ["ticket-comments", ticketId, page, perPage]
     );
 
-    // Optimistically update the UI
-    queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
-      ["ticket-comments", ticketId, page, perPage],
-      (oldData) => {
-        if (!oldData?.data) return oldData;
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            data: oldData.data.data.map(comment => 
-              comment.id === commentId 
-                ? { ...comment, content } 
-                : comment
-            )
-          }
-        };
-      }
-    );
-
     try {
       const response = await commentService.updateComment(commentId, { content, _method: "PUT" });
       if (response.success) {
+        // Update the comment with the response data to ensure user info is correct
+        queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
+          ["ticket-comments", ticketId, page, perPage],
+          (oldData) => {
+            if (!oldData?.data) return oldData;
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: oldData.data.data.map(comment => 
+                  comment.id === commentId 
+                    ? { 
+                        ...comment, 
+                        content: response.data.data.content,
+                        updated_at: response.data.data.updated_at,
+                        user: response.data.data.user 
+                      } 
+                    : comment
+                )
+              }
+            };
+          }
+        );
+
         toast({
           title: "Success",
           description: "Comment updated successfully",
@@ -119,10 +143,13 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
         description: "Failed to update comment",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const deleteComment = async (commentId: string) => {
+    setIsSubmitting(true);
     // Store previous data for rollback
     const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
       ["ticket-comments", ticketId, page, perPage]
@@ -169,6 +196,8 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
         description: "Failed to delete comment",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -201,6 +230,17 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
     );
   }
 
+  // Error state
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+        <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
+        <p className="text-red-500">Failed to load comments.</p>
+        <p className="text-sm text-gray-400 mt-1">Please try again later.</p>
+      </div>
+    );
+  }
+
   return (
     <ScrollArea className="h-full pr-4">
       <div className="space-y-3 mt-2">
@@ -221,6 +261,11 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                       <Badge variant="outline" className="text-xs font-normal">
                         {formatDate(comment.created_at)}
                       </Badge>
+                      {comment.updated_at !== comment.created_at && (
+                        <Badge variant="outline" className="text-xs font-normal text-gray-500">
+                          edited
+                        </Badge>
+                      )}
                     </div>
                     
                     {comment.user_id === user?.id && (
@@ -253,10 +298,31 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                         className="min-h-[80px] text-sm"
+                        disabled={isSubmitting}
                       />
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" onClick={cancelEditing}>Cancel</Button>
-                        <Button size="sm" onClick={() => handleUpdateComment(comment.id)}>Save</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={cancelEditing}
+                          disabled={isSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleUpdateComment(comment.id)}
+                          disabled={isSubmitting || !editContent.trim()}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save'
+                          )}
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -333,12 +399,20 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteCommentId && deleteComment(deleteCommentId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isSubmitting}
             >
-              Delete
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

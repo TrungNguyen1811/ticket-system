@@ -8,6 +8,7 @@ export interface LoginResponse {
   token: string
   refreshToken?: string
 }
+
 export interface MeResponse {
   user: User
 }
@@ -75,6 +76,7 @@ class AuthService {
       const response = await api.get<Response<MeResponse>>("/auth/me")
       return response.data.data.user
     } catch (error) {
+      console.error("Failed to get current user:", error)
       throw error
     }
   }

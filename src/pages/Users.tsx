@@ -123,8 +123,7 @@ export default function Users() {
     }
   }
 
-  const totalPages = data?.data.pagination?.total || 1
-
+  const totalPages = data?.data.pagination ? Math.ceil(data.data.pagination.total / itemsPerPage) : 1
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">

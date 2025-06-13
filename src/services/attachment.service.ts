@@ -2,6 +2,8 @@ import api from "@/lib/axios"
 import { Response, DataResponse } from "@/types/reponse"
 import { Attachment } from "@/types/ticket"
 
+export type AttachmentFormData = FormData
+
 class AttachmentService {
 
     async getAttachments(ticketId: string): Promise<Response<Attachment[]>> {
@@ -10,6 +12,19 @@ class AttachmentService {
           return response.data
         } catch (error) {
           throw error
+        }
+    }
+
+    async uploadAttachment(ticketId: string, formData: AttachmentFormData): Promise<Response<Attachment[]>> {
+        try {
+            const response = await api.post(`/tickets/${ticketId}/attachments`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+            return response.data
+        } catch (error) {
+            throw error
         }
     }
       

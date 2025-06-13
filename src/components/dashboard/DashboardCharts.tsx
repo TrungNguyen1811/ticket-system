@@ -1,119 +1,110 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AreaChart, BarChart, DonutChart, Title, LineChart, Metric, Text } from "@tremor/react"
-import { mockTickets, mockUsers } from "@/mock/data"
-import { Button } from "@/components/ui/button"
+"use client"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useQuery } from "@tanstack/react-query"
+import { dashboardService } from "@/services/dashboard.service"
+import type { AdminStats, DashboardSummary, UserStats, StaffPerformance } from "@/types/dashboard"
+import { useAuth } from "@/contexts/AuthContext"
+import { Skeleton } from "@/components/ui/skeleton"
+import { DataResponse, Response } from "@/types/reponse"
+import { AreaChart, BarChart, Metric, Text } from "@tremor/react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Eye, EyeOff, Download, RefreshCw, BarChartIcon } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { AreaChartIcon } from "lucide-react"
 import { useState } from "react"
-import { 
-  Calendar, 
-  BarChart2, 
-  LineChart as LineChartIcon, 
-  PieChart, 
-  Activity, 
-  AreaChart as AreaChartIcon,
-  Download,
-  Filter,
-  RefreshCw,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  EyeOff
-} from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "../ui/use-toast"
+import { ticketService } from "@/services/ticket.service"
+import { Ticket } from "@/types/ticket"
+import { userService } from "@/services/user.service"
+import { User } from "@/types/user"
 
 interface ChartData {
   name: string
   value: number
 }
 
-interface TimeSeriesData {
-  date: string
-  tickets: number
-  resolved: number
-  inProgress: number
-}
+const RANGE_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "last_7_days", label: "Last 7 Days" },
+  { value: "last_month", label: "Last Month" },
+  { value: "this_month", label: "This Month" }
+]
 
-interface StaffPerformanceData {
-  name: string
-  "Total Tickets": number
-  "Resolved": number
-  "In Progress": number
-  "Avg. Resolution Time": number
-}
-
-interface ActivityData {
-  day: string
-  hour: string
-  value: number
-}
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"]
 
 export function DashboardCharts() {
-  const { toast } = useToast()
-  const [timeRange, setTimeRange] = useState("7d")
-  const [chartType, setChartType] = useState<"area" | "line">("area")
+  const { user } = useAuth()
+  const isAdmin = user?.role === "admin"
+  const [timeRange, setTimeRange] = useState("last_7_days")
   const [showMetrics, setShowMetrics] = useState(true)
   const [loading, setLoading] = useState(false)
 
-  // Process data for charts
-  const statusData: ChartData[] = [
-    { name: "Open", value: mockTickets.filter(t => t.status === "Open").length },
-    { name: "In Progress", value: mockTickets.filter(t => t.status === "In Progress").length },
-    { name: "Done", value: mockTickets.filter(t => t.status === "Done").length },
-  ]
+  const { data: summary, isLoading: isLoadingSummary } = useQuery<Response<DashboardSummary>, Error>({
+    queryKey: ["dashboard", "summary"],
+    queryFn: () => dashboardService.getSummary(),
+  })
 
-  const doneTickets = mockTickets.filter(t => t.status === "Done").length
+  const { data: adminStats, isLoading: isLoadingAdminStats } = useQuery<Response<AdminStats>, Error>({
+    queryKey: ["dashboard", "admin-stats", timeRange],
+    queryFn: () => dashboardService.getAdminStats({ range: timeRange as "today" | "last_7_days" | "last_month" | "this_month" }),
+    enabled: isAdmin,
+  })
 
-  // Mock time series data (last 7 days)
-  const timeSeriesData: TimeSeriesData[] = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    return {
-      date: date.toLocaleDateString(),
-      tickets: Math.floor(Math.random() * 20) + 5,
-      resolved: Math.floor(Math.random() * 15) + 3,
-      inProgress: Math.floor(Math.random() * 10) + 2,
+  const { data: userStats, isLoading: isLoadingUserStats } = useQuery<Response<UserStats>, Error>({
+    queryKey: ["dashboard", "user-stats", timeRange],
+    queryFn: () => dashboardService.getUserStats({ range: timeRange as "today" | "last_7_days" | "last_month" | "this_month" }),
+    enabled: !isAdmin,
+  })
+
+  const { data: tickets, isLoading: isLoadingTickets } = useQuery<Response<DataResponse<Ticket[]>>, Error>({
+    queryKey: ["dashboard", "tickets"],
+    queryFn: () => ticketService.getTickets(),
+  })
+
+  const { data: users, isLoading: isLoadingUsers } = useQuery<Response<DataResponse<User[]>>, Error>({
+    queryKey: ["dashboard", "users"],
+    queryFn: () => userService.getUsers({
+      isPaginate: false,
+    }),
+    enabled: isAdmin,
+  })
+
+  if (isLoadingSummary || isLoadingAdminStats || isLoadingUserStats || isLoadingTickets || isLoadingUsers) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Skeleton className="h-4 w-[100px]" />
+              <Skeleton className="h-4 w-4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-[60px]" />
+              <Skeleton className="h-4 w-[120px] mt-2" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  // Get data based on user role
+  const getRoleData = () => {
+    if (isAdmin) {
+      return summary?.data.as_admin
     }
-  }).reverse()
+    return summary?.data.as_holder
+  }
 
-  // Mock staff performance data
-  const staffPerformanceData: StaffPerformanceData[] = [
-    {
-      name: "John Doe",
-      "Total Tickets": 45,
-      "Resolved": 30,
-      "In Progress": 15,
-      "Avg. Resolution Time": 2.5,
-    },
-    {
-      name: "Jane Smith",
-      "Total Tickets": 38,
-      "Resolved": 25,
-      "In Progress": 13,
-      "Avg. Resolution Time": 2.1,
-    },
-    {
-      name: "Mike Johnson",
-      "Total Tickets": 52,
-      "Resolved": 40,
-      "In Progress": 12,
-      "Avg. Resolution Time": 1.8,
-    },
+  const roleData = getRoleData()
+
+  const statusData: ChartData[] = [
+    { name: "New", value: roleData?.new || 0 },
+    { name: "In Progress", value: roleData?.in_progress || 0 },
+    { name: "Complete", value: roleData?.complete || 0 },
   ]
-
-  // Mock activity data for the last 7 days
-  const activityData: ActivityData[] = Array.from({ length: 7 }, (_, day) => {
-    return Array.from({ length: 24 }, (_, hour) => ({
-      day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day],
-      hour: `${hour}:00`,
-      value: Math.floor(Math.random() * 10),
-    }))
-  }).flat()
 
   const handleRefresh = () => {
     setLoading(true)
@@ -128,28 +119,20 @@ export function DashboardCharts() {
   }
 
   const handleExport = (format: "csv" | "json") => {
-    const data = {
-      statusData,
-      timeSeriesData,
-      staffPerformanceData,
-      activityData,
-    }
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `dashboard-data-${new Date().toISOString()}.${format}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
+    // TODO: Implement export functionality
     toast({
-      title: "Export successful",
-      description: `Dashboard data has been exported as ${format.toUpperCase()}.`,
+      title: "Export not implemented",
+      description: `Export as ${format.toUpperCase()} is not implemented yet.`,
     })
   }
+
+  // Transform staff performance data for the chart
+  const staffPerformanceData = adminStats?.data.staff_performance?.map((staff: StaffPerformance[0]) => ({
+    name: staff.name,
+    "Total Tickets": staff.total_tickets,
+    "Resolved": staff.resolved,
+    "In Progress": staff.in_progress
+  })) || []
 
   return (
     <div className="space-y-6">
@@ -161,30 +144,13 @@ export function DashboardCharts() {
               <SelectValue placeholder="Select time range" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="24h">Last 24 Hours</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="90d">Last 90 Days</SelectItem>
+              {RANGE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))} 
             </SelectContent>
           </Select>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={chartType === "area" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setChartType("area")}
-            >
-              <AreaChartIcon className="h-4 w-4 mr-2" />
-              Area
-            </Button>
-            <Button
-              variant={chartType === "line" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setChartType("line")}
-            >
-              <LineChartIcon className="h-4 w-4 mr-2" />
-              Line
-            </Button>
-          </div>
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -232,7 +198,7 @@ export function DashboardCharts() {
         </div>
       </div>
 
-      {/* Key Metrics */}
+      <h2 className="text-2xl font-bold">Key Metrics</h2>
       {showMetrics && (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -240,7 +206,7 @@ export function DashboardCharts() {
               <Metric>Total Tickets</Metric>
               <Text>Across all statuses</Text>
               <div className="mt-2 text-2xl font-bold text-blue-600">
-                {mockTickets.length}
+                {roleData?.total}
               </div>
             </CardContent>
           </Card>
@@ -249,7 +215,7 @@ export function DashboardCharts() {
               <Metric>Resolution Rate</Metric>
               <Text>Last 30 days</Text>
               <div className="mt-2 text-2xl font-bold text-green-600">
-                {Math.round((doneTickets / mockTickets.length) * 100)}%
+                {Math.round((roleData?.complete || 0) / (roleData?.total || 1) * 100)}%
               </div>
             </CardContent>
           </Card>
@@ -258,16 +224,16 @@ export function DashboardCharts() {
               <Metric>Avg. Resolution Time</Metric>
               <Text>Last 30 days</Text>
               <div className="mt-2 text-2xl font-bold text-yellow-600">
-                2.3 days
+                {isAdmin ? adminStats?.data.avg.avg_hms : userStats?.data.as_holder.avg.avg_hms}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-6">
-              <Metric>Active Staff</Metric>
-              <Text>Currently assigned</Text>
-              <div className="mt-2 text-2xl font-bold text-purple-600">
-                {mockUsers.length}
+              <Metric>Total Resolution Time</Metric>
+              <Text>Last 30 days</Text>
+              <div className="mt-2 text-2xl font-bold text-yellow-600">
+                {isAdmin ? adminStats?.data.avg.total : userStats?.data.as_holder.avg.total}
               </div>
             </CardContent>
           </Card>
@@ -275,79 +241,50 @@ export function DashboardCharts() {
       )}
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Tickets by Status */}
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <PieChart className="h-5 w-5 mr-2" />
-              Tickets by Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DonutChart
-              className="h-72"
-              data={statusData}
-              category="value"
-              index="name"
-              colors={["blue", "yellow", "green"]}
-              showAnimation={true}
-            />
-          </CardContent>
-        </Card>
 
         {/* Ticket Volume Over Time */}
         <Card className="col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Activity className="h-5 w-5 mr-2" />
+              <AreaChartIcon className="h-5 w-5 mr-2" />
               Ticket Volume Over Time
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {chartType === "area" ? (
               <AreaChart
                 className="h-72"
-                data={timeSeriesData}
+                data={isAdmin ? adminStats?.data.stat || [] : userStats?.data.as_holder.stat || []}
                 index="date"
-                categories={["tickets", "resolved", "inProgress"]}
-                colors={["blue", "green", "yellow"]}
+                categories={["total", "new", "in_progress", "complete"]}
+                colors={["blue", "green", "yellow", "red"]}
                 showAnimation={true}
               />
-            ) : (
-              <LineChart
+          </CardContent>
+        </Card>
+
+        {/* Staff Performance - Only show for admin */}
+        {isAdmin && staffPerformanceData.length > 0 && (
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BarChartIcon className="h-5 w-5 mr-2" />
+                Staff Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BarChart
+                data={staffPerformanceData}
+                index="name"
+                categories={["Total Tickets", "Resolved", "In Progress"]}
+                colors={["blue", "green", "yellow"]}
+                showAnimation={true}
                 className="h-72"
-                data={timeSeriesData}
-                index="date"
-                categories={["tickets", "resolved", "inProgress"]}
-                colors={["blue", "green", "yellow"]}
-                showAnimation={true}
               />
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Staff Performance */}
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <BarChart2 className="h-5 w-5 mr-2" />
-              Staff Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BarChart
-              className="h-72"
-              data={staffPerformanceData}
-              index="name"
-              categories={["Total Tickets", "Resolved", "In Progress"]}
-              colors={["blue", "green", "yellow"]}
-              showAnimation={true}
-            />
-          </CardContent>
-        </Card>
-
-        {/* Ticket Activity */}
-        <Card className="col-span-full">
+        {/* <Card className="col-span-full">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Calendar className="h-5 w-5 mr-2" />
@@ -364,7 +301,7 @@ export function DashboardCharts() {
               showAnimation={true}
             />
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ export interface User {
   nickname: string
   picture: string
   updated_at: string
+  created_at: string
   sub: string
 }
 
@@ -15,5 +16,4 @@ export interface Client {
   email: string
   ticketCount?: number
 }
-
 

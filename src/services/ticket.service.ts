@@ -71,9 +71,9 @@ class TicketService {
   }
 
   // Update ticket
-  async updateTicket(id: string, data: UpdateTicketData): Promise<Response<DataResponse<Ticket>>> {
+  async updateTicket(id: string, data: UpdateTicketData): Promise<Response<Ticket>> {
     try {
-      const response = await api.post<Response<DataResponse<Ticket>>>(`/tickets/${id}`, data)
+      const response = await api.post<Response<Ticket>>(`/tickets/${id}`, data)
       return response.data
     } catch (error) {
       throw error
