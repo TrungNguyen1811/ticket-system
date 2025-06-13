@@ -17,7 +17,11 @@ class AttachmentService {
 
     async uploadAttachment(ticketId: string, formData: AttachmentFormData): Promise<Response<Attachment[]>> {
         try {
-            const response = await api.post(`/tickets/${ticketId}/attachments`, formData)
+            const response = await api.post(`/tickets/${ticketId}/attachments`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
             return response.data
         } catch (error) {
             throw error

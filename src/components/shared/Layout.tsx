@@ -48,6 +48,15 @@ export default function Layout({ children }: LayoutProps) {
                 <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
               </Link>
               <nav className="hidden md:flex gap-6">
+              <Link
+                  to="/"
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-indigo-600",
+                    location.pathname === "/" ? "text-indigo-600" : "text-gray-600"
+                  )}
+                >
+                  Dashboard
+                </Link>
                 <Link
                   to="/tickets"
                   className={cn(
@@ -261,7 +270,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <main className="flex-1">
-          <div className="py-6">
+          <div className="">
             <div className="mx-auto px-4 sm:px-6 md:px-8">{children}</div>
           </div>
         </main>

@@ -603,6 +603,7 @@ export default function Tickets() {
             currentStatus={selectedTicket.status}
             onSubmit={handleStatusChange}
             isLoading={isLoadingStates.changeStatus}
+            holderId={selectedTicket.holder?.id}
           />
 
           <AssignStaffDialog
