@@ -89,7 +89,7 @@ export default function ClientDetail() {
                     {formatDate(ticket.updated_at)}
                   </TableCell>
                   <TableCell>
-                    <Link to={`/tickets/${ticket.id}`} className="flex items-center space-x-2">
+                    <Link to={`/tickets/${ticket.id}/conversation`} className="flex items-center space-x-2">
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4" />
                       </Button>

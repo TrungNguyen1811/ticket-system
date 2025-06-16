@@ -3,7 +3,7 @@
 import React from "react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Ticket, Users, Building2, Settings, Menu, X, LogOut, User, Bell } from "lucide-react"
+import { LayoutDashboard, Ticket, Users, Building2, Settings, Menu, X, LogOut, User, Bell, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/shared/UserAvatar"
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge"
 const adminNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Tickets", href: "/tickets", icon: Ticket },
+  { name: "Conversations", href: "/conversations", icon: MessageSquare },
   { name: "Clients", href: "/clients", icon: Building2 },
   { name: "Users", href: "/users", icon: Users },
   // { name: "Settings", href: "/settings", icon: Settings },

@@ -712,7 +712,7 @@ export default function TicketDetail() {
                 {/* Client Information */}
                 <div className="space-y-2">
                   <h3 className="font-medium text-gray-900">Client Information</h3>
-                  <div className="bg-gray-50 p-4 rounded-md border">
+                  <div className="bg-gray-50 p-4 rounded-md border flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <UserAvatar name={ticketData.client_name} />
                       <div>
@@ -720,6 +720,10 @@ export default function TicketDetail() {
                         <p className="text-sm text-gray-500">{ticketData.client_email}</p>
                       </div>
                     </div>
+                    <Button variant="outline" className="ml-auto" onClick={() => navigate(`/tickets/${ticketData.id}/conversation`)}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                        View Conversation
+                    </Button>
                   </div>
                 </div>
 

@@ -15,6 +15,7 @@ const Clients = lazy(() => import('@/pages/Clients'));
 const ClientDetail = lazy(() => import('@/pages/ClientDetail'));
 const UsersPage = lazy(() => import('@/pages/Users'));
 const SettingsPage = lazy(() => import('@/pages/Settings'));
+const Conversation = lazy(() => import('@/pages/Conversation'));
 
 // Loading component
 const LoadingFallback = () => (
@@ -141,6 +142,14 @@ export const routes: RouteObject[] = [
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <UsersPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'conversations',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <Conversation />
           </Suspense>
         ),
       },
