@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { mockClients } from "@/mock/data"
-import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Building2, Eye } from "lucide-react"
+import { Link } from "react-router-dom"
 
 
 export default function Clients() {
@@ -80,15 +81,11 @@ export default function Clients() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Link to={`/clients/${client.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

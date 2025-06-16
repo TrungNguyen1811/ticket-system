@@ -12,6 +12,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Tickets = lazy(() => import('@/pages/Tickets'));
 const TicketDetail = lazy(() => import('@/pages/TicketDetail'));
 const Clients = lazy(() => import('@/pages/Clients'));
+const ClientDetail = lazy(() => import('@/pages/ClientDetail'));
 const UsersPage = lazy(() => import('@/pages/Users'));
 const SettingsPage = lazy(() => import('@/pages/Settings'));
 
@@ -124,6 +125,14 @@ export const routes: RouteObject[] = [
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <Clients />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'clients/:id',
+        element: (
+          <Suspense fallback={<LoadingFallback />}>
+            <ClientDetail />
           </Suspense>
         ),
       },

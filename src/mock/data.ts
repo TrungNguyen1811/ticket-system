@@ -1,11 +1,11 @@
-import type { User, Client, Ticket, Comment, AuditLog } from "../types"
+import type { User, Client, Ticket, Comment, AuditLog } from "@/types/user"
 
 export const mockUsers: User[] = [
-  { id: "user1", name: "John Admin", email: "admin@example.com", role: "Admin" },
-  { id: "user2", name: "Sarah Staff", email: "staff@example.com", role: "Staff" },
-  { id: "user3", name: "Mike Support", email: "mike@example.com", role: "Staff" },
-  { id: "user4", name: "Lisa Manager", email: "manager@example.com", role: "Manager" },
-  { id: "user5", name: "Tom Tech", email: "tom@example.com", role: "Staff" },
+  { id: "user1", name: "John Admin", email: "admin@example.com", role: "Admin", nickname: "John", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user1" },
+  { id: "user2", name: "Sarah Staff", email: "staff@example.com", role: "Staff", nickname: "Sarah", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user2" },
+  { id: "user3", name: "Mike Support", email: "mike@example.com", role: "Staff", nickname: "Mike", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user3" },
+  { id: "user4", name: "Lisa Manager", email: "manager@example.com", role: "Manager", nickname: "Lisa", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user4" },
+  { id: "user5", name: "Tom Tech", email: "tom@example.com", role: "Staff", nickname: "Tom", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user5" },
 ]
 
 export const mockClients: Client[] = [
