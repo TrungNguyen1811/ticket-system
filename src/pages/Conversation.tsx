@@ -6,16 +6,25 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Plus, Search, MoreHorizontal, Building2, Eye, Filter, ArrowUpDown } from "lucide-react"
-import { useParams } from "react-router-dom"
-import { Link } from "react-router-dom"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { mockClients, mockTickets } from "@/mock/data"
+import { mockTickets } from "@/mock/data"
 import { formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Ticket } from "@/types/ticket"
+import { useConversationTabs } from "@/contexts/ConversationTabsContextType"
 
 export default function Conversation() {
+  const { addTab } = useConversationTabs();
+
   const tickets = mockTickets
+  const handleRowClick = (ticket: Ticket) => {
+    addTab({
+      id: ticket.id,
+      subject: ticket.title,
+      type: "conversation",
+    });
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -157,11 +166,9 @@ export default function Conversation() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <Link to={`/tickets/${ticket.id}/conversation`}>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={() => handleRowClick(ticket)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                      </Link>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">

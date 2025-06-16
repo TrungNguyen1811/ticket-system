@@ -19,8 +19,8 @@ import { Badge } from "@/components/ui/badge"
 const adminNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Tickets", href: "/tickets", icon: Ticket },
-  { name: "Conversations", href: "/conversations", icon: MessageSquare },
-  { name: "Clients", href: "/clients", icon: Building2 },
+  { name: "Conversations", href: "/communication/conversation", icon: MessageSquare },
+  { name: "Clients", href: "/communication/clients", icon: Building2 },
   { name: "Users", href: "/users", icon: Users },
   // { name: "Settings", href: "/settings", icon: Settings },
 ]

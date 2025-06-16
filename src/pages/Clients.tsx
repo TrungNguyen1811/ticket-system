@@ -81,7 +81,7 @@ export default function Clients() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Link to={`/clients/${client.id}`}>
+                    <Link to={`/communication/clients/${client.id}`}>
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4" />
                       </Button>

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import Layout from '@/components/shared/Layout';
+import ConversationTabsLayout from '@/components/shared/ConversationTabsLayout';
 
 // Lazy load components
 const Login = lazy(() => import('@/pages/Login'));
@@ -16,6 +17,7 @@ const ClientDetail = lazy(() => import('@/pages/ClientDetail'));
 const UsersPage = lazy(() => import('@/pages/Users'));
 const SettingsPage = lazy(() => import('@/pages/Settings'));
 const Conversation = lazy(() => import('@/pages/Conversation'));
+const ConversationDetail = lazy(() => import('@/pages/ConversationDetail'));
 
 // Loading component
 const LoadingFallback = () => (
@@ -120,23 +122,7 @@ export const routes: RouteObject[] = [
             ),
           },
         ],
-      },
-      {
-        path: 'clients',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <Clients />
-          </Suspense>
-        ),
-      },
-      {
-        path: 'clients/:id',
-        element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <ClientDetail />
-          </Suspense>
-        ),
-      },
+      },      
       {
         path: 'users',
         element: (
@@ -146,12 +132,46 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: 'conversations',
+        path: 'communication',
         element: (
-          <Suspense fallback={<LoadingFallback />}>
-            <Conversation />
-          </Suspense>
+          <ConversationTabsLayout>
+            <Outlet />
+          </ConversationTabsLayout>
         ),
+        children: [
+          {
+            path: 'conversation',
+            element: (
+              <Suspense fallback={<LoadingFallback />}>
+                <Conversation />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'conversation/:id',
+            element: (
+              <Suspense fallback={<LoadingFallback />}>
+                <ConversationDetail id={""} />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'clients',
+            element: (
+              <Suspense fallback={<LoadingFallback />}>
+                <Clients />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'clients/:id',
+            element: (
+              <Suspense fallback={<LoadingFallback />}>
+                <ClientDetail />
+              </Suspense>
+            ),
+          },
+        ],
       },
       {
         path: 'settings',
