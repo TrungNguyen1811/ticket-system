@@ -20,8 +20,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const {
-    isAuthenticated,
-    isLoading,
+    isAuthenticated: auth0IsAuthenticated,
+    isLoading: auth0IsLoading,
     user: auth0User,
     loginWithRedirect,
     logout: auth0Logout,
@@ -30,6 +30,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Compute actual authentication state
+  const isAuthenticated = auth0IsAuthenticated && !!user;
 
   const login = async () => {
     try {
@@ -102,19 +106,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize auth state
   useEffect(() => {
     let isMounted = true;
-    console.log('🔄 Auth state changed:', { isAuthenticated, isLoading, hasUser: !!auth0User });
+    console.log('🔄 Auth state changed:', { auth0IsAuthenticated, auth0IsLoading, hasUser: !!auth0User });
 
     const initializeAuth = async () => {
-      if (isLoading || !isMounted) {
-        console.log('⏳ Skipping initialization:', { isLoading, isMounted });
+      if (auth0IsLoading || !isMounted) {
+        console.log('⏳ Skipping initialization:', { auth0IsLoading, isMounted });
         return;
       }
 
       try {
-        if (isAuthenticated && auth0User) {
+        if (auth0IsAuthenticated && auth0User) {
           console.log('🔄 Refreshing user data...');
           await refreshUser();
-        } else if (!isAuthenticated) {
+        } else if (!auth0IsAuthenticated) {
           console.log('🧹 Clearing auth state...');
           localStorage.removeItem("auth_token");
           setUser(null);
@@ -125,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) {
           console.log('✅ Auth initialization completed');
           setIsInitialized(true);
+          setIsLoading(false);
         }
       }
     };
@@ -135,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('🧹 Cleaning up auth effect');
       isMounted = false;
     };
-  }, [isAuthenticated, isLoading, auth0User]);
+  }, [auth0IsAuthenticated, auth0IsLoading, auth0User]);
 
   // Refresh token and user data every 30 mins
   useEffect(() => {
@@ -143,8 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     
     const refreshSession = async () => {
-      if (!isMounted || !isAuthenticated || !isInitialized) {
-        console.log('⏳ Skipping refresh:', { isMounted, isAuthenticated, isInitialized });
+      if (!isMounted || !auth0IsAuthenticated || !isInitialized) {
+        console.log('⏳ Skipping refresh:', { isMounted, auth0IsAuthenticated, isInitialized });
         return;
       }
 
@@ -163,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     
-    if (isAuthenticated && isInitialized) {
+    if (auth0IsAuthenticated && isInitialized) {
       console.log('⏰ Setting up refresh interval');
       interval = setInterval(refreshSession, 1000 * 60 * 30); // 30 mins
     }
@@ -175,10 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearInterval(interval);
       }
     };
-  }, [isAuthenticated, isInitialized]);
+  }, [auth0IsAuthenticated, isInitialized]);
 
   // Don't render children until auth is initialized
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     console.log('⏳ Waiting for auth initialization...');
     return null;
   }
