@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,6 +85,10 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
 
   const comments = commentsData?.data.data || [];
   const total = commentsData?.data.pagination?.total || 0;
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Handle realtime updates
   const handleCommentUpdate = useCallback((data: CommentType) => {
@@ -320,6 +324,29 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
     downloadAttachment.mutate(attachmentId);
   };
 
+  // Add scroll handler
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    // Auto scroll if we're near the bottom
+    setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
+  }, []);
+
+  // Scroll to bottom when new comments arrive
+  useEffect(() => {
+    if (shouldAutoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [comments, shouldAutoScroll]);
+
+  // Handle loading more comments
+  const handleLoadMore = useCallback(async () => {
+    if (page > 1 && !isLoadingMore) {
+      setIsLoadingMore(true);
+      setPage(page - 1);
+      setIsLoadingMore(false);
+    }
+  }, [page, isLoadingMore, setPage]);
+
   // Empty state
   if (!isLoading && comments.length === 0) {
     return (
@@ -343,8 +370,33 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
   }
 
   return (
-    <ScrollArea className="h-full pr-4">
+    <ScrollArea 
+      ref={scrollRef}
+      className="h-full pr-4"
+      onScroll={handleScroll}
+    >
       <div className="space-y-3 mt-2">
+        {page > 1 && (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              {isLoadingMore ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Load more comments'
+              )}
+            </Button>
+          </div>
+        )}
+
         {comments.map((comment: CommentType) => (
           <Card 
             key={comment.id} 
@@ -475,25 +527,6 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
             {[...Array(3)].map((_, i) => (
               <Skeleton key={i} className="h-20 w-full rounded-md" />
             ))}
-          </div>
-        )}
-
-        {total > perPage && (
-          <div className="flex justify-center pt-2">
-            <Pagination>
-              <PaginationContent>
-                {Array.from({ length: Math.ceil(total / perPage) }).map((_, idx) => (
-                  <PaginationItem key={idx}>
-                    <PaginationLink
-                      isActive={page === idx + 1}
-                      onClick={() => handlePageChange(idx + 1)}
-                    >
-                      {idx + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-              </PaginationContent>
-            </Pagination>
           </div>
         )}
       </div>

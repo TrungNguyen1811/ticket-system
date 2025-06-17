@@ -45,5 +45,5 @@ export const useCommentRealtime = (
     return () => {
       echo.leave(`tickets.${ticketId}.comments`)
     }
-  }, [ticketId, onUpdate, onDelete])
+  }, [ticketId, onUpdate, onDelete, lastEditedComment])
 }

@@ -1,0 +1,13 @@
+import { Attachment } from "./ticket"
+
+export interface Mail {
+    id: string
+    from: string
+    subject: string
+    body: string
+    attachments: Attachment[]
+    created_at: string
+    updated_at: string
+}
+
+export type MailFormData = FormData
