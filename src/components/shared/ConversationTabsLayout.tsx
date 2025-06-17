@@ -1,117 +1,157 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { ChevronRight, Plus, User } from "lucide-react";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "../ui/breadcrumb";
-import { ConversationTabsContext, ConversationTab } from "@/contexts/ConversationTabsContextType";
+import { useEffect } from "react";
+import { ChevronRight, MessageSquare, User } from "lucide-react";
+import { BreadcrumbLink } from "../ui/breadcrumb";
 import { Separator } from "../ui/separator";
+import {
+  ConversationTab,
+  useConversationTabsStore,
+} from "@/hooks/useConversationTabsStore";
+import { ticketService } from "@/services/ticket.service";
+import { useQuery } from "@tanstack/react-query";
 
-export default function ConversationTabsLayout({ children }: { children: React.ReactNode }) {
+export default function ConversationTabsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { id } = useParams();
   const navigate = useNavigate();
   const path = useLocation().pathname;
 
-  const [tabs, setTabs] = useState<ConversationTab[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const isClient = path.includes("clients");
+  const type = isClient ? "client" : "conversation";
+  const tabId = id ? `${type}_${id}` : null;
 
-  // Breadcrumb items
-  const activeTab = tabs.find(t => t.id === activeId);
+  const ticket = useQuery({
+    queryKey: ["ticket", id],
+    queryFn: () => ticketService.getTicket(id || ""),
+    enabled: !!id,
+  });
+
+  const {
+    tabs,
+    activeId,
+    addTab,
+    closeTab,
+    setActiveId,
+    clearTabs,
+  } = useConversationTabsStore();
+
+  // Add tab when ticket data loaded
+  useEffect(() => {
+    if (!tabId || !ticket.data?.data) return;
+
+    const subject = isClient
+      ? ticket.data.data.client_name
+      : ticket.data.data.title;
+
+    addTab({ id: tabId, subject, type });
+  }, [tabId, ticket.data?.data]);
+
+  // Clear tabs when leaving conversation/client pages
+  useEffect(() => {
+    if (
+      !path.startsWith("/communication/conversation") &&
+      !path.startsWith("/communication/clients")
+    ) {
+      clearTabs();
+    }
+  }, [path]);
+
+  const handleTabClick = (tab: ConversationTab) => {
+    const [type, rawId] = tab.id.split("_");
+    const href =
+      type === "client"
+        ? `/communication/clients/${rawId}`
+        : `/communication/conversation/${rawId}`;
+    navigate(href);
+    setActiveId(tab.id);
+  };
+
+  const handleCloseTab = (tabId: string) => {
+    closeTab(tabId);
+    if (activeId === tabId) {
+      const remainingTabs = tabs.filter((tab) => tab.id !== tabId);
+      const next = remainingTabs.at(-1);
+      if (next) {
+        handleTabClick(next);
+      } else {
+        navigate("/communication/conversation");
+        setActiveId(null);
+      }
+    }
+  };
+
+  const activeTab = tabs.find((tab) => tab.id === activeId);
   const breadcrumbItems = [
     { label: "Conversations", href: "/communication/conversation" },
     ...(activeTab
       ? [
           {
-            label: activeTab.type === "client" ? "Client Detail" : "Conversation Detail",
-            href: path,
+            label:
+              activeTab.type === "client"
+                ? "Client Detail"
+                : "Conversation Detail",
+            href:
+              activeTab.type === "client"
+                ? `/communication/clients/${activeTab.id.split("_")[1]}`
+                : `/communication/conversation/${activeTab.id.split("_")[1]}`,
           },
         ]
       : []),
   ];
 
-  // Khi route thay đổi, mở tab tương ứng
-  useEffect(() => {
-    if (id && !tabs.find(t => t.id === id)) {
-      // fetch title nếu cần, ở đây demo subject
-      setTabs(prev => [
-        ...prev,
-        { id, subject: `Conv ${id}`, type: path.includes("client") ? "client" : "conversation" },
-      ]);
-    }
-    setActiveId(id || null);
-  }, [id, path]);
-
-  const closeTab = (tabId: string) => {
-    const remaining = tabs.filter(t => t.id !== tabId);
-    setTabs(remaining);
-
-    if (tabId === activeId) {
-      // chuyển về tab bên trái
-      const next = remaining[remaining.length - 1];
-      if (next) navigate(`/communication/conversation/${next.id}`);
-      else navigate(`/communication/conversation`);
-    }
-  };
-
-  // Hàm này nên truyền xuống Conversation/Client list để add tab khi click
-  const addTab = (tab: ConversationTab) => {
-    setTabs(prev => {
-      if (prev.find(t => t.id === tab.id)) return prev;
-      return [...prev, tab];
-    });
-    setActiveId(tab.id);
-    navigate(`/communication/conversation/${tab.id}`);
-  };
-
   return (
-    <ConversationTabsContext.Provider value={{ addTab }}>
-      <div className="h-screen flex flex-col">
-        {/* Tabs bar */}
-        {tabs.length > 0 && (
-          <div className="flex-none flex space-x-2 border-b bg-muted py-2">
-            {tabs.map(tab => (
-              <div
-                key={tab.id}
-                className={`px-3 py-1 rounded-t-md cursor-pointer flex items-center gap-1 ml-2 ${
-                  tab.id === activeId ? 'bg-white border' : 'text-muted-foreground'
-                }`}
-                onClick={() => navigate(`/communication/conversation/${tab.id}`)}
+    <div className="h-screen flex flex-col">
+      {tabs.length > 0 && (
+        <div className="flex-none flex space-x-2 border-b bg-muted py-2">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`px-3 py-1 rounded-t-md cursor-pointer flex items-center gap-1 ml-2 ${
+                tab.id === activeId ? "bg-white border" : "text-muted-foreground"
+              }`}
+              onClick={() => handleTabClick(tab)}
+            >
+              {tab.type === "client" ? (
+                <User className="h-4 w-4" />
+              ) : (
+                <MessageSquare className="h-4 w-4" />
+              )}
+              <span className="truncate max-w-[120px]">{tab.subject}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseTab(tab.id);
+                }}
+                className="ml-1 text-gray-400 hover:text-red-500"
+                title="Close"
               >
-                {tab.type === "client" ? <User className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                <span className="truncate max-w-[120px]">{tab.subject}</span>
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                  }}
-                  className="ml-1 text-gray-400 hover:text-red-500"
-                  title="Close"
-                >
-                  ×
-                </button>
-              </div>
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tabs.length > 0 && breadcrumbItems.length > 1 && (
+        <div className="flex-none p-4">
+          <nav className="flex items-center text-sm text-muted-foreground gap-1">
+            {breadcrumbItems.map((item, idx) => (
+              <span key={idx} className="flex items-center gap-1">
+                {idx > 0 && <ChevronRight className="h-4 w-4" />}
+                <BreadcrumbLink href={item.href} className="hover:underline">
+                  {item.label}
+                </BreadcrumbLink>
+              </span>
             ))}
-          </div>
-        )}
+          </nav>
+        </div>
+      )}
 
-        {/* Breadcrumb */}
-        {tabs.length > 0 && breadcrumbItems.length > 1 && (
-          <div className="flex-none p-4">
-            <nav className="flex items-center text-sm text-muted-foreground gap-1">
-              {breadcrumbItems.map((item, idx) => (
-                <span key={idx} className="flex items-center gap-1">
-                  {idx > 0 && <ChevronRight className="h-4 w-4" />}
-                  <BreadcrumbLink href={item.href} className="hover:underline">
-                    {item.label}
-                  </BreadcrumbLink>
-                </span>
-              ))}
-            </nav>
-          </div>
-        )}
-
-        <Separator />
-
-        <div className="flex-1 overflow-hidden">{children}</div>
-      </div>
-    </ConversationTabsContext.Provider>
+      <Separator />
+      <div className="flex-1 overflow-hidden">{children}</div>
+    </div>
   );
 }

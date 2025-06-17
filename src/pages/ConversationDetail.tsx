@@ -1,9 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Info, Clock, FileText, Lock, FileIcon, Tag, MessageSquare, Paperclip, Loader2, Send, X, Pencil, Trash2, MoreVertical } from "lucide-react";
+import { Info, Clock, FileText, Lock, FileIcon, Tag, MessageSquare, Paperclip, Loader2, Send, X, Pencil, Trash2, MoreVertical, Trash, Download, Search, ImageIcon, TimerIcon } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Attachment, AttachmentList } from "@/components/editor/AttachmentList";
 import attachmentService from "@/services/attachment.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +41,9 @@ import { Mail, MailFormData } from "@/types/mail";
 import { useCommentRealtime } from "@/hooks/useCommentRealtime";
 import { useTicketComments } from "@/hooks/useTicketComments";
 import SetEditTextPlugin from "@/components/SetEditTextPlugin";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 
 const initialConfig = {
   namespace: 'ConversationEditor',
@@ -68,8 +71,11 @@ export default function ConversationDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"public" | "internal">("public");
-  const [isInternal, setIsInternal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"public" | "internal">(() => {
+    const savedTab = localStorage.getItem(`conversation-${id}-activeTab`);
+    return savedTab === "internal" ? "internal" : "public";
+  });
+    const [isInternal, setIsInternal] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
     raw: "",
@@ -77,7 +83,13 @@ export default function ConversationDetail() {
   })
   const { user } = useAuth();
   const [shouldClearEditor, setShouldClearEditor] = useState(false);
-  // Fetch users for staff assignment
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    localStorage.setItem(`conversation-${id}-activeTab`, activeTab);
+  }, [activeTab]);
+  
+
+   // Fetch users for staff assignment
   const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<UserType[]>>>({
     queryKey: ["users"],
     queryFn: () => userService.getUsers({ role: "user", isPaginate: false }),
@@ -94,6 +106,10 @@ export default function ConversationDetail() {
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   });
+
+  const filtered = attachmentsData?.data.filter(a =>
+    a.file_name.toLowerCase().includes(search.toLowerCase())
+  );
   const { 
     comments: commentsData,
     pagination: commentsPagination,
@@ -134,13 +150,76 @@ export default function ConversationDetail() {
     setIsStatusOpen(false);
   }, [handleChangeStatus]);
 
+  // Download attachment
   const downloadAttachment = useMutation({
-    mutationFn: (id: string) => attachmentService.downloadAttachment(id),
-  });
-
+    mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
+    onMutate: (attachmentId) => {
+      setDownloadingFiles(prev => new Set(prev).add(attachmentId));
+    },
+    onSuccess: (data, attachmentId) => {
+      const url = window.URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ''; // Let the browser determine the filename
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setDownloadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
+      toast({
+        title: "Success",
+        description: "Attachment downloaded successfully",
+      });
+    },
+    onError: (_, attachmentId) => {
+      setDownloadingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
+      toast({
+        title: "Error",
+        description: "Failed to download attachment",
+        variant: "destructive",
+      });
+    }
+  })
+  // Delete attachment
   const deleteAttachment = useMutation({
-    mutationFn: (id: string) => attachmentService.deleteAttachment(id),
-  });
+    mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
+    onMutate: (attachmentId) => {
+      setDeletingFiles(prev => new Set(prev).add(attachmentId));
+    },
+    onSuccess: (_, attachmentId) => {
+      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+
+      toast({
+        title: "Success",
+        description: "Attachment deleted successfully",
+      })
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
+    },
+    onError: (_, attachmentId) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete attachment",
+        variant: "destructive",
+      })
+      setDeletingFiles(prev => {
+        const next = new Set(prev);
+        next.delete(attachmentId);
+        return next;
+      });
+    }
+  })
 
   useEffect(() => {
     setConversation(ticketData || null);
@@ -380,19 +459,23 @@ export default function ConversationDetail() {
               </CardContent>
             </Card>
 
+            <Separator />
+
             {/* Ticket Info Card */}
             <Card className="shadow-none border-gray-100">
               <CardHeader className="p-3 pb-2">
                 <CardTitle className="text-xs font-medium">Ticket Information</CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <UserAvatar name={ticketData?.holder?.name || ""} size="sm" />
+                  <div>
+                    <p className="text-sm font-medium">{ticketData?.holder?.name}</p>
+                    <p className="text-xs text-gray-500">{ticketData?.holder?.email}</p>
+                  </div>
+                </div>
                 <div className="flex items-center justify-between">
-                  <Badge 
-                    variant={"default"}
-                    className="text-xs px-1.5 py-0.5"
-                  >
-                    {ticketData?.status}
-                  </Badge>
+                  <StatusBadge status={ticketData?.status || ""} />
                 </div>
 
                 <div className="space-y-2">
@@ -401,15 +484,23 @@ export default function ConversationDetail() {
                     <span>Created {formatDate(ticketData?.created_at || "")}</span>
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <TimerIcon className="h-3 w-3" />
+                    <span>Updated {formatDate(ticketData?.updated_at || "")}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
+            <Separator />
+
             {/* Assignee Card */}
-            <Card className="shadow-none border-gray-100">
-              <CardHeader className="p-3 pb-2">
-                <CardTitle className="text-xs font-medium">Assignee</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
+            <div className="shadow-none border-gray-100">
+              <div className="px-3 pb-2">
+                <div className="text-sm font-medium">Assignee</div>
+              </div>
+              <div className="px-3">
                 <AssigneeUser
                   isStaffOpen={isStaffOpen}
                   setIsStaffOpen={setIsStaffOpen}
@@ -419,15 +510,15 @@ export default function ConversationDetail() {
                   handleStaffSelect={handleStaffSelect}
                   isErrorUsers={isErrorUsers}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Status Card */}
-            <Card className="shadow-none border-gray-100">
-              <CardHeader className="p-3 pb-2">
-                <CardTitle className="text-xs font-medium">Status</CardTitle>
-              </CardHeader>
-              <CardContent className="p-3">
+            <div className="shadow-none border-gray-100">
+              <div className="px-3 pb-2">
+                <div className="text-sm font-medium">Status</div>
+              </div>
+              <div className="px-3">
                 {ticketData && (
                   <ChangeStatus
                     isStatusOpen={isStatusOpen}
@@ -439,8 +530,8 @@ export default function ConversationDetail() {
                     setSelectedStatus={setSelectedStatus}
                   />
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </aside>
 
@@ -450,12 +541,11 @@ export default function ConversationDetail() {
           <div className="px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-2">
-                <h1 className="text-base font-medium text-gray-900">{ticketData?.title || ""}</h1>
+                <Link to={`/tickets/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
+                  <h1 className="text-base font-medium text-gray-900">{ticketData?.title || ""}</h1>
+                </Link>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
                   <span>#{id}</span>
-                  <span>Created by {ticketData?.client_name || ""}</span>
-                  <span>•</span>
-                  <span>Created at {formatDate(ticketData?.created_at || "")}</span>
                 </div>
               </div>
             </div>
@@ -464,7 +554,7 @@ export default function ConversationDetail() {
           {/* Messages */}
           <div className="flex flex-col h-full">
             <div className="flex-1 flex flex-col relative">
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "public" | "internal")}>
+              {/* <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "public" | "internal")}>
                 <TabsList className="px-6 py-4 border-b border-gray-200 w-full shrink-0">
                   <TabsTrigger value="public" className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
@@ -481,7 +571,7 @@ export default function ConversationDetail() {
                     </Badge>
                   </TabsTrigger>
                 </TabsList>
-              </Tabs>
+              </Tabs> */}
               <div className="flex-1 overflow-auto">
                 {activeTab === "public" ? (
                   <div>
@@ -853,17 +943,113 @@ export default function ConversationDetail() {
         {/* Right Sidebar */}
         <aside className="w-[300px] bg-white border-l border-gray-200">
           <div className="p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Attachments</h3>
-            {attachmentsData?.data && attachmentsData.data.length > 0 ? (
-                  <AttachmentList
-                    attachments={attachmentsData.data}
-                    isLoading={isLoadingAttachments}
-                    isError={isErrorAttachments}
-                    onDownload={downloadAttachment.mutate}
-                    onDelete={deleteAttachment.mutate}
-                    downloadingFiles={downloadingFiles}
-                    deletingFiles={deletingFiles}
-                  />
+            {attachmentsData?.data ? (
+                  <div className="h-full">
+                  <div className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <div className="text-md font-medium">Attachments</div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <Input
+                        placeholder="Search attachments..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        className="pl-10 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2 h-full overflow-y-auto pr-2">
+                      {isLoadingAttachments ? (
+                        <div className="flex items-center justify-center p-4 text-xs">
+                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                        </div>
+                      ) : isErrorAttachments ? (
+                        <div className="text-center p-4 text-red-500 text-xs">
+                          Failed to load attachments
+                        </div>
+                      ) : filtered && filtered.length > 0 ? (
+                        <div className="grid gap-2">
+                          {filtered.map(attachment => (
+                            <div
+                              key={attachment.id}
+                              className="flex items-center justify-between p-2 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                                <div className="flex-shrink-0">
+                                  {attachment.content_type.startsWith("image/") ? (
+                                    <ImageIcon className="h-4 w-4 text-blue-500" />
+                                  ) : (
+                                    <FileText className="h-4 w-4 text-gray-500" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1 overflow-hidden">
+                                  <a
+                                    href={attachment.file_path}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block truncate text-xs font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                                  >
+                                    {attachment.file_name}
+                                  </a>
+                                  <p className="truncate text-xs text-gray-500 mt-1">
+                                    {attachment.file_size} • {formatDate(attachment.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {(
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={e => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      downloadAttachment.mutate(attachment.id);
+                                    }}
+                                    disabled={downloadingFiles.has(attachment.id)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    {downloadingFiles.has(attachment.id) ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Download className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
+                                {(
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={e => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      deleteAttachment.mutate(attachment.id);
+                                    }}
+                                    disabled={deletingFiles.has(attachment.id)}
+                                    className="h-6 w-6 p-0 hover:text-red-500"
+                                  >
+                                    {deletingFiles.has(attachment.id) ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
+                          <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">No attachments found</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 ) : (
                   <Alert
                   variant="default"

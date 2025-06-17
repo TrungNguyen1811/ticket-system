@@ -216,13 +216,21 @@ export default function TicketDetail() {
     }
   })
 
-  // Get ticket audit logs
+  // Auto-save title and description
   useEffect(() => {
     if (ticketData) {
       setEditedTitle(ticketData.title)
       setEditedDescription(ticketData.description)
     }
   }, [ticketData])
+
+  // Update selectedStatus and selectedStaff when ticket data changes
+  useEffect(() => {
+      if (ticketData) {
+        setSelectedStatus(ticketData.status);
+        setSelectedStaff(ticketData.staff?.id || "");
+      }
+  }, [ticketData]);
   
   const handleStatusChange = (status: string) => {
     if (!id) return
@@ -232,7 +240,6 @@ export default function TicketDetail() {
       _method: "PUT"
     })
   }
-
   const handleStaffAssign = (staffId: string) => {
     if (!id) return
     markAsUpdated(id);
@@ -260,7 +267,6 @@ export default function TicketDetail() {
       _method: "PUT"
     })
   }
-
   const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
     if (!id) return
 
@@ -299,7 +305,6 @@ export default function TicketDetail() {
   }
 
   // Save handlers
-
   const handleSaveDescription = async () => {
     if (!id) return
     try {
@@ -313,8 +318,6 @@ export default function TicketDetail() {
       toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
     }
   }
-
-  // Auto-save title on blur or Enter
   const handleTitleBlur = async () => {
     if (!id || editedTitle.trim() === ticketData?.title) {
       setIsEditingTitle(false)
@@ -344,7 +347,7 @@ export default function TicketDetail() {
     }
   }
 
-  // Xác nhận đổi status
+  // Confirm status change
   const handleStatusSelect = (status: string) => {
     if (status === "complete" || status === "archived") {
       setPendingStatus(status)
@@ -354,11 +357,11 @@ export default function TicketDetail() {
       handleStatusChange(status)
     }
   }
-
   const handleStaffSelect = (staffId: string) => {
     handleStaffAssign(staffId)
   }
-  
+
+  // Confirm staff change
   const handleConfirmChange = () => {
     if (confirmType === "status" && pendingStatus) {
       handleStatusChange(pendingStatus)
@@ -367,7 +370,6 @@ export default function TicketDetail() {
     setPendingStatus(null)
     setConfirmType(null)
   }
-
   const handleCancelChange = () => {
     // Reset selectedStatus to original value
     if (ticketData) {
@@ -378,23 +380,15 @@ export default function TicketDetail() {
     setConfirmType(null);
   }
 
-  // Update selectedStatus and selectedStaff when ticket data changes
-  useEffect(() => {
-    if (ticketData) {
-      setSelectedStatus(ticketData.status);
-      setSelectedStaff(ticketData.staff?.id || "");
-    }
-  }, [ticketData]);
-
+  // Optimistic status 
   const handleOptimisticStatusChange = (status: string) => {
     setSelectedStatus(status);
   };
-
   const handleOptimisticStaffChange = (staffId: string) => {
     setSelectedStaff(staffId);
   };
 
-
+  // Loading ticket
   if (isLoadingTicket) {
     return (
       <div className="flex items-center justify-center h-screen">

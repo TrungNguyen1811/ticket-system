@@ -5,26 +5,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreHorizontal, Building2, Eye, Filter, ArrowUpDown } from "lucide-react"
+import { Search, MoreHorizontal, Building2, Eye, Filter, ArrowUpDown } from "lucide-react"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { mockTickets } from "@/mock/data"
 import { formatDate } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Ticket } from "@/types/ticket"
-import { useConversationTabs } from "@/contexts/ConversationTabsContextType"
+import { Status, Ticket } from "@/types/ticket"
+import { useQuery } from "@tanstack/react-query"
+import { Response, DataResponse } from "@/types/reponse"
+import { ticketService } from "@/services/ticket.service"
+import { Link } from "react-router-dom"
 
 export default function Conversation() {
-  const { addTab } = useConversationTabs();
-
-  const tickets = mockTickets
-  const handleRowClick = (ticket: Ticket) => {
-    addTab({
-      id: ticket.id,
-      subject: ticket.title,
-      type: "conversation",
-    });
-  };
+  const { data: tickets } = useQuery<Response<DataResponse<Ticket[]>>>({
+    queryKey: ["tickets"],
+    queryFn: () => ticketService.getTickets(),
+  });
 
   return (
     <div className="space-y-6 p-6">
@@ -80,7 +76,7 @@ export default function Conversation() {
             <div>
               <h2 className="text-lg font-semibold">All Conversations</h2>
               <p className="text-sm text-muted-foreground">
-                {tickets.length} conversations found
+                {tickets?.data.data.length} conversations found
               </p>
             </div>
             <Button variant="outline" size="sm">
@@ -122,7 +118,7 @@ export default function Conversation() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tickets.map((ticket) => (
+              {tickets?.data.data.map((ticket) => (
                 <TableRow key={ticket.id} className="hover:bg-muted/50">
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -140,19 +136,20 @@ export default function Conversation() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={
-                      ticket.status === 'open' ? 'default' :
-                      ticket.status === 'closed' ? 'secondary' :
-                      'outline'
-                    }>
+                    <Badge>
                       {ticket.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <UserAvatar
-                      name={ticket.assignee_id}
-                      size="sm"
-                    />
+                    <div className="flex items-center space-x-2">
+                      <UserAvatar
+                        name={ticket.staff?.name || "Unassigned"}
+                        size="sm"
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        {ticket.staff?.name || "Unassigned"}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-muted-foreground">
@@ -166,10 +163,12 @@ export default function Conversation() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleRowClick(ticket)}>
+                      <Link to={`/communication/conversation/${ticket.id}`} className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm">
                           <Eye className="h-4 w-4" />
                         </Button>
-                      <DropdownMenu>
+                      </Link>
+                      {/* <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
                             <MoreHorizontal className="h-4 w-4" />
@@ -180,7 +179,7 @@ export default function Conversation() {
                           <DropdownMenuItem>Edit</DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                         </DropdownMenuContent>
-                      </DropdownMenu>
+                      </DropdownMenu> */}
                     </div>
                   </TableCell>
                 </TableRow>
