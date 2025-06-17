@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { ChevronRight, Plus, User } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "../ui/breadcrumb";
 import { ConversationTabsContext, ConversationTab } from "@/contexts/ConversationTabsContextType";
+import { Separator } from "../ui/separator";
 
 export default function ConversationTabsLayout({ children }: { children: React.ReactNode }) {
   const { id } = useParams();
@@ -62,15 +63,15 @@ export default function ConversationTabsLayout({ children }: { children: React.R
 
   return (
     <ConversationTabsContext.Provider value={{ addTab }}>
-      <div>
+      <div className="h-screen flex flex-col">
         {/* Tabs bar */}
         {tabs.length > 0 && (
-          <div className="flex space-x-2 border-b bg-muted px-4 py-2">
+          <div className="flex-none flex space-x-2 border-b bg-muted py-2">
             {tabs.map(tab => (
               <div
                 key={tab.id}
-                className={`px-3 py-1 rounded-t-md cursor-pointer flex items-center gap-1 ${
-                  tab.id === activeId ? 'bg-white border font-semibold' : 'text-muted-foreground'
+                className={`px-3 py-1 rounded-t-md cursor-pointer flex items-center gap-1 ml-2 ${
+                  tab.id === activeId ? 'bg-white border' : 'text-muted-foreground'
                 }`}
                 onClick={() => navigate(`/communication/conversation/${tab.id}`)}
               >
@@ -92,8 +93,8 @@ export default function ConversationTabsLayout({ children }: { children: React.R
         )}
 
         {/* Breadcrumb */}
-        {tabs.length > 0 && (
-          <div className="p-4">
+        {tabs.length > 0 && breadcrumbItems.length > 1 && (
+          <div className="flex-none p-4">
             <nav className="flex items-center text-sm text-muted-foreground gap-1">
               {breadcrumbItems.map((item, idx) => (
                 <span key={idx} className="flex items-center gap-1">
@@ -107,7 +108,9 @@ export default function ConversationTabsLayout({ children }: { children: React.R
           </div>
         )}
 
-        <div className="p-4">{children}</div>
+        <Separator />
+
+        <div className="flex-1 overflow-hidden">{children}</div>
       </div>
     </ConversationTabsContext.Provider>
   );

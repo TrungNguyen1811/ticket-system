@@ -26,8 +26,8 @@ export default function Clients() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="mt-2 text-gray-600">Manage your client organizations</p>
+          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+          <p className="text-gray-600 text-sm">Manage your client organizations</p>
         </div>
         <Button>
           <Plus className="h-4 w-4 mr-2" />

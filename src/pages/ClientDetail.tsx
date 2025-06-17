@@ -22,13 +22,13 @@ export default function ClientDetail() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
           <UserAvatar
             name={client?.name || ""}
-            size="2xl"
+            size="xl"
           />
           <div>
-            <p className="text-gray-600 text-xl font-bold ">{client?.name}</p>
+            <p className="text-gray-600 text-lg font-bold ">{client?.name}</p>
             <p className="text-gray-600 text-sm">{client?.email}</p>
           </div>
         </div>
@@ -40,7 +40,7 @@ export default function ClientDetail() {
 
       <Card>
         <CardHeader>
-          <h1 className="text-3xl font-bold text-gray-900">Tickets</h1>
+          <h1 className="text-xl font-bold text-gray-900">Tickets</h1>
           <p className="text-gray-600 text-sm">{tickets.length} tickets</p>
         </CardHeader>
         <CardContent>
@@ -89,7 +89,7 @@ export default function ClientDetail() {
                     {formatDate(ticket.updated_at)}
                   </TableCell>
                   <TableCell>
-                    <Link to={`/tickets/${ticket.id}/conversation`} className="flex items-center space-x-2">
+                    <Link to={`/communication/conversation/${ticket.id}`} className="flex items-center space-x-2">
                       <Button variant="outline" size="sm">
                         <Eye className="h-4 w-4" />
                       </Button>

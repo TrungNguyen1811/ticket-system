@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { formatDate, getStatusColor } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { StatusBadge } from "@/components/shared/StatusBadge"
+import { getStatusIcon, StatusBadge } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
 import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
@@ -49,7 +49,7 @@ import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DataResponse, Response } from "@/types/reponse"
-import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
+import { Attachment, Status, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -70,6 +70,9 @@ import { useTicket } from "@/hooks/useTicket"
 import { useTicketUpdate } from "@/hooks/useTicketUpdate"
 import { useAuth } from "@/contexts/AuthContext"
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
+import { AttachmentList } from "@/components/editor/AttachmentList"
+import AssigneeUser from "@/components/AssigneeUser"
+import ChangeStatus from "@/components/ChangeStatus"
 
 
 function isDescriptionClamped(text: string, maxLines = 4) {
@@ -96,7 +99,6 @@ export default function TicketDetail() {
   const [attachmentSearchTerm, setAttachmentSearchTerm] = useState("")
   const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isStaffOpen, setIsStaffOpen] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<string>("")
   const [selectedStaff, setSelectedStaff] = useState<string>("")
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
@@ -106,6 +108,7 @@ export default function TicketDetail() {
   const [savingTitle, setSavingTitle] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<string | null>(null)
   const [pendingStaff, setPendingStaff] = useState<string | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [confirmType, setConfirmType] = useState<"status" | "staff" | null>(null)
   const [isViewingLogs, setIsViewingLogs] = useState(false)
@@ -483,40 +486,37 @@ export default function TicketDetail() {
 
   // Xác nhận đổi status
   const handleStatusSelect = (status: string) => {
-    setPendingStatus(status)
-    setConfirmType("status")
-    setConfirmDialogOpen(true)
+    if (status === "complete" || status === "archived") {
+      setPendingStatus(status)
+      setConfirmType("status")
+      setConfirmDialogOpen(true)
+    } else {
+      handleStatusChange(status)
+    }
   }
+
   const handleStaffSelect = (staffId: string) => {
-    setPendingStaff(staffId)
-    setConfirmType("staff")
-    setConfirmDialogOpen(true)
+    handleStaffAssign(staffId)
   }
   
   const handleConfirmChange = () => {
     if (confirmType === "status" && pendingStatus) {
       handleStatusChange(pendingStatus)
-    } else if (confirmType === "staff" && pendingStaff) {
-      handleStaffAssign(pendingStaff)
     }
     setConfirmDialogOpen(false)
     setPendingStatus(null)
-    setPendingStaff(null)
     setConfirmType(null)
   }
+
   const handleCancelChange = () => {
-    // Reset selectedStatus and selectedStaff to original values
+    // Reset selectedStatus to original value
     if (ticketData) {
       setSelectedStatus(ticketData.status);
-      setSelectedStaff(ticketData.staff?.id || "");
     }
     setConfirmDialogOpen(false);
     setPendingStatus(null);
-    setPendingStaff(null);
     setConfirmType(null);
   }
-
-
 
   // Update selectedStatus and selectedStaff when ticket data changes
   useEffect(() => {
@@ -534,9 +534,6 @@ export default function TicketDetail() {
     setSelectedStaff(staffId);
   };
 
-  const isAdmin = user?.role === "admin"
-  const isHolder = ticketData?.holder?.id === user?.id
-  const canArchive = isAdmin || isHolder
 
   if (isLoadingTicket) {
     return (
@@ -572,23 +569,6 @@ export default function TicketDetail() {
           <Link to="/tickets">Back to Tickets</Link>
         </Button>
       </div>
-    )
-  }
-
-  const getStatusIcon = (status: string) => {
-    const statusOption = STATUS_OPTIONS.find(s => s.value === status)
-    if (!statusOption) return <AlertCircle className="h-4 w-4 text-gray-600" />
-    
-    return (
-      <div className={cn(
-        "h-2 w-2 rounded-full",
-        statusOption.color === "blue" && "bg-blue-500",
-        statusOption.color === "yellow" && "bg-yellow-500",
-        statusOption.color === "orange" && "bg-orange-500",
-        statusOption.color === "purple" && "bg-purple-500",
-        statusOption.color === "green" && "bg-green-500",
-        statusOption.color === "red" && "bg-red-500",
-      )} />
     )
   }
 
@@ -720,7 +700,7 @@ export default function TicketDetail() {
                         <p className="text-sm text-gray-500">{ticketData.client_email}</p>
                       </div>
                     </div>
-                    <Button variant="outline" className="ml-auto" onClick={() => navigate(`/tickets/${ticketData.id}/conversation`)}>
+                    <Button variant="outline" className="ml-auto" onClick={() => navigate(`/communication/conversation/${ticketData.id}`)}>
                       <MessageSquare className="h-4 w-4 mr-2" />
                         View Conversation
                     </Button>
@@ -732,130 +712,30 @@ export default function TicketDetail() {
                   {/* Status */}
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">Status</h3>
-                    <Popover open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isStatusOpen}
-                          className="w-full justify-between"
-                          disabled={isLoadingUsers}
-                        >
-                          {selectedStatus ? (
-                            <div className="flex items-center">
-                              {getStatusIcon(selectedStatus)}
-                              <span className="ml-2">
-                                {SHOW_STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              {getStatusIcon(ticketData.status)}
-                              <span className="ml-2">
-                                {SHOW_STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
-                              </span>
-                            </div>
-                          )}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search status..." />
-                          <CommandList>
-                            <CommandEmpty>No status found.</CommandEmpty>
-                            <CommandGroup>
-                              {STATUS_OPTIONS.map((status) => {
-                                // Skip archived status if user doesn't have permission
-                                if (status.value === "archived" && !canArchive) {
-                                  return null
-                                }
-                                
-                                return (
-                                  <CommandItem
-                                    key={status.value}
-                                    value={status.value}
-                                    onSelect={() => {
-                                      setSelectedStatus(status.value)
-                                      handleStatusSelect(status.value)
-                                    }}
-                                  >
-                                    <div className="flex items-center">
-                                      {getStatusIcon(status.value)}
-                                      <span className="ml-2">{status.label}</span>
-                                      {status.value === ticketData.status && <Check className="h-4 w-4 ml-2 text-green-500" />}
-                                    </div>
-                                  </CommandItem>
-                                )
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    <ChangeStatus
+                      isStatusOpen={isStatusOpen}
+                      setIsStatusOpen={setIsStatusOpen}
+                      isLoadingUsers={isLoadingUsers}
+                      ticketData={ticketData}
+                      selectedStatus={selectedStatus as Status}
+                      handleStatusSelect={handleStatusSelect}
+                      setSelectedStatus={setSelectedStatus}
+                    />
                   </div>
 
                   {/* Staff Assignment */}
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">Assigned To</h3>
-                    <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isStaffOpen}
-                          className="w-full justify-between"
-                          disabled={isLoadingUsers}
-                        >
-                          {selectedStaff ? (
-                          <div className="flex items-center">
-                              <UserAvatar name={usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"} size="sm" />
-                              <span className="ml-2">{usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <UserAvatar name={ticketData.staff?.name || "Unassigned"} size="sm" />
-                              <span className="ml-2">{ticketData.staff?.name || "Unassigned"}</span>
-                            </div>
-                          )}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search staff..." />
-                          <CommandList>
-                            <CommandEmpty>No staff found.</CommandEmpty>
-                            <CommandGroup>
-                              {isLoadingUsers ? (
-                                <div className="flex items-center justify-center p-2">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                </div>
-                              ) : isErrorUsers ? (
-                                <div className="p-2 text-sm text-red-500">Failed to load users</div>
-                              ) : (
-                                usersData?.data.data.map((user) => (
-                                  <CommandItem
-                                    key={user.id}
-                                    value={user.id}
-                                    onSelect={() => {
-                                      setSelectedStaff(user.id)
-                                      handleStaffSelect(user.id)
-                                    }}
-                                  >
-                                    <div className="flex items-center">
-                                      <UserAvatar name={user.name} size="sm" />
-                                      <span className="ml-2">{user.name}</span>
-                                      {user.id === ticketData.staff?.id && <Check className="h-4 w-4 ml-2 text-green-500" />}
-                                    </div>
-                                  </CommandItem>
-                                ))
-                              )}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    {/* Assignee User */}
+                    <AssigneeUser
+                      isStaffOpen={isStaffOpen}
+                      setIsStaffOpen={setIsStaffOpen}
+                      isLoadingUsers={isLoadingUsers}
+                      usersData={usersData}
+                      selectedStaff={selectedStaff}
+                      handleStaffSelect={handleStaffSelect}
+                      isErrorUsers={isErrorUsers}
+                    />  
                   </div>
                 </div>
               </CardContent>
@@ -864,113 +744,15 @@ export default function TicketDetail() {
 
           {/* Right Column - Attachments */}
           <div>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-lg font-medium">Attachments</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search attachments..."
-                    value={attachmentSearchTerm}
-                    onChange={(e) => setAttachmentSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <div className="space-y-2 max-h-[calc(100vh-535px)] overflow-y-auto pr-2">
-                  {isLoadingAttachments ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                    </div>
-                  ) : isErrorAttachments ? (
-                    <div className="text-center p-4 text-red-500">
-                      Failed to load attachments
-                    </div>
-                  ) : Array.isArray(attachmentsData?.data) && attachmentsData?.data.length > 0 ? (
-                    <div className="grid gap-2">
-                      {attachmentsData.data
-                        .filter((attachment: Attachment) => 
-                          attachment.file_name.toLowerCase().includes(attachmentSearchTerm.toLowerCase())
-                        )
-                        .map((attachment: Attachment) => (
-                          <div 
-                            key={attachment.id} 
-                            className="flex items-center justify-between p-3 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
-                          >
-                            <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                              <div className="flex-shrink-0">
-                                {attachment.content_type.startsWith('image/') ? (
-                                  <ImageIcon className="h-5 w-5 text-blue-500" />
-                                ) : (
-                                  <FileText className="h-5 w-5 text-gray-500" />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1 overflow-hidden">
-                                <a
-                                  href={attachment.file_path}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block truncate text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                                >
-                                  {attachment.file_name}
-                                </a>
-                                <p className="truncate text-xs text-gray-500">
-                                  {formatFileSize(attachment.file_size)} • {formatDate(attachment.created_at)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  downloadAttachment.mutate(attachment.id);
-                                }}
-                                disabled={downloadingFiles.has(attachment.id)}
-                                className="h-8 w-8 p-0"
-                              >
-                                {downloadingFiles.has(attachment.id) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Download className="h-4 w-4" />
-                                )}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  deleteAttachment.mutate(attachment.id);
-                                }}
-                                disabled={deletingFiles.has(attachment.id)}
-                                className="h-8 w-8 p-0 hover:text-red-500"
-                              >
-                                {deletingFiles.has(attachment.id) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
-                      <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No attachments found</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <AttachmentList
+              attachments={attachmentsData?.data || []}
+              isLoading={isLoadingAttachments}
+              isError={isErrorAttachments}
+              onDownload={downloadAttachment.mutate}
+              onDelete={deleteAttachment.mutate}
+              downloadingFiles={downloadingFiles}
+              deletingFiles={deletingFiles}
+            />
           </div>
         </div>
 
@@ -1072,9 +854,6 @@ export default function TicketDetail() {
               <AlertDialogDescription className="text-gray-600 mb-4">
                 {confirmType === "status" && pendingStatus && (
                   <>Are you sure you want to change the status to <b>{STATUS_OPTIONS.find(s => s.value === pendingStatus)?.label}</b>?</>
-                )}
-                {confirmType === "staff" && pendingStaff && (
-                  <>Are you sure you want to assign to <b>{usersData?.data.data.find(user => user.id === pendingStaff)?.name || "Unassigned"}</b>?</>
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>

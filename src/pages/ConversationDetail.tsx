@@ -1,23 +1,36 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Paperclip, Send, MoreHorizontal, Plus, Search, User } from "lucide-react";
+import { Paperclip, Send, MoreHorizontal, Info, ChevronDown, Check, Loader2, ChevronLeft, ChevronRight, Clock, Tag, User2, FileText, AlertCircle, MessageSquare, Lock } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Separator } from "@/components/ui/separator";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "@/components/ui/breadcrumb";
-import ClientDetail from "./ClientDetail";
+import { useNavigate, useParams } from "react-router-dom";
+import { Attachment, AttachmentList } from "@/components/editor/AttachmentList";
+import attachmentService from "@/services/attachment.service";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Response, DataResponse } from "@/types/reponse";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { userService } from "@/services/user.service";
+import { useToast } from "@/components/ui/use-toast";
+import type { User as UserType } from "@/types/user";
+import ChangeStatus from "@/components/ChangeStatus";
+import { useTicket } from "@/hooks/useTicket";
+import { Status } from "@/types/ticket";
+import AssigneeUser from "@/components/AssigneeUser";
+import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-
-interface mockConversation {
+export interface mockConversation {
     id: string
     title: string
     status: string
     overdue: boolean
-    assignee: { name: string }
+    assignee: { id?: string, name: string }
     requester: { name: string; email: string }
     tags: string[]
     priority: string
@@ -26,6 +39,13 @@ interface mockConversation {
         id: number
         user: { name: string }
         content: string
+        created_at: string
+        internal: boolean
+        attachments: {
+          id: string
+          name: string
+          url: string
+        }[]
     }[] 
 }
 
@@ -34,7 +54,7 @@ const mockConversation = {
   title: "SAMPLE TICKET: Do I put it together",
   status: "Open",
   overdue: true,
-  assignee: { name: "Support/Trung Nguyen" },
+  assignee: { id: "1", name: "Support/Trung Nguyen" },
   requester: { name: "Soobin Do", email: "soobin.do@example.com" },
   tags: ["delivery", "sample_ticket"],
   priority: "Normal",
@@ -73,160 +93,451 @@ const mockConversation = {
   ],
 };
 
-export default function ConversationDetail( { id }: { id: string } ) {
-  const { title, status, overdue, assignee, requester, tags, priority, comments } = mockConversation;
+export default function ConversationDetail() {
+  const { id } = useParams();
+  const { title, status, overdue, requester, comments } = mockConversation;
   const [openConversations, setOpenConversations] = useState<mockConversation[]>([mockConversation])
   const [conversation, setConversation] = useState<mockConversation | null>(null);
+  const [isStaffOpen, setIsStaffOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(mockConversation.assignee.id || null);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(mockConversation.status || null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"public" | "internal">("public");
+
+  // Fetch users for staff assignment
+  const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<UserType[]>>>({
+    queryKey: ["users"],
+    queryFn: () => userService.getUsers({ role: "user", isPaginate: false }),
+  });
+
+  // Attachments handling
+  const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
+    queryKey: ["ticket-attachments", id],
+    queryFn: () => attachmentService.getAttachments(id || ""),
+  });
+
+
+  const { ticket: ticketData, isLoading: isLoadingTicket, isError: isErrorTicket, handleUpdate, handleAssign, handleChangeStatus, markAsUpdated } = useTicket({ ticketId: id || "" })
+
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
+
+  const handleStatusSelect = useCallback((status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
+    setSelectedStatus(status);
+    handleChangeStatus({ status });
+    setIsStatusOpen(false);
+  }, [handleChangeStatus]);
+
+  const downloadAttachment = useMutation({
+    mutationFn: (id: string) => attachmentService.downloadAttachment(id),
+  });
+
+  const deleteAttachment = useMutation({
+    mutationFn: (id: string) => attachmentService.deleteAttachment(id),
+  });
+
+  // Staff assignment mutation
+  const assignStaff = useMutation({
+    mutationFn: async (staffId: string) => {
+      // Replace with your actual API call
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock API call
+      return { success: true };
+    },
+    onMutate: async (staffId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["conversation", id] });
+
+      // Snapshot the previous value
+      const previousConversation = queryClient.getQueryData(["conversation", id]);
+
+      // Optimistically update to the new value
+      const newStaff = usersData?.data.data.find(user => user.id === staffId);
+      if (newStaff) {
+        setConversation(prev => prev ? {
+          ...prev,
+          assignee: { id: newStaff.id, name: newStaff.name }
+        } : null);
+      }
+
+      return { previousConversation };
+    },
+    onError: (err, staffId, context) => {
+      // Revert back to the previous value if there's an error
+      if (context?.previousConversation) {
+        queryClient.setQueryData(["conversation", id], context.previousConversation);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to assign staff. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Staff assigned successfully",
+      });
+      setIsStaffOpen(false);
+    },
+  });
 
   useEffect(() => {
     setConversation(mockConversation);
   }, [id]);
 
+  const handleStaffSelect = (staffId: string) => {
+    setSelectedStaff(staffId);
+    assignStaff.mutate(staffId);
+  };
+
+  const publicMessages = comments.filter(c => !c.internal);
+  const internalMessages = comments.filter(c => c.internal);
+
   return (
-    <div className="flex flex-col gap-4">
-        {/* {tabs conversations} */}
-
-
-        <div className="flex flex-col md:flex-row gap-4 bg-[#f6f8fa] min-h-screen mt-4">
-        {/* Sidebar */}
-        <aside className="w-full md:w-[320px] bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
-            <div>
-            <div className="font-semibold text-gray-700 mb-2">Requester</div>
-            <div className="flex items-center gap-3">
-                <UserAvatar name={requester.name} size="sm" />
-                <div>
-                <div className="font-medium">{requester.name}</div>
-                <div className="text-xs text-gray-500">{requester.email}</div>
+    <div className="flex flex-col h-full bg-[#f8fafc]">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar */}
+        <aside className="w-[280px] bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 flex flex-col gap-4">
+            {/* User Info Card */}
+            <Card className="shadow-none border-gray-100">
+              <CardContent className="p-3">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UserAvatar name={requester.name} size="sm" />
+                    <div>
+                      <h2 className="text-sm font-medium text-gray-900">{requester.name}</h2>
+                      <p className="text-xs text-gray-500">{requester.email}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start text-gray-600 hover:text-gray-900 h-8 text-xs"
+                    onClick={() => navigate(`/communication/clients/${id}`)}
+                  >
+                    <Info className="h-3 w-3 mr-2" />
+                    View Client Profile
+                  </Button>
                 </div>
-            </div>
-            </div>
-            <div>
-            <div className="font-semibold text-gray-700 mb-2">Assignee</div>
-            <div className="flex items-center gap-2">
-                <UserAvatar name={assignee.name} size="sm" />
-                <span className="text-sm">{assignee.name}</span>
-            </div>
-            </div>
-            {/* <div> */}
-            {/* <div className="font-semibold text-gray-700 mb-2">Tags</div>
-            <div className="flex flex-wrap gap-1">
-                {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                ))}
-            </div>
-            </div>
-            <div>
-            <div className="font-semibold text-gray-700 mb-2">Priority</div>
-            <Badge variant="outline" className="text-xs">{priority}</Badge>
-            </div> */}
-            <div>
-            <div className="font-semibold text-gray-700 mb-2">Status</div>
-            <Badge variant={overdue ? "destructive" : "default"} className="text-xs">
-                {status} {overdue && <span className="ml-1">+8m</span>}
-            </Badge>
-            </div>
+              </CardContent>
+            </Card>
+
+            {/* Ticket Info Card */}
+            <Card className="shadow-none border-gray-100">
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-xs font-medium">Ticket Information</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Badge 
+                    variant={overdue ? "destructive" : "default"}
+                    className="text-xs px-1.5 py-0.5"
+                  >
+                    {status}
+                  </Badge>
+                  <Badge 
+                    variant="outline"
+                    className={cn(
+                      "text-xs px-1.5 py-0.5",
+                      mockConversation.priority === "High" && "border-red-200 text-red-700 bg-red-50",
+                      mockConversation.priority === "Normal" && "border-blue-200 text-blue-700 bg-blue-50",
+                      mockConversation.priority === "Low" && "border-green-200 text-green-700 bg-green-50"
+                    )}
+                  >
+                    {mockConversation.priority} Priority
+                  </Badge>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <Clock className="h-3 w-3" />
+                    {/* <span>Created {formatDate(mockConversation.created_at)}</span> */}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <Tag className="h-3 w-3" />
+                    <span>Tags: {mockConversation.tags.join(", ")}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Assignee Card */}
+            <Card className="shadow-none border-gray-100">
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-xs font-medium">Assignee</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                <AssigneeUser
+                  isStaffOpen={isStaffOpen}
+                  setIsStaffOpen={setIsStaffOpen}
+                  isLoadingUsers={isLoadingUsers}
+                  usersData={usersData}
+                  selectedStaff={selectedStaff}
+                  handleStaffSelect={handleStaffSelect}
+                  isErrorUsers={isErrorUsers}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Status Card */}
+            <Card className="shadow-none border-gray-100">
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-xs font-medium">Status</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                {ticketData && (
+                  <ChangeStatus
+                    isStatusOpen={isStatusOpen}
+                    setIsStatusOpen={setIsStatusOpen}
+                    isLoadingUsers={isLoadingUsers}
+                    ticketData={ticketData}
+                    selectedStatus={selectedStatus as Status}
+                    handleStatusSelect={handleStatusSelect}
+                    setSelectedStatus={setSelectedStatus}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 flex flex-col">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-                <span className="font-bold text-lg text-gray-900">{title}</span>
-                <Badge variant={overdue ? "destructive" : "default"} className="ml-2">
-                {status} {overdue && <span className="ml-1">+8m</span>}
-                </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                <span>Requester: <span className="font-medium text-gray-700">{requester.name}</span></span>
-                <span>Assignee: <span className="font-medium text-gray-700">{assignee.name}</span></span>
-                <span>Priority: <span className="font-medium text-gray-700">{priority}</span></span>
-                {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                ))}
-            </div>
-            </div>
-
-            {/* Conversation history */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {comments.map((c) => (
-                <div
-                key={c.id}
-                className={`flex gap-3 items-start ${
-                    c.internal
-                    ? "bg-[#fff7e6] border-l-4 border-yellow-400"
-                    : "bg-white"
-                } rounded-md p-4 shadow-sm`}
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col bg-white">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-base font-medium text-gray-900">{title}</h1>
+                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+                  <span>#{id}</span>
+                  <span>•</span>
+                  <span>Created by {requester.name}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={overdue ? "destructive" : "outline"} 
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
                 >
-                <UserAvatar name={c.user.name} size="sm" />
-                <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                    <span className="font-medium">{c.user.name}</span>
-                    <span className="text-xs text-gray-400">{formatDate(c.created_at)}</span>
-                    {c.internal && (
-                        <Badge variant="secondary" className="ml-2 bg-yellow-200 text-yellow-800 border-yellow-300">
-                        Internal
-                        </Badge>
-                    )}
-                    </div>
-                    <div className="mt-1 text-sm">{c.content}</div>
-                    {c.attachments.length > 0 && (
-                    <div className="flex gap-2 mt-2">
-                        {c.attachments.map((a) => (
-                        <a
-                            key={a.id}
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs hover:underline"
-                        >
-                            <Paperclip className="h-3 w-3" />
-                            {a.name}
-                        </a>
-                        ))}
-                    </div>
-                    )}
-                </div>
-                <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
+                  <Clock className="h-3 w-3" />
+                  {overdue ? "Overdue" : "On Time"}
                 </Button>
-                </div>
-            ))}
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="h-7 text-xs gap-1.5"
+                >
+                  <Tag className="h-3 w-3" />
+                  {mockConversation.priority}
+                </Button>
+              </div>
             </div>
+          </div>
 
-            {/* Reply form */}
-            <form className="bg-white border-t border-gray-200 px-6 py-4 flex items-center gap-2">
-            <Input placeholder="Write a reply..." className="flex-1" />
-            <Button variant="outline" size="icon" type="button">
-                <Paperclip className="h-4 w-4" />
-            </Button>
-            <Button type="submit" size="sm">
-                <Send className="h-4 w-4 mr-1" />
-                Send
-            </Button>
-            </form>
+          {/* Messages */}
+          <div className="flex-1 flex flex-col">
+            <Tabs defaultValue="public" className="flex-1 flex flex-col" onValueChange={(v) => setActiveTab(v as "public" | "internal")}>
+              <div className="px-6 pt-4 border-b border-gray-200">
+                <TabsList className="w-[400px]">
+                  <TabsTrigger value="public" className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Public Messages
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0.5">
+                      {publicMessages.length}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="internal" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Internal Notes
+                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0.5">
+                      {internalMessages.length}
+                    </Badge>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="public" className="flex-1 flex flex-col mt-0">
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                  {publicMessages.length > 0 ? (
+                    publicMessages.map((c) => (
+                      <Card
+                        key={c.id}
+                        className="overflow-hidden shadow-none border-gray-100"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex gap-3">
+                            <UserAvatar name={c.user.name} size="sm" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-sm font-medium text-gray-900">{c.user.name}</span>
+                                <span className="text-xs text-gray-500">{formatDate(c.created_at)}</span>
+                              </div>
+                              <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.content}</div>
+                              {c.attachments.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {c.attachments.map((a) => (
+                                    <a
+                                      key={a.id}
+                                      href={a.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                      <Paperclip className="h-3 w-3 text-gray-500" />
+                                      <span className="truncate max-w-[200px]">{a.name}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <MessageSquare className="h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">No public messages yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Start the conversation with the client</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Public Reply Form */}
+                <div className="border-t border-gray-200 p-4 bg-white">
+                  <form className="flex items-center gap-2">
+                    <Input 
+                      placeholder="Write a public reply..." 
+                      className="flex-1 text-sm h-9"
+                    />
+                    <Button variant="outline" size="icon" type="button" className="h-9 w-9">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Button type="submit" size="sm" className="h-9 text-sm">
+                      <Send className="h-4 w-4 mr-1.5" />
+                      Send
+                    </Button>
+                  </form>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="internal" className="flex-1 flex flex-col mt-0">
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+                  {internalMessages.length > 0 ? (
+                    internalMessages.map((c) => (
+                      <Card
+                        key={c.id}
+                        className="overflow-hidden shadow-none border-yellow-200 bg-yellow-50"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex gap-3">
+                            <UserAvatar name={c.user.name} size="sm" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-sm font-medium text-gray-900">{c.user.name}</span>
+                                <span className="text-xs text-gray-500">{formatDate(c.created_at)}</span>
+                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-[10px] px-1.5 py-0.5">
+                                  Internal Note
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.content}</div>
+                              {c.attachments.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {c.attachments.map((a) => (
+                                    <a
+                                      key={a.id}
+                                      href={a.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                      <Paperclip className="h-3 w-3 text-gray-500" />
+                                      <span className="truncate max-w-[200px]">{a.name}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                      <Lock className="h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-sm text-gray-500">No internal notes yet</p>
+                      <p className="text-xs text-gray-400 mt-1">Add internal notes visible only to staff</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Internal Reply Form */}
+                <div className="border-t border-gray-200 p-4 bg-white">
+                  <form className="flex items-center gap-2">
+                    <Input 
+                      placeholder="Write an internal note..." 
+                      className="flex-1 text-sm h-9"
+                    />
+                    <Button variant="outline" size="icon" type="button" className="h-9 w-9">
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                    <Button type="submit" size="sm" className="h-9 text-sm">
+                      <Send className="h-4 w-4 mr-1.5" />
+                      Send
+                    </Button>
+                  </form>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </main>
 
-        {/* {client information} */}
-        <aside className="w-full md:w-[320px] bg-white border-r border-gray-200 p-4 flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-                <div className="flex flex-row gap-2 items-center">
-                    <UserAvatar name={requester.name} size="lg" />
-                    <div className="flex flex-col">
-                        <div className="font-semibold text-gray-700">{requester.name}</div> 
-                        <div className="text-xs text-gray-500">{requester.email}</div>
-                    </div>
-                </div>
-                <Separator className="my-2" />
-                <div className="flex flex-col gap-2">
-                    <div className="font-semibold text-gray-700 mb-2">Attachments</div>
-                    <div className="flex flex-col gap-2">
-                        {/*  */}
-                    </div>
-                </div>
-            </div>
+        {/* Right Sidebar */}
+        <aside className="w-[280px] bg-white border-l border-gray-200">
+          <div className="p-4">
+            <Card className="shadow-none border-gray-100">
+              <CardHeader className="p-3 pb-2">
+                <CardTitle className="text-xs font-medium">Attachments</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3">
+                {attachmentsData?.data && attachmentsData.data.length > 0 ? (
+                  <AttachmentList
+                    attachments={attachmentsData.data}
+                    isLoading={isLoadingAttachments}
+                    isError={isErrorAttachments}
+                    onDownload={downloadAttachment.mutate}
+                    onDelete={deleteAttachment.mutate}
+                    downloadingFiles={downloadingFiles}
+                    deletingFiles={deletingFiles}
+                  />
+                ) : (
+                  <Alert
+                  variant="default"
+                  className="flex  border border-dashed border-gray-300 bg-gray-50 text-gray-500 rounded-md shadow-sm"
+                >
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  <AlertDescription className="text-sm">
+                    No attachments found
+                  </AlertDescription>
+                </Alert>
+                
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </aside>
-        </div>
+      </div>
     </div>
   );
 }

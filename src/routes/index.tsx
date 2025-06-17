@@ -151,7 +151,7 @@ export const routes: RouteObject[] = [
             path: 'conversation/:id',
             element: (
               <Suspense fallback={<LoadingFallback />}>
-                <ConversationDetail id={""} />
+                <ConversationDetail />
               </Suspense>
             ),
           },

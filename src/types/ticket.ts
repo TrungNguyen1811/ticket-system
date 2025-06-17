@@ -1,11 +1,13 @@
 import { User } from "./user"
 
+export type Status = "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived"
+
 export interface Ticket {
   id: string
   client_id: string
   title: string
   description: string
-  status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived"
+  status: Status
   created_at: string
   updated_at: string
   client_email: string
