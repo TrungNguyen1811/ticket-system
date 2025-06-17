@@ -45,6 +45,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
+// Editor configuration
 const initialConfig = {
   namespace: 'ConversationEditor',
   onError: (error: Error) => {
@@ -62,34 +63,45 @@ const initialConfig = {
 };
 
 export default function ConversationDetail() {
+  // Router and context hooks
   const { id } = useParams();
-  const [conversation, setConversation] = useState<Ticket | null>(null);
-  const [isStaffOpen, setIsStaffOpen] = useState(false);
-
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(conversation?.status || null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // State management
+  const [conversation, setConversation] = useState<Ticket | null>(null);
+  const [isStaffOpen, setIsStaffOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"public" | "internal">(() => {
     const savedTab = localStorage.getItem(`conversation-${id}-activeTab`);
     return savedTab === "internal" ? "internal" : "public";
   });
-    const [isInternal, setIsInternal] = useState(false);
+  const [isInternal, setIsInternal] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
     raw: "",
     html: "",
-  })
-  const { user } = useAuth();
+  });
   const [shouldClearEditor, setShouldClearEditor] = useState(false);
   const [search, setSearch] = useState("");
-  useEffect(() => {
-    localStorage.setItem(`conversation-${id}-activeTab`, activeTab);
-  }, [activeTab]);
-  
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingComment, setEditingComment] = useState<CommentType | null>(null);
 
-   // Fetch users for staff assignment
+  // Refs
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Data fetching
   const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<UserType[]>>>({
     queryKey: ["users"],
     queryFn: () => userService.getUsers({ role: "user", isPaginate: false }),
@@ -99,17 +111,12 @@ export default function ConversationDetail() {
     queryKey: ["ticket-mails", id],
     queryFn: () => mailService.getMails(id || ""),
   });
-  console.log("mailsData", mailsData);
 
-  // Attachments handling
   const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   });
 
-  const filtered = attachmentsData?.data.filter(a =>
-    a.file_name.toLowerCase().includes(search.toLowerCase())
-  );
   const { 
     comments: commentsData,
     pagination: commentsPagination,
@@ -118,39 +125,19 @@ export default function ConversationDetail() {
     perPage: commentPerPage,
     setPage: setCommentPage,
     setPerPage: setCommentPerPage
-  } = useTicketComments({ ticketId: id || "" })
+  } = useTicketComments({ ticketId: id || "" });
 
-  const { ticket: ticketData, isLoading: isLoadingTicket, isError: isErrorTicket, handleUpdate, handleAssign, handleChangeStatus, markAsUpdated } = useTicket({ ticketId: id || "" })
-  const [selectedStaff, setSelectedStaff] = useState<string | null>(ticketData?.staff?.id || null);
-  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
-  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
+  const { 
+    ticket: ticketData, 
+    isLoading: isLoadingTicket, 
+    isError: isErrorTicket, 
+    handleUpdate, 
+    handleAssign, 
+    handleChangeStatus, 
+    markAsUpdated 
+  } = useTicket({ ticketId: id || "" });
 
-  // Add new states for loading and scroll
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // Handle scroll behavior
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
-  }, []);
-
-  // Auto scroll when new messages arrive
-  useEffect(() => {
-    if (shouldAutoScroll && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [commentsData, shouldAutoScroll, mailsData?.data.data]);
-
-  const handleStatusSelect = useCallback((status: "new" | "in_progress" | "pending" | "assigned" | "complete" | "archived") => {
-    setSelectedStatus(status);
-    handleChangeStatus({ status });
-    setIsStatusOpen(false);
-  }, [handleChangeStatus]);
-
-  // Download attachment
+  // Mutations
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.downloadAttachment(attachmentId),
     onMutate: (attachmentId) => {
@@ -160,7 +147,7 @@ export default function ConversationDetail() {
       const url = window.URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = ''; // Let the browser determine the filename
+      a.download = '';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -169,10 +156,6 @@ export default function ConversationDetail() {
         const next = new Set(prev);
         next.delete(attachmentId);
         return next;
-      });
-      toast({
-        title: "Success",
-        description: "Attachment downloaded successfully",
       });
     },
     onError: (_, attachmentId) => {
@@ -187,20 +170,19 @@ export default function ConversationDetail() {
         variant: "destructive",
       });
     }
-  })
-  // Delete attachment
+  });
+
   const deleteAttachment = useMutation({
     mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
     onMutate: (attachmentId) => {
       setDeletingFiles(prev => new Set(prev).add(attachmentId));
     },
     onSuccess: (_, attachmentId) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
-
+      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
       toast({
         title: "Success",
         description: "Attachment deleted successfully",
-      })
+      });
       setDeletingFiles(prev => {
         const next = new Set(prev);
         next.delete(attachmentId);
@@ -212,25 +194,56 @@ export default function ConversationDetail() {
         title: "Error",
         description: "Failed to delete attachment",
         variant: "destructive",
-      })
+      });
       setDeletingFiles(prev => {
         const next = new Set(prev);
         next.delete(attachmentId);
         return next;
       });
     }
-  })
+  });
+
+  // Effects
+  useEffect(() => {
+    const savedTab = localStorage.getItem(`conversation-${id}-activeTab`);
+    setActiveTab(savedTab === "internal" ? "internal" : "public");
+  }, [id]);
+
+  useEffect(() => {
+    localStorage.setItem(`conversation-${id}-activeTab`, activeTab);
+  }, [activeTab, id]);
 
   useEffect(() => {
     setConversation(ticketData || null);
   }, [ticketData]);
 
-  // Update selectedStaff when ticketData changes
   useEffect(() => {
     if (ticketData?.staff?.id) {
       setSelectedStaff(ticketData.staff.id);
     }
   }, [ticketData]);
+
+  useEffect(() => {
+    setIsInternal(activeTab === "internal");
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (shouldAutoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [commentsData, shouldAutoScroll, mailsData?.data.data]);
+
+  // Handlers
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
+  }, []);
+
+  const handleStatusSelect = useCallback((status: Status) => {
+    setSelectedStatus(status);
+    handleChangeStatus({ status });
+    setIsStatusOpen(false);
+  }, [handleChangeStatus]);
 
   const handleStaffSelect = (staffId: string) => {
     setSelectedStaff(staffId);
@@ -240,7 +253,6 @@ export default function ConversationDetail() {
     });
   };
 
-  // Handle file selection
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
@@ -248,24 +260,17 @@ export default function ConversationDetail() {
     }
   }, []);
 
-  // Remove selected file
   const handleRemoveFile = useCallback((index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Add state for edit mode
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingComment, setEditingComment] = useState<CommentType | null>(null);
-
-  // Handle edit comment
   const handleEditComment = useCallback((comment: CommentType) => {
     setIsEditMode(true);
     setEditingComment(comment);
-    setIsInternal(true); // Switch to internal tab if not already
+    setIsInternal(true);
     setActiveTab("internal");
   }, []);
 
-  // Handle cancel edit
   const handleCancelEdit = useCallback(() => {
     setIsEditMode(false);
     setEditingComment(null);
@@ -274,117 +279,30 @@ export default function ConversationDetail() {
     setShouldClearEditor(true);
   }, []);
 
-  // Update handleSubmit
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editorContent.raw.trim() && selectedFiles.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a comment or attach files.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!id) return;
-
-    setIsSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append("content", editorContent.raw);
-
-      // Add all selected files
-      selectedFiles.forEach((file) => {
-        formData.append("attachments[]", file);
-      });
-
-      if (isEditMode && editingComment) {
-        const formUpdateData = new FormData();
-        formUpdateData.append("content", editorContent.raw);
-        formUpdateData.append("_method", "PUT");
-        // Add all selected files
-        selectedFiles.forEach((file) => {
-          formUpdateData.append("attachments[]", file);
-        });
-
-        // Update existing comment
-        await commentService.updateComment(editingComment.id, formUpdateData as CommentFormData);
-        queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
-        toast({
-          title: "Success",
-          description: "Comment updated successfully",
-        });
-        setIsEditMode(false);
-        setEditingComment(null);
-      } else if (isInternal) {
-        // Create new internal comment
-        await commentService.createComment(id, formData as CommentFormData);
-        toast({
-          title: "Success",
-          description: "Comment created successfully",
-        });
-      } else {
-        const formMailData = new FormData();
-        formMailData.append("body", editorContent.raw);
-
-        // Add all selected files
-        selectedFiles.forEach((file) => {
-          formMailData.append("attachments[]", file);
-        });
-        // Create new public mail
-        await mailService.createMail(id, formMailData as MailFormData);
-        toast({
-          title: "Success",
-          description: "Message sent successfully",
-        });
-      }
-
-      // Reset form
-      setEditorContent({ raw: "", html: "" });
-      setSelectedFiles([]);
-      setShouldClearEditor(true);
-
-      // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
-
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: isEditMode ? "Failed to update comment" : "Failed to send message",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Sync isInternal with activeTab
-  useEffect(() => {
-    setIsInternal(activeTab === "internal");
-  }, [activeTab]);
-
-  // Update activeTab when isInternal changes
   const handleInternalToggle = () => {
     const newIsInternal = !isInternal;
     setIsInternal(newIsInternal);
     setActiveTab(newIsInternal ? "internal" : "public");
   };
 
-  // Add handleDownloadAttachment function
-  const handleDownloadAttachment = useCallback((attachmentId: string) => {
-    downloadAttachment.mutate(attachmentId);
-  }, [downloadAttachment]);
+  const handleDownloadAttachment = async (id: string) => {
+    try {
+      setDownloadingId(id);
+      await downloadAttachment.mutateAsync(id);
+    } catch (err) {
+      // handle error if needed
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+  
 
-  // Add handleDeleteComment function
   const handleDeleteComment = async (commentId: string) => {
     setIsSubmitting(true);
-    // Store previous data for rollback
     const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
       ["ticket-comments", id, commentPage, commentPerPage]
     );
 
-    // Optimistically update the UI
     queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
       ["ticket-comments", id, commentPage, commentPerPage],
       (oldData) => {
@@ -412,7 +330,6 @@ export default function ConversationDetail() {
         description: "Comment deleted successfully",
       });
     } catch (error) {
-      // Rollback on error
       if (previousData) {
         queryClient.setQueryData(
           ["ticket-comments", id, commentPage, commentPerPage],
@@ -427,7 +344,77 @@ export default function ConversationDetail() {
     } finally {
       setIsSubmitting(false);
     }
-  };  
+  };
+
+  // Form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editorContent.raw.trim() && selectedFiles.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a comment or attach files.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!id) return;
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("content", editorContent.raw);
+
+      selectedFiles.forEach((file) => {
+        formData.append("attachments[]", file);
+      });
+
+      if (isEditMode && editingComment) {
+        const formUpdateData = new FormData();
+        formUpdateData.append("content", editorContent.raw);
+        formUpdateData.append("_method", "PUT");
+        selectedFiles.forEach((file) => {
+          formUpdateData.append("attachments[]", file);
+        });
+
+        await commentService.updateComment(editingComment.id, formUpdateData as CommentFormData);
+        queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
+        setIsEditMode(false);
+        setEditingComment(null);
+      } else if (isInternal) {
+        await commentService.createComment(id, formData as CommentFormData);
+        queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
+      } else {
+        const formMailData = new FormData();
+        formMailData.append("body", editorContent.raw);
+        selectedFiles.forEach((file) => {
+          formMailData.append("attachments[]", file);
+        });
+        await mailService.createMail(id, formMailData as MailFormData);
+      }
+
+      setEditorContent({ raw: "", html: "" });
+      setSelectedFiles([]);
+      setShouldClearEditor(true);
+
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: isEditMode ? "Failed to update comment" : "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Filtered attachments
+  const filtered = attachmentsData?.data.filter(a =>
+    a.file_name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc]">
@@ -580,7 +567,7 @@ export default function ConversationDetail() {
                       className="h-[calc(100vh-475px)] px-6" 
                       onScroll={handleScroll}
                     >
-                      <div className="space-y-4 pb-6">
+                      <div className="space-y-4 py-6">
                         {isLoadingMails ? (
                           <div className="space-y-4">
                             {[...Array(3)].map((_, i) => (
@@ -746,11 +733,11 @@ export default function ConversationDetail() {
                                                   ? "bg-yellow-100 border border-yellow-200 text-yellow-700 hover:bg-yellow-200"
                                                   : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
                                               )}
-                                              disabled={downloadAttachment.isPending}
+                                              disabled={downloadingId === a.id}
                                             >
                                               <FileIcon className="h-3 w-3" />
                                               {a.file_name}
-                                              {downloadAttachment.isPending && (
+                                              {downloadingId === a.id && (
                                                 <Loader2 className="h-3 w-3 animate-spin ml-1" />
                                               )}
                                             </Button>
