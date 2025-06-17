@@ -35,20 +35,8 @@ interface AddCommentDialogProps {
   ticketId?: string
 }
 
-export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: AddCommentDialogProps) {
-  const [attachments, setAttachments] = useState<File[]>([])
-  const [loading, setLoading] = useState(false)
-  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
-    raw: "",
-    html: "",
-  })
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const dropZoneRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
-
   // Editor configuration
-  const initialConfig = {
+  export const initialConfig = {
     namespace: "ticket-comment-editor",
     theme: {
       root: "p-4 border border-input rounded-md min-h-[150px] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
@@ -71,6 +59,18 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
     },
     nodes: [HeadingNode, QuoteNode, ListItemNode, ListNode, LinkNode, CodeNode, CodeHighlightNode],
   }
+
+export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: AddCommentDialogProps) {
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [loading, setLoading] = useState(false)
+  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
+    raw: "",
+    html: "",
+  })
+  
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropZoneRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -135,7 +135,8 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
     setLoading(true)
 
     try {
-      onSubmit({ editorContent, attachments })
+      // onSubmit({ editorContent, attachments })
+      onSubmit({ editorContent: { raw: editorContent.raw, html: editorContent.html }, attachments })
       onOpenChange(false)
       setLoading(false)
       setEditorContent({ raw: "", html: "" })

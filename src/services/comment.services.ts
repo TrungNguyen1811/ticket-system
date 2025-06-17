@@ -28,9 +28,13 @@ async createComment (ticketId: string, formData: CommentFormData): Promise<Respo
     }
 } 
     
-async updateComment (commentId: string, DataUpdateComment: DataUpdateComment): Promise<Response<DataResponse<Comment>>> {
+async updateComment (commentId: string, formData: CommentFormData): Promise<Response<Comment>> {
     try {
-        const response = await api.post(`/comments/${commentId}`, DataUpdateComment)
+        const response = await api.post(`/comments/${commentId}`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        })
         return response.data
     } catch (error) {
         throw error

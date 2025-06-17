@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Paperclip, Send, MoreHorizontal, Info, ChevronDown, Check, Loader2, ChevronLeft, ChevronRight, Clock, Tag, User2, FileText, AlertCircle, MessageSquare, Lock } from "lucide-react";
+import { Paperclip, Send, MoreHorizontal, Info, ChevronDown, Check, Loader2, ChevronLeft, ChevronRight, Clock, Tag, User2, FileText, AlertCircle, MessageSquare, Lock, X, FileIcon } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useEffect, useState, useCallback } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -24,6 +24,23 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
+import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
+import { TRANSFORMERS } from '@lexical/markdown';
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
+import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
+import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
+import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
+import { commentService } from "@/services/comment.services";
+import { Comment as CommentType } from "@/types/comment";
+import { ReadOnlyEditor } from "@/components/ReadOnlyEditor";
 
 export interface mockConversation {
     id: string
@@ -93,6 +110,22 @@ const mockConversation = {
   ],
 };
 
+const initialConfig = {
+  namespace: 'ConversationEditor',
+  onError: (error: Error) => {
+    console.error(error);
+  },
+  theme: {
+    paragraph: 'mb-1',
+    text: {
+      base: 'text-sm',
+      bold: 'font-semibold',
+      italic: 'italic',
+      underline: 'underline',
+    },
+  },
+};
+
 export default function ConversationDetail() {
   const { id } = useParams();
   const { title, status, overdue, requester, comments } = mockConversation;
@@ -106,7 +139,9 @@ export default function ConversationDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"public" | "internal">("public");
-
+  const [isInternal, setIsInternal] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+ 
   // Fetch users for staff assignment
   const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<UserType[]>>>({
     queryKey: ["users"],
@@ -119,6 +154,10 @@ export default function ConversationDetail() {
     queryFn: () => attachmentService.getAttachments(id || ""),
   });
 
+  const { data: commentsData, isLoading, isError } = useQuery<Response<DataResponse<CommentType[]>>>({
+    queryKey: ["ticket-comments", id],
+    queryFn: () => commentService.getCommentsTicket(id || ""),
+  });
 
   const { ticket: ticketData, isLoading: isLoadingTicket, isError: isErrorTicket, handleUpdate, handleAssign, handleChangeStatus, markAsUpdated } = useTicket({ ticketId: id || "" })
 
@@ -195,6 +234,31 @@ export default function ConversationDetail() {
 
   const publicMessages = comments.filter(c => !c.internal);
   const internalMessages = comments.filter(c => c.internal);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle submit logic here
+    // setEditorContent('');
+    setAttachments([]);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAttachments(Array.from(e.target.files));
+    }
+  };
+
+  // Sync isInternal with activeTab
+  useEffect(() => {
+    setIsInternal(activeTab === "internal");
+  }, [activeTab]);
+
+  // Update activeTab when isInternal changes
+  const handleInternalToggle = () => {
+    const newIsInternal = !isInternal;
+    setIsInternal(newIsInternal);
+    setActiveTab(newIsInternal ? "internal" : "public");
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc]">
@@ -310,7 +374,7 @@ export default function ConversationDetail() {
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
-              <div>
+    <div>
                 <h1 className="text-base font-medium text-gray-900">{title}</h1>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
                   <span>#{id}</span>
@@ -340,166 +404,214 @@ export default function ConversationDetail() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 flex flex-col">
-            <Tabs defaultValue="public" className="flex-1 flex flex-col" onValueChange={(v) => setActiveTab(v as "public" | "internal")}>
-              <div className="px-6 pt-4 border-b border-gray-200">
-                <TabsList className="w-[400px]">
+          <div className="flex flex-col h-full">
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "public" | "internal")}>
+                <TabsList className="px-6 py-4 border-b border-gray-200 w-full shrink-0">
                   <TabsTrigger value="public" className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
                     Public Messages
-                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0.5">
+                    <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5">
                       {publicMessages.length}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="internal" className="flex items-center gap-2">
                     <Lock className="h-4 w-4" />
                     Internal Notes
-                    <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0.5">
+                    <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5">
                       {internalMessages.length}
                     </Badge>
                   </TabsTrigger>
                 </TabsList>
+              </Tabs>
+              <div className="flex-1 overflow-auto">
+                {activeTab === "public" ? (
+                  <div className="p-6 space-y-4">
+                    {publicMessages.length > 0 ? (
+                      publicMessages.map((m) => (
+                        <div key={m.id} className="flex gap-3 group">
+                          <UserAvatar name={m.user.name} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-gray-900">{m.user.name}</span>
+                              <span className="text-xs text-gray-500">{formatDate(m.created_at)}</span>
+                            </div>
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              {m.content}
+                            </div>
+                            {m.attachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {m.attachments.map((a) => (
+                                  <a
+                                    key={a.id}
+                                    href={a.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                                  >
+                                    <Paperclip className="h-3 w-3 text-gray-500" />
+                                    <span className="truncate max-w-[200px]">{a.name}</span>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                        <MessageSquare className="h-8 w-8 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-500">No public messages yet</p>
+                        <p className="text-xs text-gray-400 mt-1">Start the conversation with the client</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-6 space-y-4">
+                    {commentsData?.data.data && commentsData?.data.data.length > 0 ? (
+                      commentsData?.data.data.map((m) => (
+                        <div key={m.id} className="flex gap-3 group">
+                          <UserAvatar name={m.user?.name || ""} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-gray-900">{m.user?.name || ""}</span>
+                              <span className="text-xs text-gray-500">{formatDate(m.created_at)}</span>
+                            </div>
+                            <div className="text-sm text-gray-700 whitespace-pre-wrap bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                              <ReadOnlyEditor content={m.content} />
+                              {m.attachments && m.attachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {m.attachments.map((a) => (
+                                  <Button
+                                  key={a.id}
+                                  variant="outline"
+                                  size="sm"
+                                  // onClick={() => handleDownloadAttachment(a.id)}
+                                  className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+                                  disabled={downloadAttachment.isPending}
+                                >
+                                  <FileIcon className="h-3 w-3" />
+                                  {a.file_name}
+                                  {downloadAttachment.isPending && (
+                                    <Loader2 className="h-3 w-3 animate-spin ml-1" />
+                                  )}
+                                </Button>
+                                ))}
+                              </div>
+                            )}
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                        <Lock className="h-8 w-8 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-500">No internal notes yet</p>
+                        <p className="text-xs text-gray-400 mt-1">Add internal notes visible only to staff</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <TabsContent value="public" className="flex-1 flex flex-col mt-0">
-                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-                  {publicMessages.length > 0 ? (
-                    publicMessages.map((c) => (
-                      <Card
-                        key={c.id}
-                        className="overflow-hidden shadow-none border-gray-100"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex gap-3">
-                            <UserAvatar name={c.user.name} size="sm" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className="text-sm font-medium text-gray-900">{c.user.name}</span>
-                                <span className="text-xs text-gray-500">{formatDate(c.created_at)}</span>
-                              </div>
-                              <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.content}</div>
-                              {c.attachments.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {c.attachments.map((a) => (
-                                    <a
-                                      key={a.id}
-                                      href={a.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                      <Paperclip className="h-3 w-3 text-gray-500" />
-                                      <span className="truncate max-w-[200px]">{a.name}</span>
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
+              {/* Reply Form */}
+              <div className="border-t border-gray-200 p-4 bg-white">
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={isInternal ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={handleInternalToggle}
+                    >
+                      <Lock className="h-3 w-3" />
+                      {isInternal ? "Internal Note" : "Public Reply"}
+                    </Button>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <LexicalComposer initialConfig={initialConfig}>
+                      <div className="relative">
+                        <ToolbarPlugin />
+                        <RichTextPlugin
+                          contentEditable={
+                            <ContentEditable className="min-h-[100px] p-3 text-sm outline-none" />
+                          }
+                          placeholder={
+                            <div className="absolute top-14 left-3 text-sm text-gray-400 pointer-events-none">
+                              {isInternal ? "Write an internal note..." : "Write a reply..."}
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                      <MessageSquare className="h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">No public messages yet</p>
-                      <p className="text-xs text-gray-400 mt-1">Start the conversation with the client</p>
+                          }
+                          ErrorBoundary={LexicalErrorBoundary}
+                        />
+                        <HistoryPlugin />
+                        <AutoFocusPlugin />
+                        {/* <AutoLinkPlugin matchers={[]} /> */}
+                        {/* <LinkPlugin /> */}
+                        {/* <ListPlugin /> */}
+                        {/* <MarkdownShortcutPlugin transformers={TRANSFORMERS} /> */}
+                      </div>
+                    </LexicalComposer>
+                  </div>
+
+                  {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={index}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700"
+                        >
+                          <Paperclip className="h-3 w-3 text-gray-500" />
+                          <span className="truncate max-w-[200px]">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-4 w-4 ml-1"
+                            onClick={() => setAttachments(attachments.filter((_, i) => i !== index))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   )}
-                </div>
 
-                {/* Public Reply Form */}
-                <div className="border-t border-gray-200 p-4 bg-white">
-                  <form className="flex items-center gap-2">
-                    <Input 
-                      placeholder="Write a public reply..." 
-                      className="flex-1 text-sm h-9"
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                      id="file-upload"
                     />
-                    <Button variant="outline" size="icon" type="button" className="h-9 w-9">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                    <Button type="submit" size="sm" className="h-9 text-sm">
-                      <Send className="h-4 w-4 mr-1.5" />
-                      Send
-                    </Button>
-                  </form>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="internal" className="flex-1 flex flex-col mt-0">
-                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-                  {internalMessages.length > 0 ? (
-                    internalMessages.map((c) => (
-                      <Card
-                        key={c.id}
-                        className="overflow-hidden shadow-none border-yellow-200 bg-yellow-50"
+                    <label htmlFor="file-upload">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs gap-1.5"
                       >
-                        <CardContent className="p-4">
-                          <div className="flex gap-3">
-                            <UserAvatar name={c.user.name} size="sm" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className="text-sm font-medium text-gray-900">{c.user.name}</span>
-                                <span className="text-xs text-gray-500">{formatDate(c.created_at)}</span>
-                                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-[10px] px-1.5 py-0.5">
-                                  Internal Note
-                                </Badge>
-                              </div>
-                              <div className="text-sm text-gray-700 whitespace-pre-wrap">{c.content}</div>
-                              {c.attachments.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                  {c.attachments.map((a) => (
-                                    <a
-                                      key={a.id}
-                                      href={a.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                                    >
-                                      <Paperclip className="h-3 w-3 text-gray-500" />
-                                      <span className="truncate max-w-[200px]">{a.name}</span>
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                      <Lock className="h-8 w-8 text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-500">No internal notes yet</p>
-                      <p className="text-xs text-gray-400 mt-1">Add internal notes visible only to staff</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Internal Reply Form */}
-                <div className="border-t border-gray-200 p-4 bg-white">
-                  <form className="flex items-center gap-2">
-                    <Input 
-                      placeholder="Write an internal note..." 
-                      className="flex-1 text-sm h-9"
-                    />
-                    <Button variant="outline" size="icon" type="button" className="h-9 w-9">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                    <Button type="submit" size="sm" className="h-9 text-sm">
-                      <Send className="h-4 w-4 mr-1.5" />
+                        <Paperclip className="h-3 w-3" />
+                        Attach Files
+                      </Button>
+                    </label>
+                    <div className="flex-1" />
+                    <Button type="submit" size="sm" className="h-8 text-xs gap-1.5">
+                      <Send className="h-3 w-3" />
                       Send
                     </Button>
-                  </form>
-                </div>
-              </TabsContent>
-            </Tabs>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
         </main>
 
