@@ -1,8 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { MoreHorizontal, Info, Clock, FileText, Lock, FileIcon, Tag, MessageSquare, Paperclip, Loader2, Send, X, Pencil, Trash2 } from "lucide-react";
+import { Info, Clock, FileText, Lock, FileIcon, Tag, MessageSquare, Paperclip, Loader2, Send, X, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Attachment, AttachmentList } from "@/components/editor/AttachmentList";
@@ -14,7 +13,7 @@ import { useToast } from "@/components/ui/use-toast";
 import type { User as UserType } from "@/types/user";
 import ChangeStatus from "@/components/ChangeStatus";
 import { useTicket } from "@/hooks/useTicket";
-import { Status } from "@/types/ticket";
+import { Status, Ticket } from "@/types/ticket";
 import AssigneeUser from "@/components/AssigneeUser";
 import { cn, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,74 +42,6 @@ import { useCommentRealtime } from "@/hooks/useCommentRealtime";
 import { useTicketComments } from "@/hooks/useTicketComments";
 import SetEditTextPlugin from "@/components/SetEditTextPlugin";
 
-export interface mockConversation {
-    id: string
-    title: string
-    status: string
-    overdue: boolean
-    assignee: { id?: string, name: string }
-    requester: { name: string; email: string }
-    tags: string[]
-    priority: string
-    followers: { name: string }[]
-    comments: {
-        id: number
-        user: { name: string }
-        content: string
-        created_at: string
-        internal: boolean
-        attachments: {
-          id: string
-          name: string
-          url: string
-        }[]
-    }[] 
-}
-
-const mockConversation = {
-  id: "5",
-  title: "SAMPLE TICKET: Do I put it together",
-  status: "Open",
-  overdue: true,
-  assignee: { id: "1", name: "Support/Trung Nguyen" },
-  requester: { name: "Soobin Do", email: "soobin.do@example.com" },
-  tags: ["delivery", "sample_ticket"],
-  priority: "Normal",
-  followers: [],
-  comments: [
-    {
-      id: 1,
-      user: { name: "Soobin Do" },
-      content: `Hey there, I've been browsing your site and I keep seeing this term "Flat Pack Delivery". ...`,
-      created_at: "2024-06-10T01:57:00Z",
-      internal: false,
-      attachments: [],
-    },
-    {
-      id: 2,
-      user: { name: "Trung Nguyen" },
-      content: "okok",
-      created_at: "2024-06-10T02:28:00Z",
-      internal: true,
-      attachments: [],
-    },
-    {
-      id: 3,
-      user: { name: "Trung Nguyen" },
-      content: "add new file attachment",
-      created_at: "2024-06-10T02:29:00Z",
-      internal: true,
-      attachments: [
-        {
-          id: "a1",
-          name: "Screenshot from 2024-06-10.png",
-          url: "#",
-        },
-      ],
-    },
-  ],
-};
-
 const initialConfig = {
   namespace: 'ConversationEditor',
   onError: (error: Error) => {
@@ -129,13 +60,11 @@ const initialConfig = {
 
 export default function ConversationDetail() {
   const { id } = useParams();
-  const { title, status, overdue, requester, comments } = mockConversation;
-  const [openConversations, setOpenConversations] = useState<mockConversation[]>([mockConversation])
-  const [conversation, setConversation] = useState<mockConversation | null>(null);
+  const [conversation, setConversation] = useState<Ticket | null>(null);
   const [isStaffOpen, setIsStaffOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<string | null>(mockConversation.assignee.id || null);
+
   const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(mockConversation.status || null);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(conversation?.status || null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -176,7 +105,7 @@ export default function ConversationDetail() {
   } = useTicketComments({ ticketId: id || "" })
 
   const { ticket: ticketData, isLoading: isLoadingTicket, isError: isErrorTicket, handleUpdate, handleAssign, handleChangeStatus, markAsUpdated } = useTicket({ ticketId: id || "" })
-
+  const [selectedStaff, setSelectedStaff] = useState<string | null>(ticketData?.staff?.id || null);
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
   const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
 
@@ -213,62 +142,24 @@ export default function ConversationDetail() {
     mutationFn: (id: string) => attachmentService.deleteAttachment(id),
   });
 
-  // Staff assignment mutation
-  const assignStaff = useMutation({
-    mutationFn: async (staffId: string) => {
-      // Replace with your actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock API call
-      return { success: true };
-    },
-    onMutate: async (staffId) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["conversation", id] });
-
-      // Snapshot the previous value
-      const previousConversation = queryClient.getQueryData(["conversation", id]);
-
-      // Optimistically update to the new value
-      const newStaff = usersData?.data.data.find(user => user.id === staffId);
-      if (newStaff) {
-        setConversation(prev => prev ? {
-          ...prev,
-          assignee: { id: newStaff.id, name: newStaff.name }
-        } : null);
-      }
-
-      return { previousConversation };
-    },
-    onError: (err, staffId, context) => {
-      // Revert back to the previous value if there's an error
-      if (context?.previousConversation) {
-        queryClient.setQueryData(["conversation", id], context.previousConversation);
-      }
-      toast({
-        title: "Error",
-        description: "Failed to assign staff. Please try again.",
-        variant: "destructive",
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Staff assigned successfully",
-      });
-      setIsStaffOpen(false);
-    },
-  });
-
   useEffect(() => {
-    setConversation(mockConversation);
-  }, [id]);
+    setConversation(ticketData || null);
+  }, [ticketData]);
+
+  // Update selectedStaff when ticketData changes
+  useEffect(() => {
+    if (ticketData?.staff?.id) {
+      setSelectedStaff(ticketData.staff.id);
+    }
+  }, [ticketData]);
 
   const handleStaffSelect = (staffId: string) => {
     setSelectedStaff(staffId);
-    assignStaff.mutate(staffId);
+    handleAssign({ 
+      staff_id: staffId,
+      _method: "PUT"
+    });
   };
-
-  const publicMessages = comments.filter(c => !c.internal);
-  const internalMessages = comments.filter(c => c.internal);
 
   // Handle file selection
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -470,10 +361,10 @@ export default function ConversationDetail() {
               <CardContent className="p-3">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <UserAvatar name={requester.name} size="sm" />
+                    <UserAvatar name={ticketData?.client_name || ""} size="sm" />
                     <div>
-                      <h2 className="text-sm font-medium text-gray-900">{requester.name}</h2>
-                      <p className="text-xs text-gray-500">{requester.email}</p>
+                      <h2 className="text-sm font-medium text-gray-900">{ticketData?.client_name || ""}</h2>
+                      <p className="text-xs text-gray-500">{ticketData?.client_email || ""}</p>
                     </div>
                   </div>
                   <Button 
@@ -497,32 +388,17 @@ export default function ConversationDetail() {
               <CardContent className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <Badge 
-                    variant={overdue ? "destructive" : "default"}
+                    variant={"default"}
                     className="text-xs px-1.5 py-0.5"
                   >
-                    {status}
-                  </Badge>
-                  <Badge 
-                    variant="outline"
-                    className={cn(
-                      "text-xs px-1.5 py-0.5",
-                      mockConversation.priority === "High" && "border-red-200 text-red-700 bg-red-50",
-                      mockConversation.priority === "Normal" && "border-blue-200 text-blue-700 bg-blue-50",
-                      mockConversation.priority === "Low" && "border-green-200 text-green-700 bg-green-50"
-                    )}
-                  >
-                    {mockConversation.priority} Priority
+                    {ticketData?.status}
                   </Badge>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-xs text-gray-600">
                     <Clock className="h-3 w-3" />
-                    {/* <span>Created {formatDate(mockConversation.created_at)}</span> */}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <Tag className="h-3 w-3" />
-                    <span>Tags: {mockConversation.tags.join(", ")}</span>
+                    <span>Created {formatDate(ticketData?.created_at || "")}</span>
                   </div>
                 </div>
               </CardContent>
@@ -573,31 +449,14 @@ export default function ConversationDetail() {
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-medium text-gray-900">{title}</h1>
+              <div className="flex flex-col gap-2">
+                <h1 className="text-base font-medium text-gray-900">{ticketData?.title || ""}</h1>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
                   <span>#{id}</span>
+                  <span>Created by {ticketData?.client_name || ""}</span>
                   <span>•</span>
-                  <span>Created by {requester.name}</span>
+                  <span>Created at {formatDate(ticketData?.created_at || "")}</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant={overdue ? "destructive" : "outline"} 
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                >
-                  <Clock className="h-3 w-3" />
-                  {overdue ? "Overdue" : "On Time"}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                >
-                  <Tag className="h-3 w-3" />
-                  {mockConversation.priority}
-                </Button>
               </div>
             </div>
           </div>
@@ -611,14 +470,14 @@ export default function ConversationDetail() {
                     <MessageSquare className="h-4 w-4" />
                     Public Messages
                     <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5">
-                      {publicMessages.length}
+                      {mailsData?.data.data.length || 0}
                     </Badge>
                   </TabsTrigger>
                   <TabsTrigger value="internal" className="flex items-center gap-2">
                     <Lock className="h-4 w-4" />
                     Internal Notes
                     <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5">
-                      {internalMessages.length}
+                      {commentsData?.length || 0}
                     </Badge>
                   </TabsTrigger>
                 </TabsList>
@@ -667,6 +526,7 @@ export default function ConversationDetail() {
                                     <span className="text-sm font-medium text-gray-900">{m.from}</span>
                                     <span className="text-xs text-gray-500">{formatDate(m.created_at)}</span>
                                   </div>
+                                  <div className={cn("flex", isOwnMessage ? "flex-row-reverse" : "flex-row")}>
                                   <div className={cn(
                                     "inline-block text-sm whitespace-pre-wrap rounded-lg p-3 border",
                                     isOwnMessage 
@@ -699,6 +559,7 @@ export default function ConversationDetail() {
                                       ))}
                                     </div>
                                   )}
+                                  </div>
                                 </div>
                                 {isOwnMessage && (
                                   <Button 
@@ -706,7 +567,7 @@ export default function ConversationDetail() {
                                     size="icon" 
                                     className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                                   >
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 )}
                               </div>
@@ -817,7 +678,7 @@ export default function ConversationDetail() {
                                         size="icon" 
                                         className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                                       >
-                                        <MoreHorizontal className="h-4 w-4" />
+                                        <MoreVertical className="h-4 w-4" />
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
