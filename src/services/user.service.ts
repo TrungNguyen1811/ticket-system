@@ -1,6 +1,7 @@
 import api from "@/lib/axios"
 import type { User, Client } from "@/types/user"
 import type { DataResponse, Response } from "@/types/reponse"
+import { Ticket } from "@/types/ticket"
 
 export interface UpdateUserRoleData {
   role: "admin" | "user"
@@ -74,18 +75,18 @@ class UserService {
   }
 
   // Clients
-  async getClients(): Promise<Client[]> {
+  async getClients(): Promise<Response<DataResponse<Client[]>>> {
     try {
-      const response = await api.get<Client[]>("/clients")
+      const response = await api.get<Response<DataResponse<Client[]>>>("/clients")
       return response.data
     } catch (error) {
       throw error
     }
   }
 
-  async getClient(id: string): Promise<Client> {
+  async getTicketsClient(id: string): Promise<Response<DataResponse<Ticket[]>>> {
     try {
-      const response = await api.get<Client>(`/clients/${id}`)
+      const response = await api.get<Response<DataResponse<Ticket[]>>>(`/clients/${id}/tickets`)
       return response.data
     } catch (error) {
       throw error

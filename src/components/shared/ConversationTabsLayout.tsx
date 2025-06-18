@@ -9,6 +9,8 @@ import {
 } from "@/hooks/useConversationTabsStore";
 import { ticketService } from "@/services/ticket.service";
 import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/services/user.service";
+import { Client } from "@/types/user";
 
 export default function ConversationTabsLayout({
   children,
@@ -23,12 +25,27 @@ export default function ConversationTabsLayout({
   const type = isClient ? "client" : "conversation";
   const tabId = id ? `${type}_${id}` : null;
 
-  const ticket = useQuery({
-    queryKey: ["ticket", id],
-    queryFn: () => ticketService.getTicket(id || ""),
-    enabled: !!id,
-  });
+  let dataQuery: any;
 
+  if (type === "conversation") {
+    dataQuery = useQuery({
+      queryKey: ["ticket", id],
+      queryFn: () => ticketService.getTicket(id || ""),
+      enabled: !!id,
+    });
+  } else {
+    dataQuery = useQuery({
+      queryKey: ["client", id],
+      queryFn: () =>
+        userService.getClients().then((res) => {
+          console.log("getClients response", res);
+          const list = res.data?.data ?? res.data; // handle both structures
+          return list.find((client: Client) => client.id === id);
+        }),
+      enabled: !!id,
+    }); 
+  }
+  
   const {
     tabs,
     activeId,
@@ -38,16 +55,23 @@ export default function ConversationTabsLayout({
     clearTabs,
   } = useConversationTabsStore();
 
+
+
   // Add tab when ticket data loaded
   useEffect(() => {
-    if (!tabId || !ticket.data?.data) return;
+    if (!tabId || !dataQuery.data?.data) return;
 
-    const subject = isClient
-      ? ticket.data.data.client_name
-      : ticket.data.data.title;
+    const subject = (() => {
+      if (!dataQuery.data) return "";
+      if (type === "client") return dataQuery.data.name;
+      return dataQuery.data.data?.title;
+    })();
+    
 
     addTab({ id: tabId, subject, type });
-  }, [tabId, ticket.data?.data]);
+  }, [tabId, dataQuery.data?.data]);
+
+console.log("tabs before addTab:", tabs);
 
   // Clear tabs when leaving conversation/client pages
   useEffect(() => {

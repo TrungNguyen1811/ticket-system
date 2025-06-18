@@ -14,6 +14,6 @@ export interface Client {
   id: string
   name: string
   email: string
-  ticketCount?: number
+  tickets_count?: number
 }
 

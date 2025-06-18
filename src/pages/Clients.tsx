@@ -9,13 +9,19 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { mockClients } from "@/mock/data"
 import { Plus, Search, MoreHorizontal, Building2, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
+import { userService } from "@/services/user.service"
 
 
 export default function Clients() {
-  const [clients, setClients] = useState(mockClients)
   const [searchTerm, setSearchTerm] = useState("")
 
-  const filteredClients = clients.filter(
+  const { data: clients, isLoading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => userService.getClients(),
+  })
+
+  const filteredClients = clients?.data?.data?.filter(
     (client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -60,7 +66,7 @@ export default function Clients() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredClients.map((client) => (
+              {filteredClients?.map((client) => (
                 <TableRow key={client.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -77,7 +83,7 @@ export default function Clients() {
                   <TableCell className="text-gray-600">{client.email}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {client.ticketCount || 0} tickets
+                      {client.tickets_count || 0} tickets
                     </span>
                   </TableCell>
                   <TableCell>
