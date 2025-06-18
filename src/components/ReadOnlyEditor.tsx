@@ -10,6 +10,12 @@ function SetEditorStateFromRaw({ content }: { content: string }) {
 
   useEffect(() => {
     try {
+      // Check if content is actually a Lexical state before parsing
+      if (!isLexicalState(content)) {
+        console.warn("SetEditorStateFromRaw received non-Lexical content:", content);
+        return;
+      }
+      
       const editorState = editor.parseEditorState(content)
       editor.setEditorState(editorState)
     } catch (err) {
@@ -21,54 +27,92 @@ function SetEditorStateFromRaw({ content }: { content: string }) {
 }
 
 function isLexicalState(content: string): boolean {
+  if (!content || typeof content !== 'string') {
+    return false;
+  }
+  
   try {
     const parsed = JSON.parse(content)
-    return parsed && typeof parsed === 'object' && 'root' in parsed
+    // Check if it has the required Lexical structure
+    return parsed && 
+           typeof parsed === 'object' && 
+           'root' in parsed && 
+           typeof parsed.root === 'object' &&
+           'children' in parsed.root
   } catch {
     return false
   }
 }
 
-export function ReadOnlyEditor({ content }: { content: string }) {
-  // If content is HTML (starts with < and contains HTML tags), render as HTML
-  if (content.trim().startsWith('<') && content.includes('</')) {
+export function ReadOnlyEditor({ content }: { content?: string }) {
+  // Handle undefined/null content
+  if (!content) {
+    console.warn("ReadOnlyEditor: Content is undefined/null");
     return (
-      <div 
-        className="whitespace-pre-wrap text-sm text-gray-800"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
+      <div className="whitespace-pre-wrap text-sm text-gray-800 max-w-[900px] text-gray-500 italic">
+        No content available
+      </div>
     )
   }
 
-  // If content is Lexical state, use Lexical editor
-  if (isLexicalState(content)) {
-    const initialConfig = {
-      editable: false,
-      namespace: "ReadOnlyComment",
-      onError: (error: any) => {
-        console.error(error)
-      },
-      theme: {
-        paragraph: "whitespace-pre-wrap text-sm text-gray-800",
-      },
+  // Debug logging
+  console.log("ReadOnlyEditor processing content:", {
+    type: typeof content,
+    length: content.length,
+    isHTML: content.trim().startsWith('<') && content.includes('</'),
+    isLexical: isLexicalState(content),
+    preview: content.substring(0, 100) + (content.length > 100 ? '...' : ''),
+    fullContent: content
+  });
+
+  try {
+    // If content is HTML (starts with < and contains HTML tags), render as HTML
+    if (content.trim().startsWith('<') && content.includes('</')) {
+      return (
+        <div 
+          className="whitespace-pre-wrap text-sm text-gray-800"
+          dangerouslySetInnerHTML={{ __html: content }}
+        />
+      )
     }
 
+    // If content is Lexical state, use Lexical editor
+    if (isLexicalState(content)) {
+      const initialConfig = {
+        editable: false,
+        namespace: "ReadOnlyComment",
+        onError: (error: any) => {
+          console.error("Lexical editor error:", error)
+        },
+        theme: {
+          paragraph: "whitespace-pre-wrap text-sm text-gray-800",
+        },
+      }
+
+      return (
+        <LexicalComposer initialConfig={initialConfig}>
+          <RichTextPlugin
+            contentEditable={<ContentEditable className="outline-none" />}
+            placeholder={null}
+            ErrorBoundary={LexicalErrorBoundary}
+          />
+          <SetEditorStateFromRaw content={content} />
+        </LexicalComposer>
+      )
+    }
+
+    // Fallback: render as plain text (for regular strings)
     return (
-      <LexicalComposer initialConfig={initialConfig}>
-        <RichTextPlugin
-          contentEditable={<ContentEditable className="outline-none" />}
-          placeholder={null}
-          ErrorBoundary={LexicalErrorBoundary}
-        />
-        <SetEditorStateFromRaw content={content} />
-      </LexicalComposer>
+      <div className="whitespace-pre-wrap text-sm text-gray-800 max-w-[900px]">
+        {content}
+      </div>
+    )
+  } catch (error) {
+    console.error("ReadOnlyEditor error:", error);
+    return (
+      <div className="whitespace-pre-wrap text-sm text-gray-800 max-w-[900px] text-red-500">
+        Error rendering content: {String(error)}
+      </div>
     )
   }
-
-  // Fallback: render as plain text
-  return (
-    <div className="whitespace-pre-wrap text-sm text-gray-800 max-w-[900px]">
-      {content}
-    </div>
-  )
 }

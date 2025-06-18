@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Info, Clock, FileText, Lock, FileIcon, Tag, MessageSquare, Paperclip, Loader2, Send, X, Pencil, Trash2, MoreVertical, Trash, Download, Search, ImageIcon, TimerIcon } from "lucide-react";
+import { Info, Clock, FileText, Lock, FileIcon, Tag, MessageSquare, Paperclip, Loader2, Send, X, Pencil, Trash2, MoreVertical, Trash, Download, Search, ImageIcon, TimerIcon, RefreshCw } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Attachment, AttachmentList } from "@/components/editor/AttachmentList";
@@ -44,6 +44,7 @@ import SetEditTextPlugin from "@/components/SetEditTextPlugin";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { useMailTicket } from "@/hooks/useMailTicket";
 
 // Editor configuration
 const initialConfig = {
@@ -71,7 +72,6 @@ export default function ConversationDetail() {
   const { user } = useAuth();
 
   // State management
-  const [conversation, setConversation] = useState<Ticket | null>(null);
   const [isStaffOpen, setIsStaffOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
@@ -80,7 +80,6 @@ export default function ConversationDetail() {
     return savedTab === "internal" ? "internal" : "public";
   });
   const [isInternal, setIsInternal] = useState(false);
-  const [attachments, setAttachments] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<{ raw: string; html: string; text: string }>({
     raw: "",
     html: "",
@@ -108,11 +107,6 @@ export default function ConversationDetail() {
     queryFn: () => userService.getUsers({ role: "user", isPaginate: false }),
   });
 
-  const { data: mailsData, isLoading: isLoadingMails, isError: isErrorMails } = useQuery<Response<DataResponse<Mail[]>>>({
-    queryKey: ["ticket-mails", id],
-    queryFn: () => mailService.getMails(id || ""),
-  });
-
   const { data: attachmentsData, isLoading: isLoadingAttachments, isError: isErrorAttachments } = useQuery<Response<Attachment[]>>({
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
@@ -137,6 +131,13 @@ export default function ConversationDetail() {
     handleChangeStatus, 
     markAsUpdated 
   } = useTicket({ ticketId: id || "" });
+
+  const { 
+    mails: mailsData, 
+    isLoading: isLoadingMails,
+    hasNewMails: hasNewMailNotification,
+    setHasNewMails: setNewMailNotification
+  } = useMailTicket({ ticketId: id || "" });
 
   // Mutations
   const downloadAttachment = useMutation({
@@ -215,10 +216,6 @@ export default function ConversationDetail() {
   }, [activeTab, id]);
 
   useEffect(() => {
-    setConversation(ticketData || null);
-  }, [ticketData]);
-
-  useEffect(() => {
     if (ticketData?.staff?.id) {
       setSelectedStaff(ticketData.staff.id);
     }
@@ -232,7 +229,7 @@ export default function ConversationDetail() {
     if (shouldAutoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [commentsData, shouldAutoScroll, mailsData?.data.data]);
+  }, [commentsData, shouldAutoScroll, mailsData]);
 
   // Handlers
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -264,6 +261,15 @@ export default function ConversationDetail() {
   const handleRemoveFile = useCallback((index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   }, []);
+
+  const handleReloadPublicChat = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
+    setNewMailNotification(false);
+    toast({
+      title: "Chat refreshed",
+      description: "Public chat has been updated",
+    });
+  }, [queryClient, id, toast, setNewMailNotification]);
 
   const handleEditComment = useCallback((comment: CommentType) => {
     setIsEditMode(true);
@@ -350,6 +356,8 @@ export default function ConversationDetail() {
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("🔄 handleSubmit called", { isInternal, isEditMode, selectedFilesLength: selectedFiles.length });
+    
     if (!editorContent.raw.trim() && selectedFiles.length === 0) {
       toast({
         title: "Validation Error",
@@ -383,8 +391,11 @@ export default function ConversationDetail() {
         setIsEditMode(false);
         setEditingComment(null);
       } else if (isInternal) {
+        console.log("📝 Creating internal comment...");
         await commentService.createComment(id, formData as CommentFormData);
+        console.log("✅ Internal comment created successfully");
         queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
+        queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
       } else {
         const formMailData = new FormData();
         formMailData.append("body", editorContent.text);
@@ -392,15 +403,53 @@ export default function ConversationDetail() {
         selectedFiles.forEach((file) => {
           formMailData.append("attachments[]", file);
         });
-        await mailService.createMail(id, formMailData as MailFormData);
+         
+        const mail = await mailService.createMail(id, formMailData as MailFormData);
+          if (mail.success) {
+            // Optimistic update for mail
+          const optimisticMail: Mail = {
+            id: `temp-${Date.now()}`,
+            from_name: user?.name || "",
+            from_email: "phamphanbang@gmail.com",
+            subject: `Re: ${ticketData?.title || ""}`,
+            body: editorContent.text,
+            attachments: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          // Add optimistic mail to cache
+          queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
+            ["ticket-mails", id],
+            (oldData) => {
+              if (!oldData?.data) return oldData;
+              return {
+                ...oldData,
+                data: {
+                  ...oldData.data,
+                  data: [...oldData.data.data, optimisticMail]
+                }
+              };
+            }
+          );
+        } else {
+          toast({
+            title: "Error",
+            description: mail.message,
+            variant: "destructive",
+          });
+        }
+        
+        // Don't invalidate mails query - let real-time update handle it
+        // queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
       }
 
       setEditorContent({ raw: "", html: "", text: "" });
       setSelectedFiles([]);
       setShouldClearEditor(true);
 
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
+      // Query invalidation is already handled in the specific conditions above
+      // No need to invalidate again here
 
     } catch (error) {
       toast({
@@ -529,10 +578,20 @@ export default function ConversationDetail() {
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-2">
-                <Link to={`/tickets/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
-                  <h1 className="text-base font-medium text-gray-900">{ticketData?.title || ""}</h1>
-                </Link>
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex items-center gap-2 justify-between w-full">
+                  <Link to={`/tickets/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
+                    <h1 className="text-base font-medium text-gray-900">{ticketData?.title || ""}</h1>
+                  </Link>
+                  <Button
+                    onClick={handleReloadPublicChat}
+                    size="sm"
+                    className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                      Reload Chat
+                  </Button>
+                </div>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
                   <span>#{id}</span>
                 </div>
@@ -564,6 +623,26 @@ export default function ConversationDetail() {
               <div className="flex-1 overflow-auto">
                 {activeTab === "public" ? (
                   <div>
+                    {/* Public Chat Header with Reload Button */}
+                    {/* {hasNewMailNotification && (
+                      <div className="px-6 py-3 bg-blue-50 border-b border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm text-blue-700">New messages available</span>
+                          </div>
+                          <Button
+                            onClick={handleReloadPublicChat}
+                            size="sm"
+                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Reload Chat
+                          </Button>
+                        </div>
+                      </div>
+                    )} */}
+                    
                     <ScrollArea 
                       ref={scrollRef}
                       className="h-[calc(100vh-475px)] px-6 w-full" 
@@ -582,8 +661,8 @@ export default function ConversationDetail() {
                               </div>
                             ))}
                           </div>
-                        ) : mailsData?.data.data && mailsData.data.data.length > 0 ? (
-                          mailsData.data.data.map((m) => {
+                        ) : mailsData && mailsData.length > 0 ? (
+                          mailsData.map((m) => {
                             const isOwnMessage = m.from_email === "phamphanbang@gmail.com";
                             return (
                               <div 

@@ -282,6 +282,12 @@ export default function TicketDetail() {
   
       await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
 
+      // // Invalidate both comments and attachments queries to update UI
+      // queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
+      // if (data.attachments?.length) {
+      //   queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+      // }
+
       toast({
         title: "Success",
         description: "Comment created successfully",

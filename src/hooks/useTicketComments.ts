@@ -4,6 +4,7 @@ import { commentService } from "@/services/comment.services";
 import { Comment } from "@/types/comment";
 import { Response, DataResponse } from "@/types/reponse";
 import { useCommentRealtime } from "./useCommentRealtime";
+import { Attachment } from "@/types/ticket";
 
 interface UseTicketCommentsProps {
   ticketId: string;
@@ -73,8 +74,20 @@ export const useTicketComments = ({ ticketId }: UseTicketCommentsProps) => {
           return newData;
         }
       );
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId] });
+
+      // Update attachments if the comment has them
+      if (data.attachments && data.attachments.length > 0) {
+        queryClient.setQueryData<Response<Attachment[]>>(
+          ["ticket-attachments", ticketId],
+          (oldData) => {
+            if (!oldData?.data) return oldData;
+            return {
+              ...oldData,
+              data: [...oldData.data, ...(data.attachments || [])]
+            };
+          }
+        );
+      }
     }
   }, [queryClient, ticketId, page, perPage]);
 
