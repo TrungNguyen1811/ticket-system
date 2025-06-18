@@ -449,10 +449,10 @@ export default function TicketDetail() {
       </div>
 
       {/* Main Content - Scrollable */}
-      <div className="flex-1 p-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex-1 p-4 lg:p-6 space-y-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 lg:gap-6">
           {/* Left Column - Ticket Information */}
-          <div className="lg:col-span-2">
+          <div className="2xl:col-span-2">
             <Card>
               <CardHeader className="bg-gray-50 border-b pb-4">
                 <div className="space-y-2">
@@ -568,7 +568,7 @@ export default function TicketDetail() {
                 </div>
 
                 {/* Status and Staff Assignment */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {/* Status */}
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">Status</h3>
@@ -603,7 +603,7 @@ export default function TicketDetail() {
           </div>
 
           {/* Right Column - Attachments */}
-          <div>
+          <div className="2xl:col-span-1">
             <AttachmentList
               attachments={attachmentsData?.data || []}
               isLoading={isLoadingAttachments}
@@ -619,7 +619,7 @@ export default function TicketDetail() {
         {/* Activity Section */}
         <Card>
           <CardHeader className="flex-shrink-0 pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="text-lg font-medium">Activity</CardTitle>
               <div className="flex items-center space-x-2">
                 <Button 
@@ -644,14 +644,14 @@ export default function TicketDetail() {
           <CardContent>
             {!isViewingLogs ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center space-x-2">
                     <Button variant="outline" onClick={() => setDialogOpen("comment")}>
                       <MessageSquare className="h-4 w-4 mr-2" />
                       Add Comment
                     </Button>
                   </div>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs self-start sm:self-auto">
                     {comments.length} comments
                   </Badge>
                 </div>

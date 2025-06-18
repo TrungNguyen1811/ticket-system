@@ -181,6 +181,7 @@ export default function ConversationDetail() {
     },
     onSuccess: (_, attachmentId) => {
       queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
+      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
       toast({
         title: "Success",
         description: "Attachment deleted successfully",
@@ -236,6 +237,21 @@ export default function ConversationDetail() {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
   }, []);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    const container = containerRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoadingMails && mailsData?.length > 0) {
+      scrollToBottom();
+    }
+  }, [isLoadingMails, mailsData]);
+
 
   const handleStatusSelect = useCallback((status: Status) => {
     setSelectedStatus(status);
@@ -644,7 +660,7 @@ export default function ConversationDetail() {
                     )} */}
                     
                     <ScrollArea 
-                      ref={scrollRef}
+                      ref={containerRef}
                       className="h-[calc(100vh-475px)] px-6 w-full" 
                       onScroll={handleScroll}
                     >
@@ -744,9 +760,9 @@ export default function ConversationDetail() {
                     </ScrollArea>
                   </div>
                 ) : (
-                  <div>
+    <div>
                     <ScrollArea 
-                      ref={scrollRef}
+                      ref={containerRef}
                       className="h-[calc(100vh-475px)] px-6" 
                       onScroll={handleScroll}
                     >
@@ -1029,94 +1045,96 @@ export default function ConversationDetail() {
                       />
                     </div>
                     <div className="space-y-2 h-full overflow-y-auto pr-2">
-                      {isLoadingAttachments ? (
-                        <div className="flex items-center justify-center p-4 text-xs">
-                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                        </div>
-                      ) : isErrorAttachments ? (
-                        <div className="text-center p-4 text-red-500 text-xs">
-                          Failed to load attachments
-                        </div>
-                      ) : filtered && filtered.length > 0 ? (
-                        <div className="grid gap-2">
-                          {filtered.map(attachment => (
-                            <div
-                              key={attachment.id}
-                              className="flex items-center justify-between p-2 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
-                            >
-                              <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                                <div className="flex-shrink-0">
-                                  {attachment.content_type.startsWith("image/") ? (
-                                    <ImageIcon className="h-4 w-4 text-blue-500" />
-                                  ) : (
-                                    <FileText className="h-4 w-4 text-gray-500" />
+                      <ScrollArea className="h-[calc(100vh-200px)] px-6 pb-4 w-full">
+                        {isLoadingAttachments ? (
+                          <div className="flex items-center justify-center p-4 text-xs">
+                            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                          </div>
+                        ) : isErrorAttachments ? (
+                          <div className="text-center p-4 text-red-500 text-xs">
+                            Failed to load attachments
+                          </div>
+                        ) : filtered && filtered.length > 0 ? (
+                          <div className="grid gap-2">
+                            {filtered.map(attachment => (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center justify-between p-2 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                                  <div className="flex-shrink-0">
+                                    {attachment.content_type.startsWith("image/") ? (
+                                      <ImageIcon className="h-4 w-4 text-blue-500" />
+                                    ) : (
+                                      <FileText className="h-4 w-4 text-gray-500" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1 overflow-hidden">
+                                    <a
+                                      href={attachment.file_path}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block truncate text-xs font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                                    >
+                                      {attachment.file_name}
+                                    </a>
+                                    <p className="truncate text-xs text-gray-500 mt-1">
+                                      {attachment.file_size} • {formatDate(attachment.created_at)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  {(
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={e => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        downloadAttachment.mutate(attachment.id);
+                                      }}
+                                      disabled={downloadingFiles.has(attachment.id)}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      {downloadingFiles.has(attachment.id) ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  )}
+                                  {(
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={e => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        deleteAttachment.mutate(attachment.id);
+                                      }}
+                                      disabled={deletingFiles.has(attachment.id)}
+                                      className="h-6 w-6 p-0 hover:text-red-500"
+                                    >
+                                      {deletingFiles.has(attachment.id) ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Trash className="h-4 w-4" />
+                                      )}
+                                    </Button>
                                   )}
                                 </div>
-                                <div className="min-w-0 flex-1 overflow-hidden">
-                                  <a
-                                    href={attachment.file_path}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block truncate text-xs font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                                  >
-                                    {attachment.file_name}
-                                  </a>
-                                  <p className="truncate text-xs text-gray-500 mt-1">
-                                    {attachment.file_size} • {formatDate(attachment.created_at)}
-                                  </p>
-                                </div>
                               </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                {(
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      downloadAttachment.mutate(attachment.id);
-                                    }}
-                                    disabled={downloadingFiles.has(attachment.id)}
-                                    className="h-6 w-6 p-0"
-                                  >
-                                    {downloadingFiles.has(attachment.id) ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Download className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )}
-                                {(
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={e => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      deleteAttachment.mutate(attachment.id);
-                                    }}
-                                    disabled={deletingFiles.has(attachment.id)}
-                                    className="h-6 w-6 p-0 hover:text-red-500"
-                                  >
-                                    {deletingFiles.has(attachment.id) ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Trash className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
-                          <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">No attachments found</p>
-                        </div>
-                      )}
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
+                            <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No attachments found</p>
+                          </div>
+                        )}
+                      </ScrollArea>
                     </div>
                   </div>
                 </div>
