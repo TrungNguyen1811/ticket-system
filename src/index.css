@@ -76,3 +76,32 @@
   }
 } 
 
+/* Email content override styles to fix layout issues */
+.email-content-override {
+  /* Override problematic email styles */
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+
+.email-content-override div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: block !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+
+.email-content-override table {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  display: block !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+
+.email-content-override * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+

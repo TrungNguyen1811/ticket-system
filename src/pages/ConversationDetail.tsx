@@ -81,9 +81,10 @@ export default function ConversationDetail() {
   });
   const [isInternal, setIsInternal] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
+  const [editorContent, setEditorContent] = useState<{ raw: string; html: string; text: string }>({
     raw: "",
     html: "",
+    text: "",
   });
   const [shouldClearEditor, setShouldClearEditor] = useState(false);
   const [search, setSearch] = useState("");
@@ -274,7 +275,7 @@ export default function ConversationDetail() {
   const handleCancelEdit = useCallback(() => {
     setIsEditMode(false);
     setEditingComment(null);
-    setEditorContent({ raw: "", html: "" });
+    setEditorContent({ raw: "", html: "", text: "" });
     setSelectedFiles([]);
     setShouldClearEditor(true);
   }, []);
@@ -386,14 +387,15 @@ export default function ConversationDetail() {
         queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
       } else {
         const formMailData = new FormData();
-        formMailData.append("body", editorContent.raw);
+        formMailData.append("body", editorContent.text);
+        // formMailData.append("content", editorContent.raw);
         selectedFiles.forEach((file) => {
           formMailData.append("attachments[]", file);
         });
         await mailService.createMail(id, formMailData as MailFormData);
       }
 
-      setEditorContent({ raw: "", html: "" });
+      setEditorContent({ raw: "", html: "", text: "" });
       setSelectedFiles([]);
       setShouldClearEditor(true);
 
@@ -418,9 +420,9 @@ export default function ConversationDetail() {
 
   return (
     <div className="flex flex-col h-full bg-[#f8fafc]">
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden w-full">
         {/* Left Sidebar */}
-        <aside className="w-[280px] bg-white border-r border-gray-200 flex flex-col">
+        <aside className="w-[280px] shrink-0 bg-white border-r border-gray-200 flex flex-col">
           <div className="p-4 flex flex-col gap-4">
             {/* User Info Card */}
             <Card className="shadow-none border-gray-100">
@@ -523,7 +525,7 @@ export default function ConversationDetail() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col bg-white relative">
+        <main className="flex-1 min-w-0 flex flex-col bg-white relative">
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
             <div className="flex items-center justify-between">
@@ -564,10 +566,10 @@ export default function ConversationDetail() {
                   <div>
                     <ScrollArea 
                       ref={scrollRef}
-                      className="h-[calc(100vh-475px)] px-6" 
+                      className="h-[calc(100vh-475px)] px-6 w-full" 
                       onScroll={handleScroll}
                     >
-                      <div className="space-y-4 py-6">
+                      <div className="space-y-4 py-6 w-full">
                         {isLoadingMails ? (
                           <div className="space-y-4">
                             {[...Array(3)].map((_, i) => (
@@ -582,7 +584,7 @@ export default function ConversationDetail() {
                           </div>
                         ) : mailsData?.data.data && mailsData.data.data.length > 0 ? (
                           mailsData.data.data.map((m) => {
-                            const isOwnMessage = m.from === user?.name;
+                            const isOwnMessage = m.from_email === "phamphanbang@gmail.com";
                             return (
                               <div 
                                 key={m.id} 
@@ -591,7 +593,7 @@ export default function ConversationDetail() {
                                   isOwnMessage ? "flex-row-reverse" : "flex-row"
                                 )}
                               >
-                                <UserAvatar name={m.from} size="sm" />
+                                <UserAvatar name={m.from_name} size="sm" />
                                 <div className={cn(
                                   "flex-1 min-w-0",
                                   isOwnMessage ? "items-end" : "items-start"
@@ -600,16 +602,18 @@ export default function ConversationDetail() {
                                     "flex items-center gap-2 mb-1",
                                     isOwnMessage ? "flex-row-reverse" : "flex-row"
                                   )}>
-                                    <span className="text-sm font-medium text-gray-900">{m.from}</span>
+                                    <span className="text-sm font-medium text-gray-900">{m.from_name}</span>
                                     <span className="text-xs text-gray-500">{formatDate(m.created_at)}</span>
                                   </div>
                                   <div className={cn("flex", isOwnMessage ? "flex-row-reverse" : "flex-row")}>
                                   <div className={cn(
-                                    "inline-block text-sm whitespace-pre-wrap rounded-lg p-3 border",
+                                    "break-words text-sm whitespace-pre-wrap rounded-lg p-3 border",
+                                    "max-w-[100%]",
                                     isOwnMessage 
-                                      ? "bg-blue-50 border-blue-100 text-blue-900" 
-                                      : "bg-gray-50 border-gray-100 text-gray-700"
+                                      ? "bg-gray-50 border-gray-100 text-gray-900" 
+                                      : "bg-blue-50 border-blue-100 text-blue-900"
                                   )}>
+                                    {/* <div dangerouslySetInnerHTML={{ __html: m.body }}/> */}
                                     <ReadOnlyEditor content={m.body} />
                                   </div>
                                   {m.attachments && m.attachments.length > 0 && (
@@ -710,7 +714,7 @@ export default function ConversationDetail() {
                                   </div>
                                   <div className={cn("flex", isOwnMessage ? "flex-row-reverse" : "flex-row")}>
                                     <div className={cn(
-                                      "inline-block text-sm whitespace-pre-wrap rounded-lg p-3 border",
+                                      "text-sm whitespace-pre-wrap rounded-lg p-3 border",
                                       isOwnMessage 
                                         ? "bg-yellow-50 border-yellow-100 text-yellow-900" 
                                         : "bg-gray-50 border-gray-100 text-gray-700"
@@ -928,7 +932,7 @@ export default function ConversationDetail() {
         </main>
 
         {/* Right Sidebar */}
-        <aside className="w-[300px] bg-white border-l border-gray-200">
+        <aside className="w-[300px] shrink-0 bg-white border-l border-gray-200">
           <div className="p-4">
             {attachmentsData?.data ? (
                   <div className="h-full">

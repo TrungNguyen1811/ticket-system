@@ -21,7 +21,7 @@ import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary"
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 
-import { EditorState } from "lexical"
+import { $getRoot, EditorState } from "lexical"
 import { HeadingNode, QuoteNode } from "@lexical/rich-text"
 import { ListItemNode, ListNode } from "@lexical/list"
 import { LinkNode } from "@lexical/link"
@@ -303,7 +303,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
 export function OnChangePlugin({
   onChange,
 }: {
-  onChange: (data: { raw: string; html: string }) => void
+  onChange: (data: { raw: string; html: string; text: string }) => void
 }) {
   const [editor] = useLexicalComposerContext()
 
@@ -312,7 +312,9 @@ export function OnChangePlugin({
       editorState.read(() => {
         const raw = JSON.stringify(editorState.toJSON())
         const html = $generateHtmlFromNodes(editor, null)
-        onChange({ raw, html })
+        const root = $getRoot()
+        const text = root.getTextContent()
+        onChange({ raw, html, text })
       })
     })
   }, [editor, onChange])

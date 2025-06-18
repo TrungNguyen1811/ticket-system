@@ -2,7 +2,8 @@ import { Attachment } from "./ticket"
 
 export interface Mail {
     id: string
-    from: string
+    from_name: string
+    from_email: string
     subject: string
     body: string
     attachments: Attachment[]

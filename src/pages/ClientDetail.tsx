@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreHorizontal, Building2, Eye } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Building2, Eye, MessageCircle } from "lucide-react"
 import { useParams } from "react-router-dom"
 import { Link } from "react-router-dom"
 import { UserAvatar } from "@/components/shared/UserAvatar"
@@ -89,11 +89,18 @@ export default function ClientDetail() {
                     {formatDate(ticket.updated_at)}
                   </TableCell>
                   <TableCell>
-                    <Link to={`/communication/conversation/${ticket.id}`} className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <div className="flex items-center space-x-2">
+                      <Link to={`/tickets/${ticket.id}`} className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm" className="hover:bg-indigo-600 hover:text-white">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link to={`/communication/conversation/${ticket.id}`} className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm" className="hover:bg-indigo-600 hover:text-white">
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

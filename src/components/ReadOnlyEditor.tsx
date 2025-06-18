@@ -20,26 +20,55 @@ function SetEditorStateFromRaw({ content }: { content: string }) {
   return null
 }
 
+function isLexicalState(content: string): boolean {
+  try {
+    const parsed = JSON.parse(content)
+    return parsed && typeof parsed === 'object' && 'root' in parsed
+  } catch {
+    return false
+  }
+}
+
 export function ReadOnlyEditor({ content }: { content: string }) {
-  const initialConfig = {
-    editable: false,
-    namespace: "ReadOnlyComment",
-    onError: (error: any) => {
-      console.error(error)
-    },
-    theme: {
-      paragraph: "whitespace-pre-wrap text-sm text-gray-800",
-    },
+  // If content is HTML (starts with < and contains HTML tags), render as HTML
+  if (content.trim().startsWith('<') && content.includes('</')) {
+    return (
+      <div 
+        className="whitespace-pre-wrap text-sm text-gray-800"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    )
   }
 
+  // If content is Lexical state, use Lexical editor
+  if (isLexicalState(content)) {
+    const initialConfig = {
+      editable: false,
+      namespace: "ReadOnlyComment",
+      onError: (error: any) => {
+        console.error(error)
+      },
+      theme: {
+        paragraph: "whitespace-pre-wrap text-sm text-gray-800",
+      },
+    }
+
+    return (
+      <LexicalComposer initialConfig={initialConfig}>
+        <RichTextPlugin
+          contentEditable={<ContentEditable className="outline-none" />}
+          placeholder={null}
+          ErrorBoundary={LexicalErrorBoundary}
+        />
+        <SetEditorStateFromRaw content={content} />
+      </LexicalComposer>
+    )
+  }
+
+  // Fallback: render as plain text
   return (
-    <LexicalComposer initialConfig={initialConfig}>
-      <RichTextPlugin
-        contentEditable={<ContentEditable className="outline-none" />}
-        placeholder={null}
-        ErrorBoundary={LexicalErrorBoundary}
-      />
-      <SetEditorStateFromRaw content={content} />
-    </LexicalComposer>
+    <div className="whitespace-pre-wrap text-sm text-gray-800 max-w-[900px]">
+      {content}
+    </div>
   )
 }
