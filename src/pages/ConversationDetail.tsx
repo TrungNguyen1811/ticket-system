@@ -681,7 +681,7 @@ export default function ConversationDetail() {
                             ))}
                           </div>
                         ) : commentsData && commentsData.length > 0 ? (
-                          commentsData.map((m) => {
+                          [...commentsData].reverse().map((m) => {
                             const isOwnMessage = m.user?.name === user?.name;
                             return (
                               <div 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type ConversationTab = {
   id: string; // ví dụ: "conversation_123"
@@ -15,25 +16,34 @@ interface ConversationTabsState {
   clearTabs: () => void;
 }
 
-export const useConversationTabsStore = create<ConversationTabsState>((set, get) => ({
-    tabs: [],
-    activeId: null,
-  
-    addTab: (tab) => {
-      const exists = get().tabs.some((t) => t.id === tab.id);
-      if (!exists) {
-        set((state) => ({ tabs: [...state.tabs, tab] }));
-      }
-      set({ activeId: tab.id });
-    },
-  
-    closeTab: (tabId) => {
-      set((state) => ({
-        tabs: state.tabs.filter((tab) => tab.id !== tabId),
-      }));
-    },
-  
-    setActiveId: (id) => set({ activeId: id }),
-    clearTabs: () => set({ tabs: [], activeId: null }),
-  }));
-  
+export const useConversationTabsStore = create<ConversationTabsState>()(
+  persist(
+    (set, get) => ({
+      tabs: [],
+      activeId: null,
+
+      addTab: (tab) => {
+        const exists = get().tabs.some((t) => t.id === tab.id);
+        if (!exists) {
+          set((state) => ({ tabs: [...state.tabs, tab] }));
+        }
+        set({ activeId: tab.id });
+      },
+
+      closeTab: (tabId) => {
+        const newTabs = get().tabs.filter((tab) => tab.id !== tabId);
+        set({ tabs: newTabs });
+
+        if (get().activeId === tabId) {
+          set({ activeId: newTabs.at(-1)?.id || null });
+        }
+      },
+
+      setActiveId: (id) => set({ activeId: id }),
+      clearTabs: () => set({ tabs: [], activeId: null }),
+    }),
+    {
+      name: "conversation-tabs", // key trong localStorage
+    }
+  )
+);

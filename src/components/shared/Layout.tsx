@@ -137,14 +137,16 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main content */}
       <div className="lg:pl-64 flex flex-col flex-1">
         <div className="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow lg:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-6 w-6" />
-          </Button>
+          <div className="flex items-center justify-center ml-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-16 w-16" />
+            </Button>
+          </div>
           <div className="flex-1 px-4 flex justify-between items-center">
             <h1 className="text-xl font-bold text-indigo-600">TasketES</h1>
             {user && (
