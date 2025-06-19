@@ -596,7 +596,7 @@ export default function TicketDetail() {
                       selectedStaff={selectedStaff}
                       handleStaffSelect={handleStaffSelect}
                       isErrorUsers={isErrorUsers}
-                      isTicketComplete={ticketData.status === "complete"}
+                      isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
                     />  
                   </div>
                 </div>
