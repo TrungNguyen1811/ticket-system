@@ -608,7 +608,7 @@ export default function ConversationDetail() {
                   selectedStaff={selectedStaff}
                   handleStaffSelect={handleStaffSelect}
                   isErrorUsers={isErrorUsers}
-                  isTicketComplete={ticketData?.status === "complete"}
+                  isTicketComplete={ticketData?.status === "complete" || ticketData?.status === "archived"}
                 />
               </div>
             </div>
@@ -628,7 +628,7 @@ export default function ConversationDetail() {
                     selectedStatus={selectedStatus as Status}
                     handleStatusSelect={handleStatusSelect}
                     setSelectedStatus={setSelectedStatus}
-                    isTicketComplete={ticketData?.status === "archived" || ticketData?.status === "complete"}
+                    isTicketComplete={ticketData?.status === "archived"}
                   />
                 )}
               </div>
