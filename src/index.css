@@ -105,3 +105,51 @@
   box-sizing: border-box !important;
 }
 
+.ticket-detail-container {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) { /* Tablet */
+  .ticket-detail-container {
+    flex-direction: column;
+  }
+  .info-section {
+    order: 1;
+  }
+  .attachments-section {
+    order: 2;
+  }
+  .chat-section {
+    order: 3;
+  }
+}
+
+.ticket-detail-container {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) { /* Tablet */
+  .ticket-detail-container {
+    flex-direction: column;
+  }
+  .info-section {
+    order: 1;
+  }
+  .attachments-section {
+    order: 2;
+  }
+  .chat-section {
+    order: 3;
+  }
+}
+
+@media (max-width: 600px) { /* Smartphone */
+  .ticket-detail-container {
+    flex-direction: column;
+  }
+  /* Optionally adjust padding, font sizes, etc. */
+}
