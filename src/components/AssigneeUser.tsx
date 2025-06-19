@@ -9,6 +9,10 @@ import { Check } from "lucide-react";
 import { CommandItem } from "./ui/command";
 import { User } from "@/types/user";
 import { DataResponse, Response } from "@/types/reponse";
+import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/services/user.service";
+import { useState } from "react";
+import { useDebounce } from "@/hooks/useDebouce";
 
 const AssigneeUser = ({
     isStaffOpen,
@@ -27,8 +31,35 @@ const AssigneeUser = ({
     handleStaffSelect: (staffId: string) => void,
     isErrorUsers: boolean
 }) => {
-    // Find the selected staff member
-    const selectedStaffMember = usersData?.data.data.find(user => user.id === selectedStaff);
+
+    const [search, setSearch] = useState("");
+    const debouncedSearch = useDebounce(search, 500)
+
+    const { data: usersSearchData, isLoading: isLoadingUsersSearch } = useQuery({
+        queryKey: ["users-search", debouncedSearch],
+        queryFn: () => userService.getUsers({
+            page: 1,
+            limit: 1000,
+            search: debouncedSearch
+        }),
+        enabled: debouncedSearch.length > 0
+    })
+
+    const displayUsers = debouncedSearch.length > 0 && usersSearchData?.data.data 
+        ? usersSearchData.data.data 
+        : usersData?.data.data || [];
+
+    const selectedStaffMember = displayUsers.find(user => user.id === selectedStaff);
+
+    console.log("usersSearchData", usersSearchData?.data)
+    console.log("displayUsers", displayUsers)
+    console.log("displayUsers.length", displayUsers.length)
+    console.log("search", search)
+    console.log("debouncedSearch", debouncedSearch)
+    console.log("debouncedSearch.length", debouncedSearch.length)
+    console.log("isLoadingUsersSearch", isLoadingUsersSearch)
+    console.log("isLoadingUsers", isLoadingUsers)
+    console.log("isErrorUsers", isErrorUsers)
 
     return (
         <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
@@ -53,22 +84,27 @@ const AssigneeUser = ({
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[200px] p-0 z-50">
-                <Command>
-                    <CommandInput placeholder="Search staff..." />
+                <Command shouldFilter={false}>
+                    <CommandInput placeholder="Search staff..." 
+                        className="h-8"
+                        value={search}
+                        onValueChange={(value) => setSearch(value)}
+                    />
                     <CommandList>
-                        <CommandEmpty>No staff found.</CommandEmpty>
-                        <CommandGroup>
-                            {isLoadingUsers ? (
-                                <div className="flex items-center justify-center p-2">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                </div>
-                            ) : isErrorUsers ? (
-                                <div className="p-2 text-sm text-red-500">Failed to load users</div>
-                            ) : (
-                                usersData?.data.data.map((user) => (
+                        {(isLoadingUsers || (debouncedSearch.length > 0 && isLoadingUsersSearch)) ? (
+                            <div className="flex items-center justify-center p-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                        ) : isErrorUsers ? (
+                            <div className="p-2 text-sm text-red-500">Failed to load users</div>
+                        ) : displayUsers.length === 0 ? (
+                            <CommandEmpty>No staff found.</CommandEmpty>
+                        ) : (
+                            <CommandGroup>
+                                {displayUsers.map((user) => (
                                     <CommandItem
                                         key={user.id}
-                                        value={user.id}
+                                        value={`${user.id} ${user.name}`}
                                         onSelect={() => handleStaffSelect(user.id)}
                                     >
                                         <div className="flex items-center">
@@ -79,9 +115,9 @@ const AssigneeUser = ({
                                             )}
                                         </div>
                                     </CommandItem>
-                                ))
-                            )}
-                        </CommandGroup>
+                                ))}
+                            </CommandGroup>
+                        )}
                     </CommandList>
                 </Command>
             </PopoverContent>

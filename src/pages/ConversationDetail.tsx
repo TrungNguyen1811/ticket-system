@@ -257,16 +257,43 @@ export default function ConversationDetail() {
 
   const handleStatusSelect = useCallback((status: Status) => {
     setSelectedStatus(status);
+    markAsUpdated(id || "");
     handleChangeStatus({ status });
     setIsStatusOpen(false);
-  }, [handleChangeStatus]);
+    
+    // Invalidate audit logs to ensure they are updated
+    queryClient.invalidateQueries({ queryKey: ["ticket-logs", id] });
+  }, [handleChangeStatus, markAsUpdated, id, queryClient]);
 
   const handleStaffSelect = (staffId: string) => {
     setSelectedStaff(staffId);
+    markAsUpdated(id || "");
+
+    // Get the new staff user data
+    const newStaff = usersData?.data.data.find(user => user.id === staffId);
+
+    // Optimistically update the UI
+    queryClient.setQueryData<Response<Ticket>>(
+      ["ticket", id],
+      (oldData) => {
+        if (!oldData?.data) return oldData;
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            staff: newStaff || null
+          }
+        };
+      }
+    );
+
     handleAssign({ 
       staff_id: staffId,
       _method: "PUT"
     });
+
+    // Invalidate audit logs to ensure they are updated
+    queryClient.invalidateQueries({ queryKey: ["ticket-logs", id] });
   };
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -431,7 +458,19 @@ export default function ConversationDetail() {
             from_email: "phamphanbang@gmail.com",
             subject: `Re: ${ticketData?.title || ""}`,
             body: editorContent.text,
-            attachments: [],
+            attachments: selectedFiles.map(file => ({
+              id: `temp-${Date.now()}`,
+              file_name: file.name,
+              file_path: URL.createObjectURL(file),
+              file_type: file.type,
+              file_size: file.size,
+              file_extension: file.name.split(".").pop() || "",
+              content_type: file.type,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              ticket_id: id,
+              comment_id: ""
+            })),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -554,8 +593,6 @@ export default function ConversationDetail() {
                 </div>
               </CardContent>
             </Card>
-
-            <Separator />
 
             {/* Assignee Card */}
             <div className="shadow-none border-gray-100">
@@ -729,40 +766,42 @@ export default function ConversationDetail() {
                                     <span className="text-xs text-gray-500">{formatDate(m.created_at)}</span>
                                   </div>
                                   <div className={cn("flex", isOwnMessage ? "flex-row-reverse" : "flex-row")}>
-                                  <div className={cn(
-                                    "break-words text-sm whitespace-pre-wrap rounded-lg p-3 border",
-                                    "max-w-[85%] sm:max-w-[75%] lg:max-w-[70%]",
-                                    isOwnMessage 
-                                      ? "bg-gray-50 border-gray-100 text-gray-900" 
-                                      : "bg-blue-50 border-blue-100 text-blue-900"
-                                  )}>
-                                    {/* <div dangerouslySetInnerHTML={{ __html: m.body }}/> */}
-                                    <ReadOnlyEditor content={m.body} />
-                                  </div>
-                                  {m.attachments && m.attachments.length > 0 && (
                                     <div className={cn(
-                                      "flex flex-wrap gap-2 mt-2",
-                                      isOwnMessage ? "justify-end" : "justify-start"
+                                      "break-words text-sm whitespace-pre-wrap rounded-lg p-3 border",
+                                      "max-w-[85%] sm:max-w-[75%] lg:max-w-[70%]",
+                                      isOwnMessage 
+                                        ? "bg-gray-50 border-gray-100 text-gray-900" 
+                                        : "bg-blue-50 border-blue-100 text-blue-900"
                                     )}>
-                                      {m.attachments.map((a) => (
-                                        <a
-                                          key={a.id}
-                                          href={a.file_path}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className={cn(
-                                            "inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors max-w-[200px] sm:max-w-[250px]",
-                                            isOwnMessage
-                                              ? "bg-blue-100 border border-blue-200 text-blue-700 hover:bg-blue-200"
-                                              : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-                                          )}
-                                        >
-                                          <Paperclip className="h-3 w-3 flex-shrink-0" />
-                                          <span className="truncate">{a.file_name}</span>
-                                        </a>
-                                      ))}
-                                    </div>
-                                  )}
+                                      {/* <div dangerouslySetInnerHTML={{ __html: m.body }}/> */}
+                                      <div className={cn(isOwnMessage ? "flex flex-row-reverse" : "")}>
+                                        <ReadOnlyEditor content={m.body} />
+                                      </div>
+                                      {m.attachments && m.attachments.length > 0 && (
+                                        <div className={cn(
+                                          "flex flex-wrap gap-2 mt-2",
+                                          isOwnMessage ? "justify-end" : "justify-start"
+                                        )}>
+                                          {m.attachments.map((a) => (
+                                              <a
+                                                key={a.id}
+                                                href={a.file_path}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={cn(
+                                                  "inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors max-w-[200px] sm:max-w-[250px]",
+                                                  isOwnMessage
+                                                    ? "bg-blue-100 border border-blue-200 text-blue-700 hover:bg-blue-200"
+                                                    : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                )}
+                                              >
+                                                <Paperclip className="h-3 w-3 flex-shrink-0" />
+                                                <span className="truncate">{a.file_name}</span>
+                                              </a>
+                                            ))}
+                                          </div>
+                                        )}
+                                    </div>  
                                   </div>
                                 </div>
                                 {isOwnMessage && (
@@ -788,7 +827,7 @@ export default function ConversationDetail() {
                     </ScrollArea>
                   </div>
                 ) : (
-    <div>
+                  <div>
                     <ScrollArea 
                       ref={containerRef}
                       className="h-[calc(100vh-475px)] px-6" 
@@ -843,7 +882,9 @@ export default function ConversationDetail() {
                                         ? "bg-yellow-50 border-yellow-100 text-yellow-900" 
                                         : "bg-gray-50 border-gray-100 text-gray-700"
                                     )}>
-                                      <ReadOnlyEditor content={m.content} />
+                                      <div className={cn(isOwnMessage ? "flex flex-row-reverse" : "")}>
+                                        <ReadOnlyEditor content={m.content}/>
+                                      </div>
                                       {m.attachments && m.attachments.length > 0 && (
                                         <div className={cn(
                                           "flex flex-wrap gap-2 mt-2",
@@ -1083,7 +1124,7 @@ export default function ConversationDetail() {
                       />
                     </div>
                     <div className="space-y-2 h-full overflow-y-auto pr-2">
-                      <ScrollArea className="h-[calc(100vh-200px)] px-2 lg:px-6 pb-4 w-full">
+                      <ScrollArea className="h-[calc(100vh-200px)] px-2 lg:px-4 pb-4 w-full">
                         {isLoadingAttachments ? (
                           <div className="flex items-center justify-center p-4 text-xs">
                             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
