@@ -21,7 +21,8 @@ const AssigneeUser = ({
     usersData,
     selectedStaff,
     handleStaffSelect,
-    isErrorUsers
+    isErrorUsers,
+    isTicketComplete = false
 }: {
     isStaffOpen: boolean,
     setIsStaffOpen: (open: boolean) => void,
@@ -29,7 +30,8 @@ const AssigneeUser = ({
     usersData: Response<DataResponse<User[]>> | undefined,
     selectedStaff: string | null,
     handleStaffSelect: (staffId: string) => void,
-    isErrorUsers: boolean
+    isErrorUsers: boolean,
+    isTicketComplete?: boolean
 }) => {
 
     const [search, setSearch] = useState("");
@@ -51,16 +53,6 @@ const AssigneeUser = ({
 
     const selectedStaffMember = displayUsers.find(user => user.id === selectedStaff);
 
-    console.log("usersSearchData", usersSearchData?.data)
-    console.log("displayUsers", displayUsers)
-    console.log("displayUsers.length", displayUsers.length)
-    console.log("search", search)
-    console.log("debouncedSearch", debouncedSearch)
-    console.log("debouncedSearch.length", debouncedSearch.length)
-    console.log("isLoadingUsersSearch", isLoadingUsersSearch)
-    console.log("isLoadingUsers", isLoadingUsers)
-    console.log("isErrorUsers", isErrorUsers)
-
     return (
         <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
             <PopoverTrigger asChild>
@@ -69,7 +61,7 @@ const AssigneeUser = ({
                     role="combobox"
                     aria-expanded={isStaffOpen}
                     className="w-full justify-between"
-                    disabled={isLoadingUsers}
+                    disabled={isLoadingUsers || isTicketComplete}
                 >
                     <div className="flex items-center">
                         <UserAvatar 
@@ -89,6 +81,7 @@ const AssigneeUser = ({
                         className="h-8"
                         value={search}
                         onValueChange={(value) => setSearch(value)}
+                        disabled={isTicketComplete}
                     />
                     <CommandList>
                         {(isLoadingUsers || (debouncedSearch.length > 0 && isLoadingUsersSearch)) ? (
@@ -105,7 +98,8 @@ const AssigneeUser = ({
                                     <CommandItem
                                         key={user.id}
                                         value={`${user.id} ${user.name}`}
-                                        onSelect={() => handleStaffSelect(user.id)}
+                                        onSelect={() => !isTicketComplete && handleStaffSelect(user.id)}
+                                        disabled={isTicketComplete}
                                     >
                                         <div className="flex items-center">
                                             <UserAvatar name={user.name} size="sm" />

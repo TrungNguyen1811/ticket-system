@@ -18,6 +18,7 @@ const ChangeStatus = ({
     selectedStatus,
     handleStatusSelect,
     setSelectedStatus,
+    isTicketComplete = false
 }: {
     isStatusOpen: boolean,
     setIsStatusOpen: (open: boolean) => void,
@@ -26,6 +27,7 @@ const ChangeStatus = ({
     selectedStatus: Status  ,
     handleStatusSelect: (status: Status) => void,
     setSelectedStatus: (status: Status) => void,
+    isTicketComplete?: boolean
 }) => {
     const { user } = useAuth()
     const isAdmin = user?.role === "admin"
@@ -40,7 +42,7 @@ const ChangeStatus = ({
                           role="combobox"
                           aria-expanded={isStatusOpen}
                           className="w-full justify-between"
-                          disabled={isLoadingUsers}
+                          disabled={isLoadingUsers || isTicketComplete}
                         >
                           {selectedStatus ? (
                             <div className="flex items-center">
@@ -80,6 +82,7 @@ const ChangeStatus = ({
                                       setSelectedStatus(status.value as Status)
                                       handleStatusSelect(status.value as Status)
                                     }}
+                                    disabled={isTicketComplete}
                                   >
                                     <div className="flex items-center">
                                       {getStatusIcon(status.value)}

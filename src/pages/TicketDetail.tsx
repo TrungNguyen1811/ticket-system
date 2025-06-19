@@ -580,6 +580,7 @@ export default function TicketDetail() {
                       selectedStatus={selectedStatus as Status}
                       handleStatusSelect={handleStatusSelect}
                       setSelectedStatus={setSelectedStatus}
+                      isTicketComplete={ticketData.status === "archived"}
                     />
                   </div>
 
@@ -595,6 +596,7 @@ export default function TicketDetail() {
                       selectedStaff={selectedStaff}
                       handleStaffSelect={handleStaffSelect}
                       isErrorUsers={isErrorUsers}
+                      isTicketComplete={ticketData.status === "complete"}
                     />  
                   </div>
                 </div>
