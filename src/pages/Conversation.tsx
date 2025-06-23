@@ -8,8 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, MoreHorizontal, Building2, Eye, Filter, ArrowUpDown, RefreshCw, Loader2 } from "lucide-react"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { formatDate, getStatusColor } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
+import { formatDate } from "@/lib/utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Status, Ticket } from "@/types/ticket"
 import { useQuery } from "@tanstack/react-query"
@@ -20,6 +19,7 @@ import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, Pagi
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDebounce } from "@/hooks/useDebouce"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
 
@@ -282,9 +282,7 @@ export default function Conversation() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={`${getStatusColor(ticket.status)}`}>
-                            {ticket.status}
-                          </Badge>
+                          <TicketStatusDisplay status={ticket.status}/>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">

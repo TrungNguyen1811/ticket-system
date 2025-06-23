@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { StatusBadge } from "@/components/shared/StatusBadge"
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
 import { STATUS_OPTIONS } from "@/lib/constants"
 import { useToast } from "@/components/ui/use-toast"
 import { updateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
@@ -102,7 +102,7 @@ export function ChangeStatusDialog({ open, onOpenChange, currentStatus, onSubmit
                           
                           return (
                             <SelectItem key={status.value} value={status.value}>
-                              <StatusBadge status={status.value} />
+                              <TicketStatusDisplay status={status.value} />
                             </SelectItem>
                           );
                         })}

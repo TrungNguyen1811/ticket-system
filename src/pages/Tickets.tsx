@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { StatusBadge } from "@/components/shared/StatusBadge"
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
 import { CreateTicketDialog } from "@/dialogs/CreateTicketDialog"
 import { EditTicketDialog } from "@/dialogs/EditTicketDialog"
 import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
@@ -30,12 +30,10 @@ import { useTicketMutations } from "@/hooks/useTicketMutations"
 import { usePusher } from "@/contexts/PusherContext"
 import { usePusherSubscription } from "@/hooks/usePusherSubscription"
 import { useTicketRealtime } from "@/hooks/useTicketRealtime"
-import { STATUS_OPTIONS } from "@/lib/constants"
-import { SEARCH_STATUS_OPTIONS } from "@/lib/constants"
+import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
 import { useDebounce } from "@/hooks/useDebouce"
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
-// const STATUS_OPTIONS = ["New", "In Progress", "Pending", "Assigned", "Complete", "Archived"]
 
 export default function Tickets() {
   const { toast } = useToast()
@@ -340,7 +338,7 @@ export default function Tickets() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  {SEARCH_STATUS_OPTIONS.map(({ value, label }) => (
+                  {SHOW_STATUS_OPTIONS.map(({ value, label }) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -420,7 +418,7 @@ export default function Tickets() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={ticket.status} />
+                          <TicketStatusDisplay status={ticket.status}/>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.created_at)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.updated_at)}</TableCell>

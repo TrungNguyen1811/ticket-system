@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react"
 import { Check } from "lucide-react"
 import { Ticket } from "@/types/ticket"
 import { STATUS_OPTIONS, SHOW_STATUS_OPTIONS } from "@/lib/constants"
-import { getStatusIcon } from "./shared/StatusBadge"
+import { TicketStatusDisplay } from "./shared/StatusBadge"
 import { useAuth } from "@/contexts/AuthContext"
 import { Status } from "@/types/ticket"
 
@@ -45,19 +45,9 @@ const ChangeStatus = ({
                           disabled={isLoadingUsers || isTicketComplete}
                         >
                           {selectedStatus ? (
-                            <div className="flex items-center">
-                              {getStatusIcon(selectedStatus)}
-                              <span className="ml-2">
-                                {SHOW_STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                              </span>
-                                </div>
+                            <TicketStatusDisplay status={selectedStatus} variant="iconLabel"/>
                             ) : (
-                                <div className="flex items-center">
-                                {getStatusIcon(ticketData.status)}
-                              <span className="ml-2">
-                                {SHOW_STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
-                              </span>
-                            </div>
+                            <TicketStatusDisplay status={ticketData.status} variant="iconLabel"/>
                           )}
                           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -84,11 +74,7 @@ const ChangeStatus = ({
                                     }}
                                     disabled={isTicketComplete}
                                   >
-                                    <div className="flex items-center">
-                                      {getStatusIcon(status.value)}
-                                      <span className="ml-2">{status.label}</span>
-                                      {status.value === ticketData.status && <Check className="h-4 w-4 ml-2 text-green-500" />}
-                                    </div>
+                                    <TicketStatusDisplay status={status.value} variant="iconLabel"/>  
                                   </CommandItem>
                                 )
                               })}

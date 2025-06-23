@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { formatDate, getStatusColor } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { getStatusIcon, StatusBadge } from "@/components/shared/StatusBadge"
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
 import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
@@ -483,12 +483,6 @@ export default function TicketDetail() {
                     </div>
                     
                   </div>
-                  <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="text-xs font-normal">
-                        #{ticketData.id}
-                      </Badge>
-                      <StatusBadge status={ticketData.status} />
-                    </div>
                   <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
                     <div className="flex items-center">
                       <CalendarIcon className="h-4 w-4 mr-1" />

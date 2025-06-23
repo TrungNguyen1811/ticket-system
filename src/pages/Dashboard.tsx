@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { mockTickets, mockUsers, mockClients } from "@/mock/data"
 import { formatDate } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { StatusBadge } from "@/components/shared/StatusBadge"
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
 import { MessageSquare, TrendingUp, Building2, Eye, User, Users, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, AlertCircle } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
@@ -275,7 +275,7 @@ export default function Dashboard() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={ticket.status} />
+                        <TicketStatusDisplay status={ticket.status} />
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">{formatDate(ticket.updated_at)}</TableCell>
                       <TableCell>

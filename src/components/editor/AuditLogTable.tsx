@@ -27,6 +27,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { TicketAuditLog } from "@/types/ticket";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { TicketStatusDisplay } from "../shared/StatusBadge";
 
 interface AuditLogTableProps {
   ticketId: string;
@@ -335,15 +336,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                     <SelectItem key={status.value} value={status.value}>
                       {status.value === "archived" && !canArchive ? null : (
                         <div className="flex items-center justify-between w-full">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "whitespace-nowrap",
-                              `bg-${status.color}-100 text-${status.color}-800`
-                            )}
-                          >
-                            {status.label}
-                          </Badge>
+                          <TicketStatusDisplay status={status.value} variant="iconLabel"/>
                           {status.value === currentStatus && (
                             <Check className="h-4 w-4 text-green-500" />
                           )}

@@ -43,7 +43,7 @@ import { useTicketComments } from "@/hooks/useTicketComments";
 import SetEditTextPlugin from "@/components/SetEditTextPlugin";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
 import { useMailTicket } from "@/hooks/useMailTicket";
 
 // Editor configuration
@@ -575,10 +575,6 @@ export default function ConversationDetail() {
                     <p className="text-xs text-gray-500 truncate">{ticketData?.holder?.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <StatusBadge status={ticketData?.status || ""} />
-                </div>
-
                 <div className="space-y-1 lg:space-y-2">
                   <div className="flex items-center gap-1.5 text-xs text-gray-600">
                     <Clock className="h-3 w-3" />
