@@ -1,68 +1,36 @@
+export interface DashboardStats {
+  total: number;
+  new: number;
+  in_progress: number;
+  complete: number;
+}
+
+export interface DashboardStatsTime {
+  avg_seconds: number;
+  avg_hms: string;
+  total: string;
+}
+
 export interface DashboardSummary {
-  as_holder: {
-    total: number;
-    new: number;
-    in_progress: number;
-    complete: number;
-  };
-  as_staff: {
-    total: number;
-    new: number;
-    in_progress: number;
-    complete: number;
-  };
-  as_admin: {
-    total: number;
-    new: number;
-    in_progress: number;
-    complete: number;
-  };
+  as_holder: DashboardStats;
+  as_staff: DashboardStats;
+  as_admin: DashboardStats;
 }
 
 export interface UserStats {
   as_holder: {
-    stat: {
-      date: string;
-      total: number;
-      new: number;
-      in_progress: number;
-      complete: number;
-    }[];
-    avg: {
-      avg_seconds: number;
-      avg_hms: string;
-      total: string;
-    };
+    stat: DashboardStats[];
+    avg: DashboardStatsTime;
   };
   as_staff: {
-    stat: {
-      date: string;
-      total: number;
-      new: number;
-      in_progress: number;
-      complete: number;
-    }[];
-    avg: {
-      avg_seconds: number;
-      avg_hms: string;
-      total: string;
-    };
+    stat: DashboardStats[];
+    avg: DashboardStatsTime;
   };
 }
 
 export interface AdminStats {
-  stat: {
-    date: string;
-    total: number;
-    new: number;
-    in_progress: number;
-    complete: number;
-  }[];
-  avg: {
-    avg_seconds: number;
-    avg_hms: string;
-    total: string;
-  };
+  stat: DashboardStats[];
+  avg: DashboardStatsTime;
   staff_performance: StaffPerformance;
 }
 

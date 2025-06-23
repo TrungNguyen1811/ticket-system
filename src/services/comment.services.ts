@@ -1,10 +1,5 @@
 import api from "@/lib/axios";
-import {
-  DataComment,
-  DataUpdateComment,
-  ParamsComment,
-  CommentFormData,
-} from "@/types/comment";
+import { ParamsComment, CommentFormData } from "@/types/comment";
 import { Response, DataResponse } from "@/types/reponse";
 import { Comment } from "@/types/comment";
 

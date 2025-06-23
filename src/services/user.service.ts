@@ -3,19 +3,16 @@ import type { User, Client } from "@/types/user";
 import type { DataResponse, Response } from "@/types/reponse";
 import { Ticket } from "@/types/ticket";
 
+export interface CreateUserData {
+  email: string;
+  name: string;
+  role: "admin" | "user";
+}
+
 export interface UpdateUserRoleData {
   role: "admin" | "user";
   _method?: "PUT";
 }
-
-export interface CreateClientData {
-  name: string;
-  email: string;
-  phone?: string;
-  address?: string;
-}
-
-export interface UpdateClientData extends Partial<CreateClientData> {}
 
 export interface ParamsUser {
   limit?: number;
@@ -38,11 +35,6 @@ export interface UserFilters {
   isPaginate?: boolean;
 }
 
-export interface CreateUserData {
-  email: string;
-  name: string;
-  role: "admin" | "user";
-}
 
 class UserService {
   // Users

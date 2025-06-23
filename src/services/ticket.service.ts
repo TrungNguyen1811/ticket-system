@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 import { DataResponse, Response } from "@/types/reponse";
-import type { Ticket } from "@/types/ticket";
+import type { Status, Ticket } from "@/types/ticket";
 
 export interface TicketFilters {
   status?: string;
@@ -23,13 +23,7 @@ export interface CreateTicketData {
 export interface UpdateTicketData {
   title?: string;
   description?: string;
-  status?:
-    | "new"
-    | "in_progress"
-    | "pending"
-    | "assigned"
-    | "complete"
-    | "archived";
+  status?: Status;
   staff_id?: string;
   _method?: "PUT";
 }
@@ -100,22 +94,6 @@ class TicketService {
       const response = await api.delete<Response<DataResponse<boolean>>>(
         `/tickets/${id}`,
       );
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // Get dashboard stats
-  async getDashboardStats(): Promise<{
-    openTickets: number;
-    inProgressTickets: number;
-    doneTickets: number;
-    totalClients: number;
-    recentTickets: Ticket[];
-  }> {
-    try {
-      const response = await api.get("/tickets/dashboard/stats");
       return response.data;
     } catch (error) {
       throw error;

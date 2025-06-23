@@ -1,14 +1,12 @@
 import { lazy, Suspense } from "react";
 import { Outlet, RouteObject } from "react-router-dom";
 import {
-  Loader2,
   Ticket,
   MessageSquare,
   Users,
   Settings,
   Home,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Layout from "@/components/shared/Layout";
