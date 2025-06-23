@@ -16,21 +16,3 @@ export function useDebounce<T>(value: T, delay: number = 500): T {
 
   return debouncedValue
 }
-
-export function useDebounceCallback<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number = 500
-): (...args: Parameters<T>) => void {
-  const callbackRef = useRef(callback)
-
-  useEffect(() => {
-    callbackRef.current = callback
-  }, [callback])
-
-  return useCallback(
-    debounce((...args: Parameters<T>) => {
-      callbackRef.current(...args)
-    }, delay),
-    [delay]
-  )
-}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,8 +10,16 @@ import { createTicketSchema } from "@/schema/ticket.schema"
 import { CreateTicketSchema } from "@/schema/ticket.schema"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2 } from "lucide-react"
+import { ChevronDown, ChevronsUpDown, Loader2 } from "lucide-react"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useDebounce } from "@/hooks/useDebouce"
+import { useQuery } from "@tanstack/react-query"
+import { userService } from "@/services/user.service"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Check } from "lucide-react"
+import { UserAvatar } from "@/components/shared/UserAvatar"
 
 interface CreateTicketDialogProps {
   open: boolean
@@ -22,7 +30,19 @@ interface CreateTicketDialogProps {
 
 export function CreateTicketDialog({ open, onOpenChange, onSubmit, isLoading = false }: CreateTicketDialogProps) {
   const { toast } = useToast()
-  
+
+  const [search, setSearch] = useState<string>("")
+  const debouncedSearch = useDebounce(search, 500)
+  const [isClientOpen, setIsClientOpen] = useState(false)
+  const { data: clientData, isLoading: isLoadingClient } = useQuery({
+    queryKey: ["client", debouncedSearch],
+    queryFn: () => userService.getUsers({
+      page: 1,
+      limit: 1000,
+      search: debouncedSearch
+  }),
+  })
+
   const form = useForm<CreateTicketSchema>({
     resolver: zodResolver(createTicketSchema),
     defaultValues: {
@@ -80,23 +100,73 @@ export function CreateTicketDialog({ open, onOpenChange, onSubmit, isLoading = f
               )} 
             />
 
-            <FormField 
-              control={form.control} 
-              name="client_email" 
+            <FormField
+              control={form.control}
+              name="client_email"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client Email *</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Enter client email"
-                      required
-                      disabled={isLoading}
+                <FormItem className="flex flex-col">
+                <FormLabel>Client Email *</FormLabel>
+                  <Popover open={isClientOpen} onOpenChange={setIsClientOpen}>
+            <PopoverTrigger asChild  disabled={isLoadingClient} >
+              <div className="flex items-center justify-between w-full border border-gray-200 rounded-md p-2">
+                <div className="flex items-center">
+                  <UserAvatar 
+                    name={clientData?.data.data.find(client => client.email === field.value)?.name || "Unassigned"} 
+                    size="sm" 
+                  />
+                  <span className="ml-2 text-sm">
+                    {clientData?.data.data.find(client => client.email === field.value)?.name || "Unassigned"}
+                  </span>
+                </div>
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0 z-50">
+                <Command shouldFilter={false}>
+                    <CommandInput placeholder="Search staff..." 
+                        className="h-8"
+                        value={search}
+                        onValueChange={(value) => {
+                          setSearch(value)
+                        }}
                     />
-                  </FormControl>
+                    <CommandList>
+                          {isLoadingClient ? (
+                            <div className="flex items-center justify-center p-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                        ) : clientData?.data.data.length === 0 ? (
+                            <CommandEmpty>No client found.</CommandEmpty>
+                        ) : (
+                            <CommandGroup>
+                                {clientData?.data.data.map((client) => (
+                                    <CommandItem
+                                        key={client.id}
+                                        value={`${client.id} ${client.name}`}
+                                        onSelect={() => {
+                                          form.setValue("client_email", client.email)
+                                          setIsClientOpen(false)
+                                        }}
+                                        disabled={isLoadingClient}
+                                    >
+                                        <div className="flex items-center">
+                                            <UserAvatar name={client.name} size="sm" />
+                                            <span className="ml-2">{client.name}</span>
+                                            {client.email === field.value && (
+                                                <Check className="h-4 w-4 ml-2 text-green-500" />
+                                            )}
+                                        </div>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        )}
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+          </Popover>
                   <FormMessage />
                 </FormItem>
-              )} 
+              )}
             />
 
             <FormField 
