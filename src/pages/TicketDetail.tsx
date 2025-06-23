@@ -49,7 +49,7 @@ import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DataResponse, Response } from "@/types/reponse"
-import { Attachment, Status, Ticket, TicketAuditLog } from "@/types/ticket"
+import {  Attachment, Status, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"  
@@ -617,10 +617,7 @@ export default function TicketDetail() {
               isLoading={isLoadingAttachments}
               isError={isErrorAttachments}
               onDownload={downloadAttachment.mutate}
-              onDelete={deleteAttachment.mutate}
               downloadingFiles={downloadingFiles}
-              deletingFiles={deletingFiles}
-              isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
             />
           </div>
         </div>
