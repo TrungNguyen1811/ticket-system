@@ -50,10 +50,8 @@ import { cn } from "@/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DataResponse, Response } from "@/types/reponse"
 import {  Attachment, Status, Ticket, TicketAuditLog } from "@/types/ticket"
-import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"  
-import { CommentList } from "@/components/editor/CommentList"
 import attachmentService from "@/services/attachment.service"
 import { logService } from "@/services/log.service"
 import { AuditLogTable } from "@/components/editor/AuditLogTable"
@@ -61,7 +59,6 @@ import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
 import { useTicketMutations } from "@/hooks/useTicketMutations"
-import { useTicketComments } from "@/hooks/useTicketComments"
 import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicket } from "@/hooks/useTicket"
 import { useAuth } from "@/contexts/AuthContext"
@@ -109,20 +106,8 @@ export default function TicketDetail() {
   const [confirmType, setConfirmType] = useState<"status" | "staff" | null>(null)
   const [isViewingLogs, setIsViewingLogs] = useState(false)
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set())
-  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
 
   const mutations = useTicketMutations()
-
-  // Use custom hooks for comments and logs
-  const { 
-    comments,
-    pagination: commentsPagination,
-    isLoading: isLoadingComments,
-    page: commentPage,
-    perPage: commentPerPage,
-    setPage: setCommentPage,
-    setPerPage: setCommentPerPage
-  } = useTicketComments({ ticketId: id || "" })
 
   const {
     logs,
@@ -183,39 +168,6 @@ export default function TicketDetail() {
     }
   })
 
-  // Delete attachment
-  const deleteAttachment = useMutation({
-    mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
-    onMutate: (attachmentId) => {
-      setDeletingFiles(prev => new Set(prev).add(attachmentId));
-    },
-    onSuccess: (_, attachmentId) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
-
-      toast({
-        title: "Success",
-        description: "Attachment deleted successfully",
-      })
-      setDeletingFiles(prev => {
-        const next = new Set(prev);
-        next.delete(attachmentId);
-        return next;
-      });
-    },
-    onError: (_, attachmentId) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete attachment",
-        variant: "destructive",
-      })
-      setDeletingFiles(prev => {
-        const next = new Set(prev);
-        next.delete(attachmentId);
-        return next;
-      });
-    }
-  })
-
   // Auto-save title and description
   useEffect(() => {
     if (ticketData) {
@@ -266,48 +218,6 @@ export default function TicketDetail() {
       staff_id: staffId,
       _method: "PUT"
     })
-  }
-  const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
-    if (!id) return
-
-    try {
-      const formData = new FormData()
-      formData.append("content", data.editorContent.raw)
-  
-      if (data.attachments?.length) {
-        data.attachments.forEach((file) => {
-          formData.append("attachments[]", file)
-        })
-      }
-  
-      await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
-
-      // // Invalidate both comments and attachments queries to update UI
-      // queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
-      // if (data.attachments?.length) {
-      //   queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
-      // }
-
-      toast({
-        title: "Success",
-        description: "Comment created successfully",
-        action: commentPage !== 1 ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setCommentPage(1)}
-          >
-            View Latest
-          </Button>
-        ) : undefined
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add comment",
-        variant: "destructive",
-      });
-    }
   }
 
   // Save handlers
@@ -620,8 +530,13 @@ export default function TicketDetail() {
         <Card>
           <CardHeader className="flex-shrink-0 pb-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="text-lg font-medium">Activity</CardTitle>
-              <div className="flex items-center space-x-2">
+              <CardTitle className="text-md font-medium">Audit Logs</CardTitle>
+              <div className="flex items-center justify-end">                 
+                <Badge variant="outline" className="text-xs">
+                  {logs?.data?.data?.length} logs
+                </Badge>
+              </div>
+              {/* <div className="flex items-center space-x-2">
                 <Button 
                   variant={!isViewingLogs ? "default" : "outline"} 
                   size="sm"
@@ -638,11 +553,11 @@ export default function TicketDetail() {
                   <Clock className="h-4 w-4 mr-2" />
                   Logs
                 </Button>
-              </div>
+              </div> */}
             </div>
           </CardHeader>
-          <CardContent>
-            {!isViewingLogs ? (
+          <CardContent className="p-0 border border-0">
+            {/* {!isViewingLogs ? (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center space-x-2">
@@ -687,19 +602,35 @@ export default function TicketDetail() {
                   />
                 )}
               </div>
-            )}
+            )} */}
+            <div className="space-y-4">              
+                {isLoadingTicketLogs ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <AuditLogTable 
+                    ticketId={id || ""} 
+                    currentUserId={ticketData?.holder?.id || ""}
+                    currentStatus={ticketData?.status || ""}
+                    onStatusChange={handleOptimisticStatusChange}
+                    onStaffChange={handleOptimisticStaffChange}
+                    isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
+                  />
+                )}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Dialogs */}
-      <AddCommentDialog
+      {/* <AddCommentDialog
         open={dialogOpen === "comment"}
         onOpenChange={(open) => !open && setDialogOpen(null)}
         onSubmit={handleAddComment}
         ticketId={id}
         isComplete={ticketData.status === "complete" || ticketData.status === "archived"}
-      />
+      /> */}
 
       <UploadAttachmentDialog
         open={dialogOpen === "attachment"}

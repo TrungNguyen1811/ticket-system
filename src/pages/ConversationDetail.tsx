@@ -25,25 +25,17 @@ import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
-import { commentService } from "@/services/comment.services";
-import { CommentFormData, Comment as CommentType } from "@/types/comment";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OnChangePlugin } from "@/dialogs/AddCommentDialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReadOnlyEditor } from "@/components/ReadOnlyEditor";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { ClearEditorPlugin } from "@/components/ClearEditorPlugin";
-import { FileUploader } from "@/components/FileUploader";
 import { mailService } from "@/services/mail.service";
 import { Mail, MailFormData } from "@/types/mail";
-import { useCommentRealtime } from "@/hooks/useCommentRealtime";
-import { useTicketComments } from "@/hooks/useTicketComments";
 import SetEditTextPlugin from "@/components/SetEditTextPlugin";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
 import { useMailTicket } from "@/hooks/useMailTicket";
 
 // Editor configuration
@@ -75,11 +67,6 @@ export default function ConversationDetail() {
   const [isStaffOpen, setIsStaffOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"public" | "internal">(() => {
-    const savedTab = localStorage.getItem(`conversation-${id}-activeTab`);
-    return savedTab === "internal" ? "internal" : "public";
-  });
-  const [isInternal, setIsInternal] = useState(false);
   const [editorContent, setEditorContent] = useState<{ raw: string; html: string; text: string }>({
     raw: "",
     html: "",
@@ -90,12 +77,9 @@ export default function ConversationDetail() {
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingComment, setEditingComment] = useState<CommentType | null>(null);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
 
@@ -113,16 +97,6 @@ export default function ConversationDetail() {
     queryKey: ["ticket-attachments", id],
     queryFn: () => attachmentService.getAttachments(id || ""),
   });
-
-  const { 
-    comments: commentsData,
-    pagination: commentsPagination,
-    isLoading: isLoadingComments,
-    page: commentPage,
-    perPage: commentPerPage,
-    setPage: setCommentPage,
-    setPerPage: setCommentPerPage
-  } = useTicketComments({ ticketId: id || "" });
 
   const { 
     ticket: ticketData, 
@@ -176,47 +150,7 @@ export default function ConversationDetail() {
     }
   });
 
-  const deleteAttachment = useMutation({
-    mutationFn: (attachmentId: string) => attachmentService.deleteAttachment(attachmentId),
-    onMutate: (attachmentId) => {
-      setDeletingFiles(prev => new Set(prev).add(attachmentId));
-    },
-    onSuccess: (_, attachmentId) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
-      toast({
-        title: "Success",
-        description: "Attachment deleted successfully",
-      });
-      setDeletingFiles(prev => {
-        const next = new Set(prev);
-        next.delete(attachmentId);
-        return next;
-      });
-    },
-    onError: (_, attachmentId) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete attachment",
-        variant: "destructive",
-      });
-      setDeletingFiles(prev => {
-        const next = new Set(prev);
-        next.delete(attachmentId);
-        return next;
-      });
-    }
-  });
-
   // Effects
-  useEffect(() => {
-    const savedTab = localStorage.getItem(`conversation-${id}-activeTab`);
-    setActiveTab(savedTab === "internal" ? "internal" : "public");
-  }, [id]);
-
-  useEffect(() => {
-    localStorage.setItem(`conversation-${id}-activeTab`, activeTab);
-  }, [activeTab, id]);
 
   useEffect(() => {
     if (ticketData?.staff?.id) {
@@ -225,14 +159,10 @@ export default function ConversationDetail() {
   }, [ticketData]);
 
   useEffect(() => {
-    setIsInternal(activeTab === "internal");
-  }, [activeTab]);
-
-  useEffect(() => {
     if (shouldAutoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [commentsData, shouldAutoScroll, mailsData]);
+  }, [shouldAutoScroll, mailsData]);
 
   // Handlers
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -316,27 +246,6 @@ export default function ConversationDetail() {
     });
   }, [queryClient, id, toast, setNewMailNotification]);
 
-  const handleEditComment = useCallback((comment: CommentType) => {
-    setIsEditMode(true);
-    setEditingComment(comment);
-    setIsInternal(true);
-    setActiveTab("internal");
-  }, []);
-
-  const handleCancelEdit = useCallback(() => {
-    setIsEditMode(false);
-    setEditingComment(null);
-    setEditorContent({ raw: "", html: "", text: "" });
-    setSelectedFiles([]);
-    setShouldClearEditor(true);
-  }, []);
-
-  const handleInternalToggle = () => {
-    const newIsInternal = !isInternal;
-    setIsInternal(newIsInternal);
-    setActiveTab(newIsInternal ? "internal" : "public");
-  };
-
   const handleDownloadAttachment = async (id: string) => {
     try {
       setDownloadingId(id);
@@ -348,65 +257,15 @@ export default function ConversationDetail() {
     }
   };
   
-
-  const handleDeleteComment = async (commentId: string) => {
-    setIsSubmitting(true);
-    const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
-      ["ticket-comments", id, commentPage, commentPerPage]
-    );
-
-    queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
-      ["ticket-comments", id, commentPage, commentPerPage],
-      (oldData) => {
-        if (!oldData?.data) return oldData;
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            data: oldData.data.data.filter(comment => comment.id !== commentId),
-            pagination: {
-              ...oldData.data.pagination,
-              page: oldData.data.pagination?.page || 1,
-              perPage: oldData.data.pagination?.perPage || commentPerPage,
-              total: (oldData.data.pagination?.total || 1) - 1
-            }
-          }
-        };
-      }
-    );
-
-    try {
-      await commentService.deleteComment(commentId);
-      toast({
-        title: "Success",
-        description: "Comment deleted successfully",
-      });
-    } catch (error) {
-      if (previousData) {
-        queryClient.setQueryData(
-          ["ticket-comments", id, commentPage, commentPerPage],
-          previousData
-        );
-      }
-      toast({
-        title: "Error",
-        description: "Failed to delete comment",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🔄 handleSubmit called", { isInternal, isEditMode, selectedFilesLength: selectedFiles.length });
+    console.log("🔄 handleSubmit called", { selectedFilesLength: selectedFiles.length });
     
     if (!editorContent.raw.trim() && selectedFiles.length === 0) {
       toast({
         title: "Validation Error",
-        description: "Please enter a comment or attach files.",
+        description: "Please enter a message or attach files.",
         variant: "destructive",
       });
       return;
@@ -417,39 +276,13 @@ export default function ConversationDetail() {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append("content", editorContent.raw);
+      formData.append("body", editorContent.text);
 
       selectedFiles.forEach((file) => {
         formData.append("attachments[]", file);
       });
-
-      if (isEditMode && editingComment) {
-        const formUpdateData = new FormData();
-        formUpdateData.append("content", editorContent.raw);
-        formUpdateData.append("_method", "PUT");
-        selectedFiles.forEach((file) => {
-          formUpdateData.append("attachments[]", file);
-        });
-
-        await commentService.updateComment(editingComment.id, formUpdateData as CommentFormData);
-        queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
-        setIsEditMode(false);
-        setEditingComment(null);
-      } else if (isInternal) {
-        console.log("📝 Creating internal comment...");
-        await commentService.createComment(id, formData as CommentFormData);
-        console.log("✅ Internal comment created successfully");
-        queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
-        queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] });
-      } else {
-        const formMailData = new FormData();
-        formMailData.append("body", editorContent.text);
-        // formMailData.append("content", editorContent.raw);
-        selectedFiles.forEach((file) => {
-          formMailData.append("attachments[]", file);
-        });
          
-        const mail = await mailService.createMail(id, formMailData as MailFormData);
+        const mail = await mailService.createMail(id, formData as MailFormData);
           if (mail.success) {
             // Optimistic update for mail
           const optimisticMail: Mail = {
@@ -489,29 +322,16 @@ export default function ConversationDetail() {
               };
             }
           );
-        } else {
-          toast({
-            title: "Error",
-            description: mail.message,
-            variant: "destructive",
-          });
-        }
-        
-        // Don't invalidate mails query - let real-time update handle it
-        // queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
       }
 
       setEditorContent({ raw: "", html: "", text: "" });
       setSelectedFiles([]);
       setShouldClearEditor(true);
 
-      // Query invalidation is already handled in the specific conditions above
-      // No need to invalidate again here
-
     } catch (error) {
       toast({
         title: "Error",
-        description: isEditMode ? "Failed to update comment" : "Failed to send message",
+        description: "Failed to send message",
         variant: "destructive",
       });
     } finally {
@@ -700,10 +520,9 @@ export default function ConversationDetail() {
                 </TabsList>
               </Tabs> */}
               <div className="flex-1 overflow-auto">
-                {activeTab === "public" ? (
-                  <div>
+                <div className="flex flex-col h-full">
                     {/* Public Chat Header with Reload Button */}
-                    {/* {hasNewMailNotification && (
+                    {hasNewMailNotification && (
                       <div className="px-6 py-3 bg-blue-50 border-b border-blue-200">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -720,7 +539,7 @@ export default function ConversationDetail() {
                           </Button>
                         </div>
                       </div>
-                    )} */}
+                    )}
                     
                     <ScrollArea 
                       ref={containerRef}
@@ -814,174 +633,12 @@ export default function ConversationDetail() {
                         )}
                       </div>
                     </ScrollArea>
-                  </div>
-                ) : (
-                  <div>
-                    <ScrollArea 
-                      ref={containerRef}
-                      className="h-[calc(100vh-475px)] px-6" 
-                      onScroll={handleScroll}
-                    >
-                      <div className="space-y-4 py-6">
-                        {isLoadingComments ? (
-                          <div className="space-y-4">
-                            {[...Array(3)].map((_, i) => (
-                              <div key={i} className="flex gap-2 lg:gap-3">
-                                <Skeleton className="h-6 w-6 lg:h-8 lg:w-8 rounded-full" />
-                                <div className="flex-1 space-y-2">
-                                  <Skeleton className="h-3 lg:h-4 w-24 lg:w-32" />
-                                  <Skeleton className="h-16 lg:h-20 w-full" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : commentsData && commentsData.length > 0 ? (
-                          [...commentsData].reverse().map((m) => {
-                            const isOwnMessage = m.user?.name === user?.name;
-                            return (
-                              <div 
-                                key={m.id} 
-                                className={cn(
-                                  "flex gap-3 group",
-                                  isOwnMessage ? "flex-row-reverse" : "flex-row"
-                                )}
-                              >
-                                <UserAvatar name={m.user?.name || ""} size="sm" />
-                                <div className={cn(
-                                  "flex-1 min-w-0",
-                                  isOwnMessage ? "items-end" : "items-start"
-                                )}>
-                                  <div className={cn(
-                                    "flex items-center gap-2 mb-1",
-                                    isOwnMessage ? "flex-row-reverse" : "flex-row"
-                                  )}>
-                                    <span className="text-sm font-medium text-gray-900">{m.user?.name || ""}</span>
-                                    <span className="text-xs text-gray-500">{formatDate(m.created_at)}</span>
-                                    {m.updated_at !== m.created_at && (
-                                      <Badge variant="outline" className="text-xs font-normal text-gray-500">
-                                        edited
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className={cn("flex", isOwnMessage ? "flex-row-reverse" : "flex-row")}>
-                                    <div className={cn(
-                                      "text-sm whitespace-pre-wrap rounded-lg p-3 border",
-                                      "max-w-[85%] sm:max-w-[75%] lg:max-w-[70%]",
-                                      isOwnMessage 
-                                        ? "bg-yellow-50 border-yellow-100 text-yellow-900" 
-                                        : "bg-gray-50 border-gray-100 text-gray-700"
-                                    )}>
-                                      <div className={cn(isOwnMessage ? "flex flex-row-reverse" : "")}>
-                                        <ReadOnlyEditor content={m.content}/>
-                                      </div>
-                                      {m.attachments && m.attachments.length > 0 && (
-                                        <div className={cn(
-                                          "flex flex-wrap gap-2 mt-2",
-                                          isOwnMessage ? "justify-end" : "justify-start"
-                                        )}>
-                                          {m.attachments.map((a) => (
-                                            <Button
-                                              key={a.id}
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleDownloadAttachment(a.id)}
-                                              className={cn(
-                                                "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors max-w-[200px] sm:max-w-[250px]",
-                                                isOwnMessage
-                                                  ? "bg-yellow-100 border border-yellow-200 text-yellow-700 hover:bg-yellow-200"
-                                                  : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
-                                              )}
-                                              disabled={downloadingId === a.id}
-                                            >
-                                              <FileIcon className="h-3 w-3 flex-shrink-0" />
-                                              <span className="truncate">{a.file_name}</span>
-                                              {downloadingId === a.id && (
-                                                <Loader2 className="h-3 w-3 animate-spin ml-1 flex-shrink-0" />
-                                              )}
-                                            </Button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                {isOwnMessage && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      >
-                                        <MoreVertical className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleEditComment(m)}>
-                                        <Pencil className="h-4 w-4 mr-2" />
-                                        Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem 
-                                        onClick={() => handleDeleteComment(m.id)}
-                                        className="text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8">
-                            <Lock className="h-6 w-6 lg:h-8 lg:w-8 text-gray-400 mb-2" />
-                            <p className="text-xs lg:text-sm text-gray-500">No internal notes yet</p>
-                            <p className="text-xs text-gray-400 mt-1">Add internal notes visible only to staff</p>
-                          </div>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Reply Form */}
               <div className="border-t border-gray-200 p-3 lg:p-4 bg-white absolute bottom-0 left-0 right-0">
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant={isInternal ? "default" : "outline"}
-                        size="sm"
-                        className="h-8 text-xs gap-1.5"
-                        onClick={handleInternalToggle}
-                      >
-                        {isInternal ? <Lock className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
-                        <span className="hidden sm:inline">{isInternal ? "Internal Note" : "Public Message"}</span>
-                        <span className="sm:hidden">{isInternal ? "Internal" : "Public"}</span>
-                      </Button>
-                      {isEditMode && (
-                        <Badge variant="secondary" className="text-xs">
-                          Editing comment
-                        </Badge>
-                      )}
-                    </div>
-                    {isEditMode && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={handleCancelEdit}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-
                   <div className="border rounded-lg overflow-hidden">
                     <LexicalComposer initialConfig={initialConfig}>
                       <div className="relative">
@@ -992,11 +649,7 @@ export default function ConversationDetail() {
                           }
                           placeholder={
                             <div className="absolute lg:top-14 left-3 md:top-20 left-3 text-sm text-gray-400 pointer-events-none">
-                              {isEditMode 
-                                ? "Edit your comment..." 
-                                : isInternal 
-                                  ? "Write an internal note..." 
-                                  : "Write a reply..."}
+                              Write a reply...
                             </div>
                           }
                           ErrorBoundary={LexicalErrorBoundary}
@@ -1007,10 +660,6 @@ export default function ConversationDetail() {
                         <ClearEditorPlugin
                           triggerClear={shouldClearEditor}
                           onClearFinished={() => setShouldClearEditor(false)}
-                        />
-                        <SetEditTextPlugin 
-                          text={editingComment?.content || ""} 
-                          isEditMode={isEditMode} 
                         />
                       </div>
                     </LexicalComposer>
@@ -1072,14 +721,14 @@ export default function ConversationDetail() {
                       {isSubmitting ? (
                         <>
                           <Loader2 className="h-3 w-3 animate-spin" />
-                          <span className="hidden sm:inline">{isEditMode ? "Updating..." : "Sending..."}</span>
-                          <span className="sm:hidden">{isEditMode ? "Update" : "Send"}</span>
+                          <span className="hidden sm:inline">Sending...</span>
+                          <span className="sm:hidden">Send</span>
                         </>
                       ) : (
                         <>
                           <Send className="h-3 w-3" />
-                          <span className="hidden sm:inline">{isEditMode ? "Update" : "Send"}</span>
-                          <span className="sm:hidden">{isEditMode ? "Update" : "Send"}</span>
+                          <span className="hidden sm:inline">Send</span>
+                          <span className="sm:hidden">Send</span>
                         </>
                       )}
                     </Button>

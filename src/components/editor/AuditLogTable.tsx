@@ -171,7 +171,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -309,7 +308,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             )}
           </TableBody>
         </Table>
-      </div>
+      
 
       <Dialog open={editingType === 'status'} onOpenChange={() => {
         setEditingType(null);
