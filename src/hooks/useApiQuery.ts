@@ -1,7 +1,12 @@
-import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
-import { AxiosError } from 'axios';
+import {
+  useQuery,
+  UseQueryOptions,
+  UseQueryResult,
+} from "@tanstack/react-query";
+import { AxiosError } from "axios";
 
-interface ApiQueryOptions<TData, TError> extends Omit<UseQueryOptions<TData, TError>, 'retry' | 'retryDelay'> {
+interface ApiQueryOptions<TData, TError>
+  extends Omit<UseQueryOptions<TData, TError>, "retry" | "retryDelay"> {
   maxRetries?: number;
   retryDelay?: number;
 }
@@ -25,7 +30,8 @@ export function useApiQuery<TData, TError = AxiosError>({
       // Retry tối đa maxRetries lần nếu là lỗi 5xx hoặc timeout
       return failureCount < maxRetries;
     },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, retryDelay),
+    retryDelay: (attemptIndex) =>
+      Math.min(1000 * 2 ** attemptIndex, retryDelay),
     ...options,
   });
-} 
+}

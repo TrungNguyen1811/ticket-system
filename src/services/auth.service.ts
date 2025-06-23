@@ -1,83 +1,86 @@
-import api from "@/lib/axios"
-import { LoginSchema } from "@/schema/auth.schema"
-import type { User } from "@/types/user"
-import type { Response } from "@/types/reponse"
+import api from "@/lib/axios";
+import { LoginSchema } from "@/schema/auth.schema";
+import type { User } from "@/types/user";
+import type { Response } from "@/types/reponse";
 
 export interface LoginResponse {
-  user: User
-  token: string
-  refreshToken?: string
+  user: User;
+  token: string;
+  refreshToken?: string;
 }
 
 export interface MeResponse {
-  user: User
+  user: User;
 }
 
 export interface RefreshTokenResponse {
-  token: string
-  refreshToken?: string
+  token: string;
+  refreshToken?: string;
 }
 
 class AuthService {
   // Login user
   async login(credentials: LoginSchema): Promise<LoginResponse> {
     try {
-      const response = await api.post<Response<LoginResponse>>("/auth/login", credentials)
-      return response.data.data
+      const response = await api.post<Response<LoginResponse>>(
+        "/auth/login",
+        credentials,
+      );
+      return response.data.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 
   async loginWithSlack(): Promise<void> {
     try {
-      const response = await api.get("/auth/slack/login")
-      return response.data
+      const response = await api.get("/auth/slack/login");
+      return response.data;
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 
   // Logout user
   async logout(): Promise<void> {
     try {
-      await api.post("/auth/logout")
+      await api.post("/auth/logout");
     } catch (error) {
       // Continue with logout even if API call fails
-      console.warn("Logout API call failed:", error)
+      console.warn("Logout API call failed:", error);
     }
   }
 
   // Refresh token
   async refreshToken(): Promise<RefreshTokenResponse> {
-    const refreshToken = localStorage.getItem("refresh_token")
+    const refreshToken = localStorage.getItem("refresh_token");
 
     if (!refreshToken) {
-      throw new Error("No refresh token available")
+      throw new Error("No refresh token available");
     }
 
     try {
       const response = await api.post<RefreshTokenResponse>("/auth/refresh", {
         refreshToken,
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
       // Clear tokens if refresh fails
-      localStorage.removeItem("auth_token")
-      localStorage.removeItem("refresh_token")
-      localStorage.removeItem("auth_user")
-      throw error
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("auth_user");
+      throw error;
     }
   }
 
   // Get current user profile
   async getCurrentUser(): Promise<User> {
     try {
-      const response = await api.get<Response<MeResponse>>("/auth/me")
-      return response.data.data.user
+      const response = await api.get<Response<MeResponse>>("/auth/me");
+      return response.data.data.user;
     } catch (error) {
-      console.error("Failed to get current user:", error)
-      throw error
+      console.error("Failed to get current user:", error);
+      throw error;
     }
   }
 
@@ -127,4 +130,4 @@ class AuthService {
   // }
 }
 
-export const authService = new AuthService()
+export const authService = new AuthService();

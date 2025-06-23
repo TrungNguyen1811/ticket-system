@@ -23,14 +23,14 @@ export const useTicketMutations = () => {
         title: "Error",
         description: error.response.data.message,
         variant: "destructive",
-      });   
+      });
     },
   });
 
-
   return {
     create: useMutation({
-      mutationFn: (data: CreateTicketSchema) => ticketService.createTicket(data),
+      mutationFn: (data: CreateTicketSchema) =>
+        ticketService.createTicket(data),
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["tickets"] });
         toast({
@@ -69,18 +69,20 @@ export const useTicketMutations = () => {
     }),
     assign: useMutation({
       mutationFn: ({ id, data }: { id: string; data: UpdateTicketSchema }) =>
-        ticketService.updateTicket(id, { ...data, _method: "PUT" })
+        ticketService.updateTicket(id, { ...data, _method: "PUT" }),
     }),
     changeStatus: useMutation({
       mutationFn: ({ id, data }: { id: string; data: UpdateTicketSchema }) =>
         ticketService.updateTicket(id, { ...data, _method: "PUT" }),
     }),
     createComment: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: CommentFormData }) => commentService.createComment(id, data),
+      mutationFn: ({ id, data }: { id: string; data: CommentFormData }) =>
+        commentService.createComment(id, data),
       ...toastConfig("Comment created"),
     }),
     updateComment: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: CommentFormData }) => commentService.updateComment(id, data),
+      mutationFn: ({ id, data }: { id: string; data: CommentFormData }) =>
+        commentService.updateComment(id, data),
       ...toastConfig("Comment updated"),
     }),
     deleteComment: useMutation({

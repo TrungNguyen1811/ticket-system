@@ -1,21 +1,54 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { UserAvatar } from "@/components/shared/UserAvatar"
-import { Search, MoreHorizontal, Users as UsersIcon, UserCog, AlertTriangle } from "lucide-react"
-import type { User } from "@/types/user"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { userService } from "@/services/user.service"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { useToast } from "@/components/ui/use-toast"
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import {
+  Search,
+  MoreHorizontal,
+  Users as UsersIcon,
+  UserCog,
+  AlertTriangle,
+} from "lucide-react";
+import type { User } from "@/types/user";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { userService } from "@/services/user.service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { useToast } from "@/components/ui/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +58,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -33,35 +66,49 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
-import { useDebounce } from "@/hooks/useDebouce"
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebouce";
 
-type UserRole = "admin" | "user"
+type UserRole = "admin" | "user";
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 const ROLE_OPTIONS = [
-  { value: "admin" as const, label: "Admin", description: "Full system access and control" },
-  { value: "user" as const, label: "User", description: "Standard user access" },
-]
+  {
+    value: "admin" as const,
+    label: "Admin",
+    description: "Full system access and control",
+  },
+  {
+    value: "user" as const,
+    label: "User",
+    description: "Standard user access",
+  },
+];
 
 export default function Users() {
-  const { toast } = useToast()
-  const queryClient = useQueryClient()
-  const [searchTerm, setSearchTerm] = useState("")
-  const debouncedSearchTerm = useDebounce(searchTerm, 500)
-  const [selectedRole, setSelectedRole] = useState<UserRole | "all">("all")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false)
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
-  const [newRole, setNewRole] = useState<UserRole | "">("")
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [selectedRole, setSelectedRole] = useState<UserRole | "all">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [newRole, setNewRole] = useState<UserRole | "">("");
 
   // Fetch users with React Query
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["users", currentPage, itemsPerPage, debouncedSearchTerm, selectedRole],
+    queryKey: [
+      "users",
+      currentPage,
+      itemsPerPage,
+      debouncedSearchTerm,
+      selectedRole,
+    ],
     queryFn: () =>
       userService.getUsers({
         limit: itemsPerPage,
@@ -70,37 +117,40 @@ export default function Users() {
         role: selectedRole === "all" ? undefined : selectedRole,
         search: debouncedSearchTerm,
       }),
-  })
+  });
 
   // Update role mutation
   const updateRoleMutation = useMutation({
     mutationFn: (data: { userId: string; role: UserRole; _method: "PUT" }) =>
-      userService.updateUserRole(data.userId, { role: data.role, _method: data._method }),
+      userService.updateUserRole(data.userId, {
+        role: data.role,
+        _method: data._method,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({
         title: "Role updated",
         description: "User role has been updated successfully.",
-      })
-      setIsRoleDialogOpen(false)
-      setIsConfirmDialogOpen(false)
-      setSelectedUser(null)
-      setNewRole("")
+      });
+      setIsRoleDialogOpen(false);
+      setIsConfirmDialogOpen(false);
+      setSelectedUser(null);
+      setNewRole("");
     },
     onError: (error) => {
       toast({
         title: "Error",
         description: "Failed to update user role. Please try again.",
         variant: "destructive",
-      })
+      });
     },
-  })
+  });
 
   const handleRoleUpdate = (user: User) => {
-    setSelectedUser(user)
-    setNewRole((user.role as UserRole) || "")
-    setIsRoleDialogOpen(true)
-  }
+    setSelectedUser(user);
+    setNewRole((user.role as UserRole) || "");
+    setIsRoleDialogOpen(true);
+  };
 
   const handleConfirmRoleUpdate = () => {
     if (selectedUser && newRole) {
@@ -108,28 +158,32 @@ export default function Users() {
         userId: selectedUser.id,
         role: newRole as UserRole,
         _method: "PUT",
-      })
+      });
     }
-  }
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
       case "admin":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100";
       case "user":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100";
     }
-  }
+  };
 
-  const totalPages = data?.data.pagination ? Math.ceil(data.data.pagination.total / itemsPerPage) : 1
+  const totalPages = data?.data.pagination
+    ? Math.ceil(data.data.pagination.total / itemsPerPage)
+    : 1;
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-          <p className="text-muted-foreground">Manage staff members and their roles</p>
+          <p className="text-muted-foreground">
+            Manage staff members and their roles
+          </p>
         </div>
       </div>
 
@@ -147,7 +201,12 @@ export default function Users() {
                   className="pl-10"
                 />
               </div>
-              <Select value={selectedRole} onValueChange={(value: UserRole | "all") => setSelectedRole(value)}>
+              <Select
+                value={selectedRole}
+                onValueChange={(value: UserRole | "all") =>
+                  setSelectedRole(value)
+                }
+              >
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
@@ -178,7 +237,9 @@ export default function Users() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
                 <UsersIcon className="h-8 w-8" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Error loading users</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Error loading users
+              </h3>
               <p className="text-gray-500 mt-2">Please try again later</p>
             </div>
           ) : (
@@ -202,15 +263,24 @@ export default function Users() {
                             <UserAvatar name={user.name} />
                             <div>
                               <div className="font-medium">{user.name}</div>
-                              <div className="text-sm text-muted-foreground">ID: {user.id}</div>
+                              <div className="text-sm text-muted-foreground">
+                                ID: {user.id}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                        <TableCell className="text-muted-foreground">{user.updated_at}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.email}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.updated_at}
+                        </TableCell>
                         <TableCell>
                           {user.role && (
-                            <Badge className={getRoleColor(user.role)} variant="secondary">
+                            <Badge
+                              className={getRoleColor(user.role)}
+                              variant="secondary"
+                            >
                               {user.role}
                             </Badge>
                           )}
@@ -223,7 +293,9 @@ export default function Users() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleRoleUpdate(user)}>
+                              <DropdownMenuItem
+                                onClick={() => handleRoleUpdate(user)}
+                              >
                                 <UserCog className="h-4 w-4 mr-2" />
                                 Update Role
                               </DropdownMenuItem>
@@ -247,8 +319,8 @@ export default function Users() {
                   <Select
                     value={itemsPerPage.toString()}
                     onValueChange={(value) => {
-                      setItemsPerPage(Number(value))
-                      setCurrentPage(1)
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
                     }}
                   >
                     <SelectTrigger className="h-8 w-[70px]">
@@ -268,13 +340,19 @@ export default function Users() {
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
-                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        className={
+                          currentPage === 1
+                            ? "pointer-events-none opacity-50"
+                            : ""
+                        }
                       />
                     </PaginationItem>
 
                     {[...Array(totalPages)].map((_, i) => {
-                      const page = i + 1
+                      const page = i + 1;
                       if (
                         page === 1 ||
                         page === totalPages ||
@@ -289,24 +367,33 @@ export default function Users() {
                               {page}
                             </PaginationLink>
                           </PaginationItem>
-                        )
+                        );
                       } else if (
                         (page === currentPage - 2 && currentPage > 3) ||
-                        (page === currentPage + 2 && currentPage < totalPages - 2)
+                        (page === currentPage + 2 &&
+                          currentPage < totalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
                             <PaginationEllipsis />
                           </PaginationItem>
-                        )
+                        );
                       }
-                      return null
+                      return null;
                     })}
 
                     <PaginationItem>
                       <PaginationNext
-                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
+                        className={
+                          currentPage === totalPages
+                            ? "pointer-events-none opacity-50"
+                            : ""
+                        }
                       />
                     </PaginationItem>
                   </PaginationContent>
@@ -323,13 +410,17 @@ export default function Users() {
           <DialogHeader>
             <DialogTitle>Update User Role</DialogTitle>
             <DialogDescription>
-              Change the role for {selectedUser?.name}. This will affect their system permissions.
+              Change the role for {selectedUser?.name}. This will affect their
+              system permissions.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
-              <Select value={newRole} onValueChange={(value: UserRole | "") => setNewRole(value)}  >
+              <Select
+                value={newRole}
+                onValueChange={(value: UserRole | "") => setNewRole(value)}
+              >
                 <SelectTrigger className="h-14">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
@@ -337,8 +428,12 @@ export default function Users() {
                   {ROLE_OPTIONS.map((role) => (
                     <SelectItem key={role.value} value={role.value}>
                       <div className="flex flex-col items-start">
-                        <span className="text-sm font-medium">{role.label}</span>
-                        <span className="text-xs text-muted-foreground">{role.description}</span>
+                        <span className="text-sm font-medium">
+                          {role.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {role.description}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -347,13 +442,16 @@ export default function Users() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsRoleDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={() => {
-                setIsRoleDialogOpen(false)
-                setIsConfirmDialogOpen(true)
+                setIsRoleDialogOpen(false);
+                setIsConfirmDialogOpen(true);
               }}
               disabled={!newRole || newRole === selectedUser?.role}
             >
@@ -364,13 +462,19 @@ export default function Users() {
       </Dialog>
 
       {/* Confirmation Dialog */}
-      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This will change {selectedUser?.name}'s role from{" "}
-              <Badge variant="secondary" className={getRoleColor(selectedUser?.role || "")}>
+              <Badge
+                variant="secondary"
+                className={getRoleColor(selectedUser?.role || "")}
+              >
                 {selectedUser?.role}
               </Badge>{" "}
               to{" "}
@@ -399,5 +503,5 @@ export default function Users() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

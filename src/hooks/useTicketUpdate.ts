@@ -23,198 +23,261 @@ export const useTicketUpdate = ({ ticketId }: UseTicketUpdateProps) => {
   const queryKey = ["ticket", ticketId];
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleMutationError = useCallback(({
-    error,
-    fallback,
-    queryKey,
-  }: {
-    error: { response: { data: { message: string } } };
-    fallback?: any;
-    queryKey: any[];
-  }) => {
-    if (fallback) {
-      queryClient.setQueryData(queryKey, fallback);
-    }
-    toast({
-      title: "Error",
-      description: error.response.data.message,
-      variant: "destructive",
-    });
-  }, [queryClient, toast]);
-
-  const handleUpdate = useCallback((data: UpdateTicketSchema) => {
-    // Skip if ticket is already being updated
-    if (isUpdating) {
-      return;
-    }
-
-    // Store the previous data for rollback
-    const previousData = queryClient.getQueryData<Response<DataResponse<Ticket>>>(queryKey);
-
-    // Optimistically update the cache
-    queryClient.setQueryData<Response<DataResponse<Ticket>>>(
+  const handleMutationError = useCallback(
+    ({
+      error,
+      fallback,
       queryKey,
-      (oldData) => {
-        if (!oldData?.data) return oldData;
-        return {
-          ...oldData,
-          data: { ...oldData.data, ...data }
-        };
+    }: {
+      error: { response: { data: { message: string } } };
+      fallback?: any;
+      queryKey: any[];
+    }) => {
+      if (fallback) {
+        queryClient.setQueryData(queryKey, fallback);
       }
-    );
+      toast({
+        title: "Error",
+        description: error.response.data.message,
+        variant: "destructive",
+      });
+    },
+    [queryClient, toast],
+  );
 
-    // Set updating state
-    setIsUpdating(true);
-
-    // Perform the mutation with rollback on error
-    mutations.update.mutate({ id: ticketId, data }, {
-      onSuccess: (response) => {
-        // Reset updating state
-        setIsUpdating(false);
-
-        // Update log if available
-        const ticketResponse = response.data as unknown as TicketResponse;
-        if (ticketResponse.log) {
-          handleLogUpdate(ticketResponse.log);
-        } else {
-          // If no log in response, invalidate logs query to refetch
-          queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
-        }
-
-        toast({
-          title: "Success",
-          description: "Ticket updated successfully",
-        });
-      },
-      onError: (error: Error) => {
-        // Reset updating state
-        setIsUpdating(false);
-        handleMutationError({ 
-          error: error as unknown as { response: { data: { message: string } } },
-          fallback: previousData, 
-          queryKey 
-        });
+  const handleUpdate = useCallback(
+    (data: UpdateTicketSchema) => {
+      // Skip if ticket is already being updated
+      if (isUpdating) {
+        return;
       }
-    });
 
-    return { previousData };
-  }, [queryClient, queryKey, ticketId, mutations, handleMutationError, toast, isUpdating, handleLogUpdate]);
+      // Store the previous data for rollback
+      const previousData =
+        queryClient.getQueryData<Response<DataResponse<Ticket>>>(queryKey);
 
-  const handleAssign = useCallback((data: UpdateTicketSchema) => {
-    // Skip if ticket is already being updated
-    if (isUpdating) {
-      return;
-    }
+      // Optimistically update the cache
+      queryClient.setQueryData<Response<DataResponse<Ticket>>>(
+        queryKey,
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: { ...oldData.data, ...data },
+          };
+        },
+      );
 
-    // Store the previous data for rollback
-    const previousData = queryClient.getQueryData<Response<DataResponse<Ticket>>>(queryKey);
+      // Set updating state
+      setIsUpdating(true);
 
-    // Optimistically update the cache
-    queryClient.setQueryData<Response<DataResponse<Ticket>>>(
+      // Perform the mutation with rollback on error
+      mutations.update.mutate(
+        { id: ticketId, data },
+        {
+          onSuccess: (response) => {
+            // Reset updating state
+            setIsUpdating(false);
+
+            // Update log if available
+            const ticketResponse = response.data as unknown as TicketResponse;
+            if (ticketResponse.log) {
+              handleLogUpdate(ticketResponse.log);
+            } else {
+              // If no log in response, invalidate logs query to refetch
+              queryClient.invalidateQueries({
+                queryKey: ["ticket-logs", ticketId],
+              });
+            }
+
+            toast({
+              title: "Success",
+              description: "Ticket updated successfully",
+            });
+          },
+          onError: (error: Error) => {
+            // Reset updating state
+            setIsUpdating(false);
+            handleMutationError({
+              error: error as unknown as {
+                response: { data: { message: string } };
+              },
+              fallback: previousData,
+              queryKey,
+            });
+          },
+        },
+      );
+
+      return { previousData };
+    },
+    [
+      queryClient,
       queryKey,
-      (oldData) => {
-        if (!oldData?.data) return oldData;
-        return {
-          ...oldData,
-          data: { ...oldData.data, ...data }
-        };
+      ticketId,
+      mutations,
+      handleMutationError,
+      toast,
+      isUpdating,
+      handleLogUpdate,
+    ],
+  );
+
+  const handleAssign = useCallback(
+    (data: UpdateTicketSchema) => {
+      // Skip if ticket is already being updated
+      if (isUpdating) {
+        return;
       }
-    );
 
-    // Set updating state
-    setIsUpdating(true);
+      // Store the previous data for rollback
+      const previousData =
+        queryClient.getQueryData<Response<DataResponse<Ticket>>>(queryKey);
 
-    // Perform the mutation with rollback on error
-    mutations.assign.mutate({ id: ticketId, data }, {
-      onSuccess: (response) => {
-        // Reset updating state
-        setIsUpdating(false);
+      // Optimistically update the cache
+      queryClient.setQueryData<Response<DataResponse<Ticket>>>(
+        queryKey,
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: { ...oldData.data, ...data },
+          };
+        },
+      );
 
-        // Update log if available
-        const ticketResponse = response.data as unknown as TicketResponse;
-        if (ticketResponse.log) {
-          handleLogUpdate(ticketResponse.log);
-        } else {
-          // If no log in response, invalidate logs query to refetch
-          queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
-        }
+      // Set updating state
+      setIsUpdating(true);
 
-        toast({
-          title: "Success",
-          description: "Staff assigned successfully",
-        });
-      },
-      onError: (error: Error) => {
-        // Reset updating state
-        setIsUpdating(false);
-        handleMutationError({ 
-          error: error as unknown as { response: { data: { message: string } } },
-          fallback: previousData, 
-          queryKey 
-        });
-      }
-    });
+      // Perform the mutation with rollback on error
+      mutations.assign.mutate(
+        { id: ticketId, data },
+        {
+          onSuccess: (response) => {
+            // Reset updating state
+            setIsUpdating(false);
 
-    return { previousData };
-  }, [queryClient, queryKey, ticketId, mutations, handleMutationError, toast, isUpdating, handleLogUpdate]);
+            // Update log if available
+            const ticketResponse = response.data as unknown as TicketResponse;
+            if (ticketResponse.log) {
+              handleLogUpdate(ticketResponse.log);
+            } else {
+              // If no log in response, invalidate logs query to refetch
+              queryClient.invalidateQueries({
+                queryKey: ["ticket-logs", ticketId],
+              });
+            }
 
-  const handleChangeStatus = useCallback((data: UpdateTicketSchema) => {
-    // Skip if ticket is already being updated
-    if (isUpdating) {
-      return;
-    }
+            toast({
+              title: "Success",
+              description: "Staff assigned successfully",
+            });
+          },
+          onError: (error: Error) => {
+            // Reset updating state
+            setIsUpdating(false);
+            handleMutationError({
+              error: error as unknown as {
+                response: { data: { message: string } };
+              },
+              fallback: previousData,
+              queryKey,
+            });
+          },
+        },
+      );
 
-    // Store the previous data for rollback
-    const previousData = queryClient.getQueryData<Response<DataResponse<Ticket>>>(queryKey);
-
-    // Optimistically update the cache
-    queryClient.setQueryData<Response<DataResponse<Ticket>>>(
+      return { previousData };
+    },
+    [
+      queryClient,
       queryKey,
-      (oldData) => {
-        if (!oldData?.data) return oldData;
-        return {
-          ...oldData,
-          data: { ...oldData.data, ...data }
-        };
+      ticketId,
+      mutations,
+      handleMutationError,
+      toast,
+      isUpdating,
+      handleLogUpdate,
+    ],
+  );
+
+  const handleChangeStatus = useCallback(
+    (data: UpdateTicketSchema) => {
+      // Skip if ticket is already being updated
+      if (isUpdating) {
+        return;
       }
-    );
 
-    // Set updating state
-    setIsUpdating(true);
+      // Store the previous data for rollback
+      const previousData =
+        queryClient.getQueryData<Response<DataResponse<Ticket>>>(queryKey);
 
-    // Perform the mutation with rollback on error
-    mutations.changeStatus.mutate({ id: ticketId, data }, {
-      onSuccess: (response) => {
-        // Reset updating state
-        setIsUpdating(false);
+      // Optimistically update the cache
+      queryClient.setQueryData<Response<DataResponse<Ticket>>>(
+        queryKey,
+        (oldData) => {
+          if (!oldData?.data) return oldData;
+          return {
+            ...oldData,
+            data: { ...oldData.data, ...data },
+          };
+        },
+      );
 
-        // Update log if available
-        const ticketResponse = response.data as unknown as TicketResponse;
-        if (ticketResponse.log) {
-          handleLogUpdate(ticketResponse.log);
-        } else {
-          // If no log in response, invalidate logs query to refetch
-          queryClient.invalidateQueries({ queryKey: ["ticket-logs", ticketId] });
-        }
+      // Set updating state
+      setIsUpdating(true);
 
-        toast({
-          title: "Success",
-          description: "Status updated successfully",
-        });
-      },
-      onError: (error: Error) => {
-        // Reset updating state
-        setIsUpdating(false);
-        handleMutationError({ 
-          error: error as unknown as { response: { data: { message: string } } },
-          fallback: previousData, 
-          queryKey 
-        });
-      }
-    });
+      // Perform the mutation with rollback on error
+      mutations.changeStatus.mutate(
+        { id: ticketId, data },
+        {
+          onSuccess: (response) => {
+            // Reset updating state
+            setIsUpdating(false);
 
-    return { previousData };
-  }, [queryClient, queryKey, ticketId, mutations, handleMutationError, toast, isUpdating, handleLogUpdate]);
+            // Update log if available
+            const ticketResponse = response.data as unknown as TicketResponse;
+            if (ticketResponse.log) {
+              handleLogUpdate(ticketResponse.log);
+            } else {
+              // If no log in response, invalidate logs query to refetch
+              queryClient.invalidateQueries({
+                queryKey: ["ticket-logs", ticketId],
+              });
+            }
+
+            toast({
+              title: "Success",
+              description: "Status updated successfully",
+            });
+          },
+          onError: (error: Error) => {
+            // Reset updating state
+            setIsUpdating(false);
+            handleMutationError({
+              error: error as unknown as {
+                response: { data: { message: string } };
+              },
+              fallback: previousData,
+              queryKey,
+            });
+          },
+        },
+      );
+
+      return { previousData };
+    },
+    [
+      queryClient,
+      queryKey,
+      ticketId,
+      mutations,
+      handleMutationError,
+      toast,
+      isUpdating,
+      handleLogUpdate,
+    ],
+  );
 
   return {
     handleUpdate,
@@ -222,4 +285,4 @@ export const useTicketUpdate = ({ ticketId }: UseTicketUpdateProps) => {
     handleChangeStatus,
     isUpdating,
   };
-}; 
+};

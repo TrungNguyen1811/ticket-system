@@ -1,17 +1,19 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import { SettingsIcon, Users, Bell, Shield, Database } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { SettingsIcon, Users, Bell, Shield, Database } from "lucide-react";
 
 export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="mt-2 text-gray-600">Manage your application settings and preferences</p>
+        <p className="mt-2 text-gray-600">
+          Manage your application settings and preferences
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -30,7 +32,11 @@ export default function Settings() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="support-email">Support Email</Label>
-              <Input id="support-email" type="email" placeholder="support@company.com" />
+              <Input
+                id="support-email"
+                type="email"
+                placeholder="support@company.com"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="timezone">Timezone</Label>
@@ -52,7 +58,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Email Notifications</Label>
-                <p className="text-sm text-gray-500">Receive email updates for ticket changes</p>
+                <p className="text-sm text-gray-500">
+                  Receive email updates for ticket changes
+                </p>
               </div>
               <Switch />
             </div>
@@ -60,7 +68,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>New Ticket Alerts</Label>
-                <p className="text-sm text-gray-500">Get notified when new tickets are created</p>
+                <p className="text-sm text-gray-500">
+                  Get notified when new tickets are created
+                </p>
               </div>
               <Switch />
             </div>
@@ -68,7 +78,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Status Change Alerts</Label>
-                <p className="text-sm text-gray-500">Get notified when ticket status changes</p>
+                <p className="text-sm text-gray-500">
+                  Get notified when ticket status changes
+                </p>
               </div>
               <Switch />
             </div>
@@ -92,7 +104,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Auto-assign Tickets</Label>
-                <p className="text-sm text-gray-500">Automatically assign new tickets to available staff</p>
+                <p className="text-sm text-gray-500">
+                  Automatically assign new tickets to available staff
+                </p>
               </div>
               <Switch />
             </div>
@@ -100,7 +114,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Require Approval</Label>
-                <p className="text-sm text-gray-500">Require manager approval for ticket closure</p>
+                <p className="text-sm text-gray-500">
+                  Require manager approval for ticket closure
+                </p>
               </div>
               <Switch />
             </div>
@@ -120,7 +136,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Two-Factor Authentication</Label>
-                <p className="text-sm text-gray-500">Enable 2FA for enhanced security</p>
+                <p className="text-sm text-gray-500">
+                  Enable 2FA for enhanced security
+                </p>
               </div>
               <Switch />
             </div>
@@ -132,7 +150,9 @@ export default function Settings() {
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Audit Logging</Label>
-                <p className="text-sm text-gray-500">Log all user actions for security</p>
+                <p className="text-sm text-gray-500">
+                  Log all user actions for security
+                </p>
               </div>
               <Switch defaultChecked />
             </div>
@@ -167,5 +187,5 @@ export default function Settings() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

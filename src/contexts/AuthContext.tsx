@@ -50,21 +50,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    console.log('🔄 Starting logout process...');
+    console.log("🔄 Starting logout process...");
     try {
       // Clear local state first
-      console.log('🧹 Clearing local state...');
+      console.log("🧹 Clearing local state...");
       localStorage.removeItem("auth_token");
       setUser(null);
-      
+
       // Then logout from Auth0
-      console.log('🚪 Logging out from Auth0...');
+      console.log("🚪 Logging out from Auth0...");
       await auth0Logout({
-        logoutParams: { 
-          returnTo: window.location.origin
+        logoutParams: {
+          returnTo: window.location.origin,
         },
       });
-      console.log('✅ Logout completed');
+      console.log("✅ Logout completed");
     } catch (error) {
       console.error("❌ Logout failed:", error);
       toast({
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("No token found");
-    
+
       const userData = await authService.getCurrentUser();
       setUser(userData);
     } catch (error) {
@@ -101,25 +101,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
     }
   };
-  
 
   // Initialize auth state
   useEffect(() => {
     let isMounted = true;
-    console.log('🔄 Auth state changed:', { auth0IsAuthenticated, auth0IsLoading, hasUser: !!auth0User });
+    console.log("🔄 Auth state changed:", {
+      auth0IsAuthenticated,
+      auth0IsLoading,
+      hasUser: !!auth0User,
+    });
 
     const initializeAuth = async () => {
       if (auth0IsLoading || !isMounted) {
-        console.log('⏳ Skipping initialization:', { auth0IsLoading, isMounted });
+        console.log("⏳ Skipping initialization:", {
+          auth0IsLoading,
+          isMounted,
+        });
         return;
       }
 
       try {
         if (auth0IsAuthenticated && auth0User) {
-          console.log('🔄 Refreshing user data...');
+          console.log("🔄 Refreshing user data...");
           await refreshUser();
         } else if (!auth0IsAuthenticated) {
-          console.log('🧹 Clearing auth state...');
+          console.log("🧹 Clearing auth state...");
           localStorage.removeItem("auth_token");
           setUser(null);
         }
@@ -127,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("❌ Failed to initialize auth:", error);
       } finally {
         if (isMounted) {
-          console.log('✅ Auth initialization completed');
+          console.log("✅ Auth initialization completed");
           setIsInitialized(true);
           setIsLoading(false);
         }
@@ -137,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializeAuth();
 
     return () => {
-      console.log('🧹 Cleaning up auth effect');
+      console.log("🧹 Cleaning up auth effect");
       isMounted = false;
     };
   }, [auth0IsAuthenticated, auth0IsLoading, auth0User]);
@@ -146,35 +152,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     let isMounted = true;
-    
+
     const refreshSession = async () => {
       if (!isMounted || !auth0IsAuthenticated || !isInitialized) {
-        console.log('⏳ Skipping refresh:', { isMounted, auth0IsAuthenticated, isInitialized });
+        console.log("⏳ Skipping refresh:", {
+          isMounted,
+          auth0IsAuthenticated,
+          isInitialized,
+        });
         return;
       }
 
-      console.log('🔄 Refreshing session...');
+      console.log("🔄 Refreshing session...");
       try {
         await getAccessToken();
         await refreshUser();
-        console.log('✅ Session refreshed');
+        console.log("✅ Session refreshed");
       } catch (error) {
         console.error("❌ Failed to refresh session:", error);
         if (isMounted) {
-          console.log('🧹 Clearing auth state after refresh failure');
+          console.log("🧹 Clearing auth state after refresh failure");
           localStorage.removeItem("auth_token");
           setUser(null);
         }
       }
     };
-    
+
     if (auth0IsAuthenticated && isInitialized) {
-      console.log('⏰ Setting up refresh interval');
+      console.log("⏰ Setting up refresh interval");
       interval = setInterval(refreshSession, 1000 * 60 * 30); // 30 mins
     }
 
     return () => {
-      console.log('🧹 Cleaning up refresh effect');
+      console.log("🧹 Cleaning up refresh effect");
       isMounted = false;
       if (interval) {
         clearInterval(interval);
@@ -184,7 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Don't render children until auth is initialized
   if (!isInitialized || isLoading) {
-    console.log('⏳ Waiting for auth initialization...');
+    console.log("⏳ Waiting for auth initialization...");
     return null;
   }
 

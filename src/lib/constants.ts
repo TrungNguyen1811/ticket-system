@@ -6,16 +6,23 @@ export const COLORS = {
   warning: "#F59E0B",
   text: "#0F172A",
   background: "#F8FAFC",
-} as const
+} as const;
 
-export const TICKET_STATUSES = ["new", "in_progress", "pending", "assigned", "complete", "archived"] as const
+export const TICKET_STATUSES = [
+  "new",
+  "in_progress",
+  "pending",
+  "assigned",
+  "complete",
+  "archived",
+] as const;
 
 export const STATUS_OPTIONS = [
   { value: "in_progress", label: "In Progress", color: "yellow" },
   { value: "pending", label: "Pending", color: "purple" },
   { value: "complete", label: "Complete", color: "green" },
   { value: "archived", label: "Archived", color: "red" },
-]
+];
 
 export const SHOW_STATUS_OPTIONS = [
   { value: "new", label: "New", color: "blue" },
@@ -24,6 +31,4 @@ export const SHOW_STATUS_OPTIONS = [
   { value: "assigned", label: "Assigned", color: "orange" },
   { value: "complete", label: "Complete", color: "green" },
   { value: "archived", label: "Archived", color: "red" },
-]
-  
- 
+];

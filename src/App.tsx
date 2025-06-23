@@ -1,11 +1,11 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import { Auth0Provider } from '@auth0/auth0-react';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from './components/theme-provider';
-import { PusherProvider } from '@/contexts/PusherContext';
-import { routes } from '@/routes';
+import { Auth0Provider } from "@auth0/auth0-react";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "./components/theme-provider";
+import { PusherProvider } from "@/contexts/PusherContext";
+import { routes } from "@/routes";
 
 // Create router with future flags
 const router = createBrowserRouter(routes, {

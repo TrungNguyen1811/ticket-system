@@ -1,37 +1,56 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { mockTickets, mockUsers, mockClients } from "@/mock/data"
-import { formatDate } from "@/lib/utils"
-import { UserAvatar } from "@/components/shared/UserAvatar"
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
-import { MessageSquare, TrendingUp, Building2, Eye, User, Users, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, AlertCircle } from "lucide-react"
-import { Link } from "react-router-dom"
-import { useAuth } from "@/contexts/AuthContext"
-import { DashboardCharts } from "@/components/dashboard/DashboardCharts"
-import { useQuery } from "@tanstack/react-query"
-import { ticketService } from "@/services/ticket.service"
-import { DataResponse, Response } from "@/types/reponse"
-import { Ticket } from "@/types/ticket"
-import { DashboardSummary } from "@/types/dashboard"
-import { dashboardService } from "@/services/dashboard.service"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { mockTickets, mockUsers, mockClients } from "@/mock/data";
+import { formatDate } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
+import {
+  MessageSquare,
+  TrendingUp,
+  Building2,
+  Eye,
+  User,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { useQuery } from "@tanstack/react-query";
+import { ticketService } from "@/services/ticket.service";
+import { DataResponse, Response } from "@/types/reponse";
+import { Ticket } from "@/types/ticket";
+import { DashboardSummary } from "@/types/dashboard";
+import { dashboardService } from "@/services/dashboard.service";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 type RoleData = {
-  total: number
-  new: number
-  in_progress: number
-  complete: number
-}
+  total: number;
+  new: number;
+  in_progress: number;
+  complete: number;
+};
 
 type UserRoleData = {
-  holder: RoleData | undefined
-  staff: RoleData | undefined
-}
+  holder: RoleData | undefined;
+  staff: RoleData | undefined;
+};
 
 // Animation variants
 const containerVariants = {
@@ -39,9 +58,9 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const itemVariants = {
@@ -51,13 +70,21 @@ const itemVariants = {
     opacity: 1,
     transition: {
       duration: 0.5,
-      ease: "easeOut"
-    }
-  }
+      ease: "easeOut",
+    },
+  },
 };
 
 // Enhanced Stat Card Component
-const StatCard = ({ title, value, icon: Icon, color, bgColor, trend, trendValue }: {
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  color,
+  bgColor,
+  trend,
+  trendValue,
+}: {
   title: string;
   value: number;
   icon: any;
@@ -81,10 +108,12 @@ const StatCard = ({ title, value, icon: Icon, color, bgColor, trend, trendValue 
             ) : (
               <ArrowDownRight className="h-4 w-4 text-red-500" />
             )}
-            <span className={cn(
-              "text-sm font-medium",
-              trend === "up" ? "text-green-500" : "text-red-500"
-            )}>
+            <span
+              className={cn(
+                "text-sm font-medium",
+                trend === "up" ? "text-green-500" : "text-red-500",
+              )}
+            >
               {trendValue}
             </span>
           </div>
@@ -94,40 +123,54 @@ const StatCard = ({ title, value, icon: Icon, color, bgColor, trend, trendValue 
         <Icon className={cn("h-6 w-6", color)} />
       </div>
     </div>
-    <div className={cn("absolute -right-4 -top-4 h-24 w-24 rounded-full opacity-50", bgColor)} />
+    <div
+      className={cn(
+        "absolute -right-4 -top-4 h-24 w-24 rounded-full opacity-50",
+        bgColor,
+      )}
+    />
   </motion.div>
 );
 
 export default function Dashboard() {
-  const { user } = useAuth()
-  const isAdmin = user?.role === "admin"
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
-  const { data: summary, isLoading: isLoadingSummary } = useQuery<Response<DashboardSummary>, Error>({
+  const { data: summary, isLoading: isLoadingSummary } = useQuery<
+    Response<DashboardSummary>,
+    Error
+  >({
     queryKey: ["dashboard", "summary"],
     queryFn: () => dashboardService.getSummary(),
-  })
+  });
 
   const getRoleData = (): RoleData | UserRoleData => {
     if (isAdmin) {
-      return summary?.data.as_admin || {
-        total: 0,
-        new: 0,
-        in_progress: 0,
-        complete: 0
-      }
+      return (
+        summary?.data.as_admin || {
+          total: 0,
+          new: 0,
+          in_progress: 0,
+          complete: 0,
+        }
+      );
     }
     return {
       holder: summary?.data.as_holder,
-      staff: summary?.data.as_staff
-    }
-  }
+      staff: summary?.data.as_staff,
+    };
+  };
 
-  const roleData = getRoleData()
+  const roleData = getRoleData();
 
-  const { data: recentTickets } = useQuery<Response<DataResponse<Ticket[]>>, Error>({
+  const { data: recentTickets } = useQuery<
+    Response<DataResponse<Ticket[]>>,
+    Error
+  >({
     queryKey: ["dashboard", "recent-tickets"],
-    queryFn: () => ticketService.getTickets({ limit: 5, page: 1, status: "new" }),
-  })
+    queryFn: () =>
+      ticketService.getTickets({ limit: 5, page: 1, status: "new" }),
+  });
 
   const getStats = (data: RoleData | undefined) => [
     {
@@ -166,7 +209,7 @@ export default function Dashboard() {
       trend: "up" as const,
       // trendValue: "10% from last week"
     },
-  ]
+  ];
 
   return (
     <motion.div
@@ -177,7 +220,9 @@ export default function Dashboard() {
     >
       <motion.div variants={itemVariants}>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-gray-600">Welcome back, {user?.name}! Here's your ticket management overview.</p>
+        <p className="mt-2 text-gray-600">
+          Welcome back, {user?.name}! Here's your ticket management overview.
+        </p>
       </motion.div>
 
       {isAdmin ? (
@@ -265,21 +310,38 @@ export default function Dashboard() {
                 </TableHeader>
                 <TableBody>
                   {recentTickets?.data?.data.map((ticket) => (
-                    <TableRow key={ticket.id} className="hover:bg-gray-50/50 transition-colors">
-                      <TableCell className="font-medium">{ticket.title}</TableCell>
+                    <TableRow
+                      key={ticket.id}
+                      className="hover:bg-gray-50/50 transition-colors"
+                    >
+                      <TableCell className="font-medium">
+                        {ticket.title}
+                      </TableCell>
                       <TableCell>{ticket.client_email}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          <UserAvatar name={ticket.staff?.name || "Unknown"} size="sm" />
-                          <span className="text-sm">{ticket.staff?.name || "Unknown"}</span>
+                          <UserAvatar
+                            name={ticket.staff?.name || "Unknown"}
+                            size="sm"
+                          />
+                          <span className="text-sm">
+                            {ticket.staff?.name || "Unknown"}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <TicketStatusDisplay status={ticket.status} />
                       </TableCell>
-                      <TableCell className="text-sm text-gray-500">{formatDate(ticket.updated_at)}</TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {formatDate(ticket.updated_at)}
+                      </TableCell>
                       <TableCell>
-                        <Button asChild variant="ghost" size="sm" className="hover:bg-blue-50 hover:text-blue-600">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-blue-50 hover:text-blue-600"
+                        >
                           <Link to={`/tickets/${ticket.id}`}>
                             <Eye className="h-4 w-4" />
                           </Link>
@@ -294,5 +356,5 @@ export default function Dashboard() {
         </Card>
       </motion.div>
     </motion.div>
-  )
+  );
 }

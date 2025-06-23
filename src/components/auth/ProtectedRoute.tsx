@@ -1,20 +1,23 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { Navigate, useLocation } from "react-router-dom"
-import { useAuth } from "@/contexts/AuthContext"
-import { Skeleton } from "@/components/ui/skeleton"
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
-  requiredRole?: "admin" | "user"
+  children: React.ReactNode;
+  requiredRole?: "admin" | "user";
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading, user } = useAuth()
-  console.log("user", isAuthenticated)
-  const location = useLocation()
+export function ProtectedRoute({
+  children,
+  requiredRole,
+}: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  console.log("user", isAuthenticated);
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -25,13 +28,13 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
           <Skeleton className="h-32 w-full" />
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated && location.pathname !== "/login" && user === null) {
-    console.log("user is null", user)
-    return <Navigate to="/login" state={{ from: location }} replace />
-  }  
+    console.log("user is null", user);
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   // Check role-based access
   if (requiredRole && user?.role !== requiredRole) {
@@ -39,9 +42,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     // In a real app, you might want to show an "Access Denied" page
     if (requiredRole === "admin" && user?.role !== "admin") {
       // Only restrict admin-only features
-      return <Navigate to="/" replace />
+      return <Navigate to="/" replace />;
     }
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

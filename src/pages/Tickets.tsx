@@ -1,51 +1,88 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { formatDate } from "@/lib/utils"
-import { UserAvatar } from "@/components/shared/UserAvatar"
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
-import { CreateTicketDialog } from "@/dialogs/CreateTicketDialog"
-import { EditTicketDialog } from "@/dialogs/EditTicketDialog"
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog"
-import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
-import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog"
-import { Plus, Search, MoreHorizontal, Eye, Edit, UserPlus, RefreshCw, Trash2, Loader2, Filter } from "lucide-react"
-import { Link } from "react-router-dom"
-import type { Ticket } from "@/types/ticket"
-import type { Response, DataResponse } from "@/types/reponse"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { ticketService, UpdateTicketData } from "@/services/ticket.service"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useToast } from "@/components/ui/use-toast"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema"
-import { useApiQuery } from '@/hooks/useApiQuery'
-import { useTicketMutations } from "@/hooks/useTicketMutations"
-import { usePusher } from "@/contexts/PusherContext"
-import { usePusherSubscription } from "@/hooks/usePusherSubscription"
-import { useTicketRealtime } from "@/hooks/useTicketRealtime"
-import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
-import { useDebounce } from "@/hooks/useDebouce"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { formatDate } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
+import { CreateTicketDialog } from "@/dialogs/CreateTicketDialog";
+import { EditTicketDialog } from "@/dialogs/EditTicketDialog";
+import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog";
+import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog";
+import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  UserPlus,
+  RefreshCw,
+  Trash2,
+  Loader2,
+  Filter,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import type { Ticket } from "@/types/ticket";
+import type { Response, DataResponse } from "@/types/reponse";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ticketService, UpdateTicketData } from "@/services/ticket.service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import { useTicketMutations } from "@/hooks/useTicketMutations";
+import { usePusher } from "@/contexts/PusherContext";
+import { usePusherSubscription } from "@/hooks/usePusherSubscription";
+import { useTicketRealtime } from "@/hooks/useTicketRealtime";
+import { SHOW_STATUS_OPTIONS } from "@/lib/constants";
+import { useDebounce } from "@/hooks/useDebouce";
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
 export default function Tickets() {
-  const { toast } = useToast()
-  const queryClient = useQueryClient()
-  const { isConnected, pusher } = usePusher()
-  const [searchTerm, setSearchTerm] = useState("")
-  const debouncedSearchTerm = useDebounce(searchTerm, 500)
-  const [selectedStatus, setSelectedStatus] = useState<string>("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [dialogOpen, setDialogOpen] = useState<string | null>(null)
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { isConnected, pusher } = usePusher();
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [dialogOpen, setDialogOpen] = useState<string | null>(null);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,14 +99,14 @@ export default function Tickets() {
   };
 
   // Use custom mutations hook
-  const mutations = useTicketMutations()
+  const mutations = useTicketMutations();
 
   // Store the latest query parameters in a ref
   const queryParamsRef = useRef({
     currentPage,
     itemsPerPage,
     debouncedSearchTerm,
-    selectedStatus
+    selectedStatus,
   });
 
   // Update ref when params change
@@ -78,30 +115,40 @@ export default function Tickets() {
       currentPage,
       itemsPerPage,
       debouncedSearchTerm,
-      selectedStatus
+      selectedStatus,
     };
   }, [currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus]);
 
   // Handle ticket updates with Pusher
-  const handleTicketUpdate = useCallback((data: Ticket) => {
-    const { currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus } = queryParamsRef.current;
-    
-    queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
-      ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
-      (oldData) => {
-        if (!oldData?.data?.pagination) return oldData;
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            data: oldData.data.data.map((ticket) =>
-              ticket.id === data.id ? { ...ticket, ...data } : ticket
-            )
-          }
-        };
-      }
-    );
-  }, [queryClient]);
+  const handleTicketUpdate = useCallback(
+    (data: Ticket) => {
+      const { currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus } =
+        queryParamsRef.current;
+
+      queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
+        [
+          "tickets",
+          currentPage,
+          itemsPerPage,
+          debouncedSearchTerm,
+          selectedStatus,
+        ],
+        (oldData) => {
+          if (!oldData?.data?.pagination) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: oldData.data.data.map((ticket) =>
+                ticket.id === data.id ? { ...ticket, ...data } : ticket,
+              ),
+            },
+          };
+        },
+      );
+    },
+    [queryClient],
+  );
 
   // Subscribe to ticket updates only when a ticket is selected
   useTicketRealtime(selectedTicket?.id || "", handleTicketUpdate);
@@ -129,8 +176,18 @@ export default function Tickets() {
   }, [pusher, toast, queryClient, isConnected]);
 
   // Fetch tickets with React Query
-  const { data, isLoading: isLoadingTickets, isError } = useApiQuery<Response<DataResponse<Ticket[]>>>({
-    queryKey: ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
+  const {
+    data,
+    isLoading: isLoadingTickets,
+    isError,
+  } = useApiQuery<Response<DataResponse<Ticket[]>>>({
+    queryKey: [
+      "tickets",
+      currentPage,
+      itemsPerPage,
+      debouncedSearchTerm,
+      selectedStatus,
+    ],
     queryFn: () =>
       ticketService.getTickets({
         limit: itemsPerPage,
@@ -138,7 +195,7 @@ export default function Tickets() {
         status: selectedStatus === "all" ? undefined : selectedStatus,
         search: debouncedSearchTerm,
       }),
-  })
+  });
 
   // Loading states for each action
   const isLoadingStates = {
@@ -153,7 +210,13 @@ export default function Tickets() {
   const handleMutationSuccess = (response: any, action: string) => {
     const updatedTicket = response.data;
     queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
-      ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus],
+      [
+        "tickets",
+        currentPage,
+        itemsPerPage,
+        debouncedSearchTerm,
+        selectedStatus,
+      ],
       (oldData) => {
         if (!oldData?.data?.data) return oldData;
         return {
@@ -161,11 +224,13 @@ export default function Tickets() {
           data: {
             ...oldData.data,
             data: oldData.data.data.map((ticket) =>
-              ticket.id === updatedTicket.id ? { ...ticket, ...updatedTicket } : ticket
-            )
-          }
+              ticket.id === updatedTicket.id
+                ? { ...ticket, ...updatedTicket }
+                : ticket,
+            ),
+          },
         };
-      }
+      },
     );
     setDialogOpen(null);
     setSelectedTicket(null);
@@ -199,13 +264,13 @@ export default function Tickets() {
         id: selectedTicket.id,
         data: {
           ...ticketData,
-          _method: "PUT"
-        }
+          _method: "PUT",
+        },
       },
       {
         onSuccess: (response) => handleMutationSuccess(response, "updated"),
         onError: (error) => handleMutationError(error, "update"),
-      }
+      },
     );
   };
 
@@ -216,13 +281,14 @@ export default function Tickets() {
         id: selectedTicket.id,
         data: {
           ...data,
-          _method: "PUT"
-        }
+          _method: "PUT",
+        },
       },
       {
-        onSuccess: (response) => handleMutationSuccess(response, "status changed"),
+        onSuccess: (response) =>
+          handleMutationSuccess(response, "status changed"),
         onError: (error) => handleMutationError(error, "change status"),
-      }
+      },
     );
   };
 
@@ -233,13 +299,14 @@ export default function Tickets() {
         id: selectedTicket.id,
         data: {
           ...data,
-          _method: "PUT"
-        }
+          _method: "PUT",
+        },
       },
       {
-        onSuccess: (response) => handleMutationSuccess(response, "staff assigned"),
+        onSuccess: (response) =>
+          handleMutationSuccess(response, "staff assigned"),
         onError: (error) => handleMutationError(error, "assign staff"),
-      }
+      },
     );
   };
 
@@ -259,11 +326,14 @@ export default function Tickets() {
   };
 
   // Loading state
-  const isLoading = isLoadingTickets || Object.values(isLoadingStates).some(Boolean);
+  const isLoading =
+    isLoadingTickets || Object.values(isLoadingStates).some(Boolean);
 
   // Total pages
   const totalPages = useMemo(() => {
-    return data?.data.pagination ? Math.ceil(data.data.pagination.total / itemsPerPage) : 1;
+    return data?.data.pagination
+      ? Math.ceil(data.data.pagination.total / itemsPerPage)
+      : 1;
   }, [data?.data.pagination, itemsPerPage]);
 
   return (
@@ -271,13 +341,12 @@ export default function Tickets() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Tickets</h1>
-          <p className="text-muted-foreground">Manage and track all support tickets</p>
+          <p className="text-muted-foreground">
+            Manage and track all support tickets
+          </p>
         </div>
         <div className="flex items-center gap-4">
-          <Button 
-            onClick={() => setDialogOpen("create")} 
-            disabled={isLoading}
-          >
+          <Button onClick={() => setDialogOpen("create")} disabled={isLoading}>
             {isLoadingStates.create ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
@@ -300,7 +369,7 @@ export default function Tickets() {
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && searchTerm.length === 1) {
+                    if (e.key === "Backspace" && searchTerm.length === 1) {
                       handleSearchClear();
                     }
                   }}
@@ -345,7 +414,13 @@ export default function Tickets() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["tickets"] })} disabled={isLoading}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  queryClient.invalidateQueries({ queryKey: ["tickets"] })
+                }
+                disabled={isLoading}
+              >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
@@ -374,7 +449,9 @@ export default function Tickets() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
                 <Filter className="h-8 w-8" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Error loading tickets</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Error loading tickets
+              </h3>
               <p className="text-gray-500 mt-2">Please try again later</p>
             </div>
           ) : (
@@ -396,52 +473,86 @@ export default function Tickets() {
                   <TableBody>
                     {data?.data.data.map((ticket: Ticket) => (
                       <TableRow key={ticket.id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium truncate max-w-[250px]"> <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link></TableCell>
+                        <TableCell className="font-medium truncate max-w-[250px]">
+                          {" "}
+                          <Link to={`/tickets/${ticket.id}`}>
+                            {ticket.title}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <div>
-                              <div className="font-medium">{ticket.client_name}</div>
-                              <div className="text-sm text-muted-foreground">{ticket.client_email}</div>
+                              <div className="font-medium">
+                                {ticket.client_name}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {ticket.client_email}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <UserAvatar name={ticket.holder?.name || "Unassigned"} size="sm" />
-                            <span className="text-sm">{ticket.holder?.name || "Unassigned"}</span>
+                            <UserAvatar
+                              name={ticket.holder?.name || "Unassigned"}
+                              size="sm"
+                            />
+                            <span className="text-sm">
+                              {ticket.holder?.name || "Unassigned"}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <UserAvatar name={ticket.staff?.name || "Unassigned"} size="sm" />
-                            <span className="text-sm">{ticket.staff?.name || "Unassigned"}</span>
+                            <UserAvatar
+                              name={ticket.staff?.name || "Unassigned"}
+                              size="sm"
+                            />
+                            <span className="text-sm">
+                              {ticket.staff?.name || "Unassigned"}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <TicketStatusDisplay status={ticket.status}/>
+                          <TicketStatusDisplay status={ticket.status} />
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.created_at)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{formatDate(ticket.updated_at)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(ticket.created_at)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(ticket.updated_at)}
+                        </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" disabled={isLoading}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={isLoading}
+                              >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link to={`/tickets/${ticket.id}`} className="flex items-center">
+                                <Link
+                                  to={`/tickets/${ticket.id}`}
+                                  className="flex items-center"
+                                >
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Details
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  setSelectedTicket(ticket)
-                                  setDialogOpen("edit")
+                                  setSelectedTicket(ticket);
+                                  setDialogOpen("edit");
                                 }}
-                                disabled={isLoadingStates.update || ticket.status === "complete" || ticket.status === "archived"}
+                                disabled={
+                                  isLoadingStates.update ||
+                                  ticket.status === "complete" ||
+                                  ticket.status === "archived"
+                                }
                               >
                                 {isLoadingStates.update ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -452,10 +563,14 @@ export default function Tickets() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  setSelectedTicket(ticket)
-                                  setDialogOpen("assign")
+                                  setSelectedTicket(ticket);
+                                  setDialogOpen("assign");
                                 }}
-                                disabled={isLoadingStates.assign || ticket.status === "archived" || ticket.status === "complete"}
+                                disabled={
+                                  isLoadingStates.assign ||
+                                  ticket.status === "archived" ||
+                                  ticket.status === "complete"
+                                }
                               >
                                 {isLoadingStates.assign ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -466,10 +581,13 @@ export default function Tickets() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  setSelectedTicket(ticket)
-                                  setDialogOpen("status")
+                                  setSelectedTicket(ticket);
+                                  setDialogOpen("status");
                                 }}
-                                disabled={isLoadingStates.changeStatus || ticket.status === "archived"}
+                                disabled={
+                                  isLoadingStates.changeStatus ||
+                                  ticket.status === "archived"
+                                }
                               >
                                 {isLoadingStates.changeStatus ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -480,8 +598,8 @@ export default function Tickets() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  setSelectedTicket(ticket)
-                                  setDialogOpen("delete")
+                                  setSelectedTicket(ticket);
+                                  setDialogOpen("delete");
                                 }}
                                 disabled={isLoadingStates.delete}
                                 className="text-red-600"
@@ -508,8 +626,8 @@ export default function Tickets() {
                   <Select
                     value={itemsPerPage.toString()}
                     onValueChange={(value) => {
-                      setItemsPerPage(Number(value))
-                      setCurrentPage(1)
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
                     }}
                   >
                     <SelectTrigger className="h-8 w-[70px]">
@@ -529,13 +647,19 @@ export default function Tickets() {
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
-                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        onClick={() =>
+                          setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        className={
+                          currentPage === 1
+                            ? "pointer-events-none opacity-50"
+                            : ""
+                        }
                       />
                     </PaginationItem>
 
                     {[...Array(totalPages)].map((_, i) => {
-                      const page = i + 1
+                      const page = i + 1;
                       if (
                         page === 1 ||
                         page === totalPages ||
@@ -550,24 +674,33 @@ export default function Tickets() {
                               {page}
                             </PaginationLink>
                           </PaginationItem>
-                        )
+                        );
                       } else if (
                         (page === currentPage - 2 && currentPage > 3) ||
-                        (page === currentPage + 2 && currentPage < totalPages - 2)
+                        (page === currentPage + 2 &&
+                          currentPage < totalPages - 2)
                       ) {
                         return (
                           <PaginationItem key={page}>
                             <PaginationEllipsis />
                           </PaginationItem>
-                        )
+                        );
                       }
-                      return null
+                      return null;
                     })}
 
                     <PaginationItem>
                       <PaginationNext
-                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                        onClick={() =>
+                          setCurrentPage((prev) =>
+                            Math.min(prev + 1, totalPages),
+                          )
+                        }
+                        className={
+                          currentPage === totalPages
+                            ? "pointer-events-none opacity-50"
+                            : ""
+                        }
                       />
                     </PaginationItem>
                   </PaginationContent>
@@ -623,5 +756,5 @@ export default function Tickets() {
         </>
       )}
     </div>
-  )
+  );
 }

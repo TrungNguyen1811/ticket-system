@@ -1,10 +1,10 @@
-import * as React from "react"
-import { motion, HTMLMotionProps } from "framer-motion"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { motion, HTMLMotionProps } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface PageTransitionProps extends Omit<HTMLMotionProps<"div">, "ref"> {
-  children: React.ReactNode
-  className?: string
+  children: React.ReactNode;
+  className?: string;
 }
 
 const PageTransition = React.forwardRef<HTMLDivElement, PageTransitionProps>(
@@ -24,9 +24,9 @@ const PageTransition = React.forwardRef<HTMLDivElement, PageTransitionProps>(
       >
         {children}
       </motion.div>
-    )
-  }
-)
-PageTransition.displayName = "PageTransition"
+    );
+  },
+);
+PageTransition.displayName = "PageTransition";
 
-export { PageTransition } 
+export { PageTransition };

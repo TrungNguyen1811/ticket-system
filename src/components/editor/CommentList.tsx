@@ -2,15 +2,44 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink } from "@/components/ui/pagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+} from "@/components/ui/pagination";
 import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { Pencil, Trash2, FileIcon, MessageSquare, MoreVertical, Loader2, AlertCircle, Save, X } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  FileIcon,
+  MessageSquare,
+  MoreVertical,
+  Loader2,
+  AlertCircle,
+  Save,
+  X,
+} from "lucide-react";
 import { commentService } from "@/services/comment.services";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User } from "@/types/user";
@@ -34,7 +63,10 @@ interface CommentListProps {
   };
 }
 
-export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }) => {
+export const CommentList: React.FC<CommentListProps> = ({
+  ticketId,
+  pagination,
+}) => {
   const { page, perPage, setPage, setPerPage } = pagination;
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
@@ -53,13 +85,23 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
   // Add new state to track if menu should be visible
   const [visibleMenuId, setVisibleMenuId] = useState<string | null>(null);
 
-  const { data: commentsData, isLoading, isError } = useQuery<Response<DataResponse<CommentType[]>>>({
+  const {
+    data: commentsData,
+    isLoading,
+    isError,
+  } = useQuery<Response<DataResponse<CommentType[]>>>({
     queryKey: ["ticket-comments", ticketId, page, perPage],
-    queryFn: () => commentService.getCommentsTicket(ticketId, { page, limit: perPage, isPaginate: true }),
+    queryFn: () =>
+      commentService.getCommentsTicket(ticketId, {
+        page,
+        limit: perPage,
+        isPaginate: true,
+      }),
   });
 
   const downloadAttachment = useMutation({
-    mutationFn: (attachmentId: string) => AttachmentService.downloadAttachment(attachmentId),
+    mutationFn: (attachmentId: string) =>
+      AttachmentService.downloadAttachment(attachmentId),
     onMutate: () => {
       toast({
         title: "Opening...",
@@ -68,7 +110,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
     },
     onSuccess: (data) => {
       const url = window.URL.createObjectURL(data);
-      window.open(url, '_blank');
+      window.open(url, "_blank");
       // toast({
       //   title: "Success",
       //   description: "Attachment downloaded successfully",
@@ -80,7 +122,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
         description: "Failed to download attachment",
         variant: "destructive",
       });
-    }
+    },
   });
 
   const comments = commentsData?.data.data || [];
@@ -91,86 +133,111 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Handle realtime updates
-  const handleCommentUpdate = useCallback((data: CommentType) => {
-    // Skip if this is our own update that we just processed
-    if (lastEditedComment && 
-        lastEditedComment.id === data.id && 
-        lastEditedComment.content === data.content) {
-      return;
-    }
-
-    // Update UI from Pusher event
-    queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
-      ["ticket-comments", ticketId, page, perPage],
-      (oldData) => {
-        if (!oldData?.data) return oldData;
-
-        // Check if this is a new comment or an update
-        const isNewComment = !oldData.data.data.some((comment: CommentType) => comment.id === data.id);
-        
-        if (isNewComment && page === 1) {
-          // Add new comment to the beginning if we're on page 1
-          const newData = {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: [data, ...oldData.data.data],
-              pagination: {
-                total: (oldData.data.pagination?.total || 0) + 1,
-                page: oldData.data.pagination?.page || 1,
-                perPage: oldData.data.pagination?.perPage || perPage
-              }
-            }
-          };
-          
-          // Force a re-render by invalidating the query
-          queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId, page, perPage] });
-          
-          return newData;
-        } else {
-          // Update existing comment
-          const newData = {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: oldData.data.data.map(comment => 
-                comment.id === data.id ? data : comment
-              )
-            }
-          };
-          
-          // Force a re-render by invalidating the query
-          queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId, page, perPage] });
-          
-          return newData;
-        }
+  const handleCommentUpdate = useCallback(
+    (data: CommentType) => {
+      // Skip if this is our own update that we just processed
+      if (
+        lastEditedComment &&
+        lastEditedComment.id === data.id &&
+        lastEditedComment.content === data.content
+      ) {
+        return;
       }
-    );
 
-    // Update attachments if the comment has them
-    if (data.attachments?.length) {
-      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", ticketId] });
-    }
+      // Update UI from Pusher event
+      queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
+        ["ticket-comments", ticketId, page, perPage],
+        (oldData) => {
+          if (!oldData?.data) return oldData;
 
-    // Reset visible menu for new comments
-    const currentData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
-      ["ticket-comments", ticketId, page, perPage]
-    );
-    if (currentData?.data && !currentData.data.data.some((comment: CommentType) => comment.id === data.id)) {
-      setVisibleMenuId(null);
-    }
-  }, [queryClient, ticketId, page, perPage, lastEditedComment]);
+          // Check if this is a new comment or an update
+          const isNewComment = !oldData.data.data.some(
+            (comment: CommentType) => comment.id === data.id,
+          );
+
+          if (isNewComment && page === 1) {
+            // Add new comment to the beginning if we're on page 1
+            const newData = {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: [data, ...oldData.data.data],
+                pagination: {
+                  total: (oldData.data.pagination?.total || 0) + 1,
+                  page: oldData.data.pagination?.page || 1,
+                  perPage: oldData.data.pagination?.perPage || perPage,
+                },
+              },
+            };
+
+            // Force a re-render by invalidating the query
+            queryClient.invalidateQueries({
+              queryKey: ["ticket-comments", ticketId, page, perPage],
+            });
+
+            return newData;
+          } else {
+            // Update existing comment
+            const newData = {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: oldData.data.data.map((comment) =>
+                  comment.id === data.id ? data : comment,
+                ),
+              },
+            };
+
+            // Force a re-render by invalidating the query
+            queryClient.invalidateQueries({
+              queryKey: ["ticket-comments", ticketId, page, perPage],
+            });
+
+            return newData;
+          }
+        },
+      );
+
+      // Update attachments if the comment has them
+      if (data.attachments?.length) {
+        queryClient.invalidateQueries({
+          queryKey: ["ticket-attachments", ticketId],
+        });
+      }
+
+      // Reset visible menu for new comments
+      const currentData = queryClient.getQueryData<
+        Response<DataResponse<CommentType[]>>
+      >(["ticket-comments", ticketId, page, perPage]);
+      if (
+        currentData?.data &&
+        !currentData.data.data.some(
+          (comment: CommentType) => comment.id === data.id,
+        )
+      ) {
+        setVisibleMenuId(null);
+      }
+    },
+    [queryClient, ticketId, page, perPage, lastEditedComment],
+  );
 
   // Add useEffect to handle data updates
   useEffect(() => {
     if (commentsData?.data) {
       // Force re-render when data changes
-      queryClient.invalidateQueries({ queryKey: ["ticket-comments", ticketId, page, perPage] });
+      queryClient.invalidateQueries({
+        queryKey: ["ticket-comments", ticketId, page, perPage],
+      });
     }
   }, [commentsData, queryClient, ticketId, page, perPage]);
 
   // Subscribe to Pusher events
-  useCommentRealtime(ticketId, handleCommentUpdate, undefined, lastEditedComment);
+  useCommentRealtime(
+    ticketId,
+    handleCommentUpdate,
+    undefined,
+    lastEditedComment,
+  );
 
   // Handle Pagination
   const handlePageChange = (newPage: number) => {
@@ -193,11 +260,14 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
       formData.append("content", content);
       formData.append("_method", "PUT");
 
-      const response = await commentService.updateComment(commentId, formData as CommentFormData);
+      const response = await commentService.updateComment(
+        commentId,
+        formData as CommentFormData,
+      );
       if (response.success) {
         setLastEditedComment({
           id: commentId,
-          content: response.data.content
+          content: response.data.content,
         });
 
         // Optimistically update the UI
@@ -209,19 +279,19 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
               ...oldData,
               data: {
                 ...oldData.data,
-                data: oldData.data.data.map(comment => 
-                  comment.id === commentId 
-                    ? { 
-                        ...comment, 
+                data: oldData.data.data.map((comment) =>
+                  comment.id === commentId
+                    ? {
+                        ...comment,
                         content: response.data.content,
                         updated_at: response.data.updated_at,
-                        user: response.data.user 
-                      } 
-                    : comment
-                )
-              }
+                        user: response.data.user,
+                      }
+                    : comment,
+                ),
+              },
             };
-          }
+          },
         );
 
         toast({
@@ -247,9 +317,9 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
   const deleteComment = async (commentId: string) => {
     setIsSubmitting(true);
     // Store previous data for rollback
-    const previousData = queryClient.getQueryData<Response<DataResponse<CommentType[]>>>(
-      ["ticket-comments", ticketId, page, perPage]
-    );
+    const previousData = queryClient.getQueryData<
+      Response<DataResponse<CommentType[]>>
+    >(["ticket-comments", ticketId, page, perPage]);
 
     // Optimistically update the UI
     queryClient.setQueryData<Response<DataResponse<CommentType[]>>>(
@@ -260,16 +330,18 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
           ...oldData,
           data: {
             ...oldData.data,
-            data: oldData.data.data.filter(comment => comment.id !== commentId),
+            data: oldData.data.data.filter(
+              (comment) => comment.id !== commentId,
+            ),
             pagination: {
               ...oldData.data.pagination,
               page: oldData.data.pagination?.page || 1,
               perPage: oldData.data.pagination?.perPage || perPage,
-              total: (oldData.data.pagination?.total || 1) - 1
-            }
-          }
+              total: (oldData.data.pagination?.total || 1) - 1,
+            },
+          },
         };
-      }
+      },
     );
 
     try {
@@ -284,7 +356,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
       if (previousData) {
         queryClient.setQueryData(
           ["ticket-comments", ticketId, page, perPage],
-          previousData
+          previousData,
         );
       }
       toast({
@@ -344,7 +416,9 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
       <div className="flex flex-col items-center justify-center h-full py-8 text-center">
         <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
         <p className="text-gray-500">No comments yet.</p>
-        <p className="text-sm text-gray-400 mt-1">Be the first to comment on this ticket.</p>
+        <p className="text-sm text-gray-400 mt-1">
+          Be the first to comment on this ticket.
+        </p>
       </div>
     );
   }
@@ -361,11 +435,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
   }
 
   return (
-    <ScrollArea 
-      ref={scrollRef}
-      className="h-full pr-4"
-      onScroll={handleScroll}
-    >
+    <ScrollArea ref={scrollRef} className="h-full pr-4" onScroll={handleScroll}>
       <div className="space-y-3 mt-2">
         {page > 1 && (
           <div className="flex justify-center">
@@ -382,15 +452,15 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                   Loading...
                 </>
               ) : (
-                'Load more comments'
+                "Load more comments"
               )}
             </Button>
           </div>
         )}
 
         {comments.map((comment: CommentType) => (
-          <Card 
-            key={comment.id} 
+          <Card
+            key={comment.id}
             className="group relative border-l-4 border-l-blue-500 hover:border-l-blue-600 transition-colors"
             onMouseEnter={() => setVisibleMenuId(comment.id)}
             onMouseLeave={() => setVisibleMenuId(null)}
@@ -402,51 +472,61 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                     {comment.user?.name?.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{comment.user?.name || "Unknown"}</span>
+                      <span className="font-medium text-sm">
+                        {comment.user?.name || "Unknown"}
+                      </span>
                       <Badge variant="outline" className="text-xs font-normal">
                         {formatDate(comment.created_at)}
                       </Badge>
                       {comment.updated_at !== comment.created_at && (
-                        <Badge variant="outline" className="text-xs font-normal text-gray-500">
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal text-gray-500"
+                        >
                           edited
                         </Badge>
                       )}
                     </div>
-                    
-                    {comment.user_id === user?.id && editingCommentId !== comment.id && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className={`h-8 w-8 transition-opacity ${
-                              visibleMenuId === comment.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                            }`}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => startEditing(comment)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => setDeleteCommentId(comment.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+
+                    {comment.user_id === user?.id &&
+                      editingCommentId !== comment.id && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-8 w-8 transition-opacity ${
+                                visibleMenuId === comment.id
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover:opacity-100"
+                              }`}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => startEditing(comment)}
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeleteCommentId(comment.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                   </div>
-                  
+
                   {editingCommentId === comment.id ? (
                     <div className="space-y-2 mt-2">
                       <EditCommentEditor
@@ -454,9 +534,9 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                         onChange={(val) => setEditContent(val.raw)}
                       />
                       <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={cancelEditing}
                           disabled={isSubmitting}
                           className="gap-1.5"
@@ -464,8 +544,8 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                           <X className="h-3 w-3" />
                           Cancel
                         </Button>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           onClick={() => handleUpdateComment(comment.id)}
                           disabled={isSubmitting || !editContent}
                           className="gap-1.5"
@@ -489,22 +569,25 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                       <div className="text-sm text-gray-700 whitespace-pre-line break-words">
                         <ReadOnlyEditor content={comment.content} />
                       </div>
-                      {comment.attachments && comment.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {comment.attachments.map((attachment) => (
-                            <Button
-                              key={attachment.id}
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadAttachment(attachment.id)}
-                              className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
-                            >
-                              <FileIcon className="h-3 w-3" />
-                              {attachment.file_name}
-                            </Button>
-                          ))}
-                        </div>
-                      )}
+                      {comment.attachments &&
+                        comment.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {comment.attachments.map((attachment) => (
+                              <Button
+                                key={attachment.id}
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleDownloadAttachment(attachment.id)
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+                              >
+                                <FileIcon className="h-3 w-3" />
+                                {attachment.file_name}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                     </>
                   )}
                 </div>
@@ -522,16 +605,22 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
         )}
       </div>
 
-      <AlertDialog open={!!deleteCommentId} onOpenChange={() => setDeleteCommentId(null)}>
+      <AlertDialog
+        open={!!deleteCommentId}
+        onOpenChange={() => setDeleteCommentId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Comment</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this comment? This action cannot be undone.
+              Are you sure you want to delete this comment? This action cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteCommentId && deleteComment(deleteCommentId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -543,7 +632,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
                   Deleting...
                 </>
               ) : (
-                'Delete'
+                "Delete"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

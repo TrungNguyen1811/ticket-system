@@ -1,6 +1,10 @@
-import axios from "axios"
-import type { AxiosResponse, InternalAxiosRequestConfig, AxiosError } from "axios"
-import { toast } from "@/components/ui/use-toast"
+import axios from "axios";
+import type {
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+  AxiosError,
+} from "axios";
+import { toast } from "@/components/ui/use-toast";
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -8,15 +12,15 @@ const api = axios.create({
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
-    "Accept": "application/json",
+    Accept: "application/json",
   },
-})
+});
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
 
 const processQueue = (error: any = null, token: string | null = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
@@ -30,45 +34,53 @@ const processQueue = (error: any = null, token: string | null = null) => {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Get token from localStorage
-    const token = localStorage.getItem("auth_token")
+    const token = localStorage.getItem("auth_token");
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     // Add request timestamp for debugging
-    config.metadata = { startTime: new Date() }
+    config.metadata = { startTime: new Date() };
 
     // Log request in development
     if (import.meta.env.DEV) {
-      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
-        data: config.data,
-        params: config.params,
-      })
+      console.log(
+        `🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`,
+        {
+          data: config.data,
+          params: config.params,
+        },
+      );
     }
 
-    return config
+    return config;
   },
   (error) => {
-    console.error("❌ Request Error:", error)
-    return Promise.reject(error)
+    console.error("❌ Request Error:", error);
+    return Promise.reject(error);
   },
-)
+);
 
 // Response interceptor - Handle responses and errors
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     // Log response in development
     if (import.meta.env.DEV) {
-      const startTime = response.config.metadata?.startTime
-      const duration = startTime ? new Date().getTime() - startTime.getTime() : 0
-      console.log(`✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-        status: response.status,
-        duration: `${duration}ms`,
-        data: response.data,
-      })
+      const startTime = response.config.metadata?.startTime;
+      const duration = startTime
+        ? new Date().getTime() - startTime.getTime()
+        : 0;
+      console.log(
+        `✅ API Response: ${response.config.method?.toUpperCase()} ${response.config.url}`,
+        {
+          status: response.status,
+          duration: `${duration}ms`,
+          data: response.data,
+        },
+      );
     }
 
-    return response
+    return response;
   },
   async (error: AxiosError<{ message?: string }>) => {
     const originalRequest = error.config;
@@ -81,12 +93,12 @@ api.interceptors.response.use(
         status: error.response?.status,
         message: error.message,
         data: error.response?.data,
-      })
+      });
     }
 
     // Handle different error scenarios
     if (error.response) {
-      const { status, data } = error.response
+      const { status, data } = error.response;
 
       switch (status) {
         case 401:
@@ -99,13 +111,13 @@ api.interceptors.response.use(
             return new Promise((resolve, reject) => {
               failedQueue.push({ resolve, reject });
             })
-              .then(token => {
+              .then((token) => {
                 if (originalRequest.headers) {
                   originalRequest.headers.Authorization = `Bearer ${token}`;
                 }
                 return api(originalRequest);
               })
-              .catch(err => {
+              .catch((err) => {
                 return Promise.reject(err);
               });
           }
@@ -118,19 +130,19 @@ api.interceptors.response.use(
             const auth0 = (window as any).auth0;
             if (auth0) {
               const newToken = await auth0.getAccessTokenSilently();
-              localStorage.setItem('auth_token', newToken);
-              
+              localStorage.setItem("auth_token", newToken);
+
               if (originalRequest.headers) {
                 originalRequest.headers.Authorization = `Bearer ${newToken}`;
               }
-              
+
               processQueue(null, newToken);
               return api(originalRequest);
             } else {
               // If Auth0 is not available, redirect to login
               localStorage.removeItem("auth_token");
               localStorage.removeItem("user");
-              
+
               if (window.location.pathname !== "/login") {
                 toast({
                   title: "Session Expired",
@@ -154,25 +166,27 @@ api.interceptors.response.use(
             title: "Access Denied",
             description: "You don't have permission to perform this action.",
             variant: "destructive",
-          })
+          });
           break;
 
         case 404:
           // Not found
           toast({
             title: "Not Found",
-            description: data?.message || "The requested resource was not found.",
+            description:
+              data?.message || "The requested resource was not found.",
             variant: "destructive",
-          })
+          });
           break;
 
         case 422:
           // Validation error
           toast({
             title: "Validation Error",
-            description: data?.message || "Please check your input and try again.",
+            description:
+              data?.message || "Please check your input and try again.",
             variant: "destructive",
-          })
+          });
           break;
 
         case 429:
@@ -181,16 +195,17 @@ api.interceptors.response.use(
             title: "Too Many Requests",
             description: "Please wait a moment before trying again.",
             variant: "destructive",
-          })
+          });
           break;
 
         case 500:
           // Server error
           toast({
             title: "Server Error",
-            description: "Something went wrong on our end. Please try again later.",
+            description:
+              "Something went wrong on our end. Please try again later.",
             variant: "destructive",
-          })
+          });
           break;
 
         default:
@@ -199,36 +214,37 @@ api.interceptors.response.use(
             title: "Error",
             description: data?.message || "An unexpected error occurred.",
             variant: "destructive",
-          })
+          });
       }
     } else if (error.request) {
       // Network error
       toast({
         title: "Network Error",
-        description: "Unable to connect to the server. Please check your internet connection.",
+        description:
+          "Unable to connect to the server. Please check your internet connection.",
         variant: "destructive",
-      })
+      });
     } else {
       // Other error
       toast({
         title: "Error",
         description: error.message || "An unexpected error occurred.",
         variant: "destructive",
-      })
+      });
     }
 
-    return Promise.reject(error)
+    return Promise.reject(error);
   },
-)
+);
 
 // Add request/response types for TypeScript
 declare module "axios" {
   interface InternalAxiosRequestConfig {
     metadata?: {
-      startTime: Date
-    }
-    _retry?: boolean
+      startTime: Date;
+    };
+    _retry?: boolean;
   }
 }
 
-export default api
+export default api;

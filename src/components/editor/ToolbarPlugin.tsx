@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
-import { useCallback, useEffect, useState } from "react"
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { useCallback, useEffect, useState } from "react";
 import {
   $getSelection,
   $isRangeSelection,
@@ -13,16 +13,18 @@ import {
   COMMAND_PRIORITY_LOW,
   INSERT_TAB_COMMAND,
   createCommand,
-} from "lexical"
-import {
-  HeadingTagType
-} from "@lexical/rich-text";
+} from "lexical";
+import { HeadingTagType } from "@lexical/rich-text";
 
-import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link"
-import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListNode } from "@lexical/list"
-import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils"
-import { $isHeadingNode, $createHeadingNode } from "@lexical/rich-text"
-import { Button } from "@/components/ui/button"
+import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
+import {
+  INSERT_ORDERED_LIST_COMMAND,
+  INSERT_UNORDERED_LIST_COMMAND,
+  ListNode,
+} from "@lexical/list";
+import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
+import { $isHeadingNode, $createHeadingNode } from "@lexical/rich-text";
+import { Button } from "@/components/ui/button";
 import {
   Bold,
   Italic,
@@ -35,94 +37,95 @@ import {
   Redo,
   Heading1,
   Heading2,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ToolbarPlugin() {
-  const [editor] = useLexicalComposerContext()
+  const [editor] = useLexicalComposerContext();
 
-  const [isBold, setIsBold] = useState(false)
-  const [isItalic, setIsItalic] = useState(false)
-  const [isUnderline, setIsUnderline] = useState(false)
-  const [isStrikethrough, setIsStrikethrough] = useState(false)
-  const [isLink, setIsLink] = useState(false)
-  const [isBulletList, setIsBulletList] = useState(false)
-  const [isNumberList, setIsNumberList] = useState(false)
-  const [isH1, setIsH1] = useState(false)
-  const [isH2, setIsH2] = useState(false)
-  const SET_HEADING_LEVEL_COMMAND = createCommand<HeadingTagType>('SET_HEADING_LEVEL_COMMAND');
-
+  const [isBold, setIsBold] = useState(false);
+  const [isItalic, setIsItalic] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
+  const [isStrikethrough, setIsStrikethrough] = useState(false);
+  const [isLink, setIsLink] = useState(false);
+  const [isBulletList, setIsBulletList] = useState(false);
+  const [isNumberList, setIsNumberList] = useState(false);
+  const [isH1, setIsH1] = useState(false);
+  const [isH2, setIsH2] = useState(false);
+  const SET_HEADING_LEVEL_COMMAND = createCommand<HeadingTagType>(
+    "SET_HEADING_LEVEL_COMMAND",
+  );
 
   const updateToolbar = useCallback(() => {
-    const selection = $getSelection()
+    const selection = $getSelection();
     if ($isRangeSelection(selection)) {
-      setIsBold(selection.hasFormat("bold"))
-      setIsItalic(selection.hasFormat("italic"))
-      setIsUnderline(selection.hasFormat("underline"))
-      setIsStrikethrough(selection.hasFormat("strikethrough"))
+      setIsBold(selection.hasFormat("bold"));
+      setIsItalic(selection.hasFormat("italic"));
+      setIsUnderline(selection.hasFormat("underline"));
+      setIsStrikethrough(selection.hasFormat("strikethrough"));
 
-      const nodes = selection.getNodes()
-      const node = nodes.length > 0 ? nodes[0] : null
+      const nodes = selection.getNodes();
+      const node = nodes.length > 0 ? nodes[0] : null;
       if (!node) {
         // Reset states if no node
-        setIsLink(false)
-        setIsBulletList(false)
-        setIsNumberList(false)
-        setIsH1(false)
-        setIsH2(false)
-        return
+        setIsLink(false);
+        setIsBulletList(false);
+        setIsNumberList(false);
+        setIsH1(false);
+        setIsH2(false);
+        return;
       }
 
-      const parent = node.getParent()
+      const parent = node.getParent();
 
       // Check for link node
-      setIsLink($isLinkNode(parent) || $isLinkNode(node))
+      setIsLink($isLinkNode(parent) || $isLinkNode(node));
 
       // Check for lists
-      const listNode = $getNearestNodeOfType(node, ListNode)
-      const listType = listNode?.getListType()
-      setIsBulletList(listType === "bullet")
-      setIsNumberList(listType === "number")
+      const listNode = $getNearestNodeOfType(node, ListNode);
+      const listType = listNode?.getListType();
+      setIsBulletList(listType === "bullet");
+      setIsNumberList(listType === "number");
 
       // Check for headings
-      setIsH1($isHeadingNode(node) && node.getTag() === "h1")
-      setIsH2($isHeadingNode(node) && node.getTag() === "h2")
+      setIsH1($isHeadingNode(node) && node.getTag() === "h1");
+      setIsH2($isHeadingNode(node) && node.getTag() === "h2");
     } else {
       // No selection or non-range selection — reset toolbar states
-      setIsBold(false)
-      setIsItalic(false)
-      setIsUnderline(false)
-      setIsStrikethrough(false)
-      setIsLink(false)
-      setIsBulletList(false)
-      setIsNumberList(false)
-      setIsH1(false)
-      setIsH2(false)
+      setIsBold(false);
+      setIsItalic(false);
+      setIsUnderline(false);
+      setIsStrikethrough(false);
+      setIsLink(false);
+      setIsBulletList(false);
+      setIsNumberList(false);
+      setIsH1(false);
+      setIsH2(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     return mergeRegister(
       editor.registerUpdateListener(({ editorState }) => {
         editorState.read(() => {
-          updateToolbar()
-        })
+          updateToolbar();
+        });
       }),
-    )
-  }, [editor, updateToolbar])
+    );
+  }, [editor, updateToolbar]);
 
   const insertLink = useCallback(() => {
     if (!isLink) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://")
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://");
     } else {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
     }
-  }, [editor, isLink])
+  }, [editor, isLink]);
 
   function toggleHeading(tag: "h1" | "h2") {
     editor.update(() => {
       const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;  
+      if (!$isRangeSelection(selection)) return;
       const nodes = selection.getNodes();
       nodes.forEach((node) => {
         const parent = node.getParent();
@@ -132,7 +135,6 @@ export default function ToolbarPlugin() {
       });
     });
   }
-  
 
   return (
     <div className="border border-input rounded-t-md bg-muted/50 p-1 flex flex-wrap gap-1 items-center">
@@ -171,7 +173,9 @@ export default function ToolbarPlugin() {
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isStrikethrough && "bg-muted")}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
+        onClick={() =>
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")
+        }
         title="Strikethrough"
       >
         <Strikethrough className="h-4 w-4" />
@@ -197,7 +201,9 @@ export default function ToolbarPlugin() {
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isBulletList && "bg-muted")}
-        onClick={() => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)}
+        onClick={() =>
+          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
+        }
         title="Bullet List"
       >
         <List className="h-4 w-4" />
@@ -208,7 +214,9 @@ export default function ToolbarPlugin() {
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isNumberList && "bg-muted")}
-        onClick={() => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)}
+        onClick={() =>
+          editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)
+        }
         title="Numbered List"
       >
         <ListOrdered className="h-4 w-4" />
@@ -225,7 +233,6 @@ export default function ToolbarPlugin() {
       >
         <Heading1 className="h-4 w-4" />
       </Button>
-
 
       <Button
         type="button"
@@ -261,5 +268,5 @@ export default function ToolbarPlugin() {
         <Redo className="h-4 w-4" />
       </Button>
     </div>
-  )
+  );
 }

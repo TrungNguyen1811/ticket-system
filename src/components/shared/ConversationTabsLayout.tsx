@@ -43,19 +43,11 @@ export default function ConversationTabsLayout({
           return list.find((client: Client) => client.id === id);
         }),
       enabled: !!id,
-    }); 
+    });
   }
-  
-  const {
-    tabs,
-    activeId,
-    addTab,
-    closeTab,
-    setActiveId,
-    clearTabs,
-  } = useConversationTabsStore();
 
-
+  const { tabs, activeId, addTab, closeTab, setActiveId, clearTabs } =
+    useConversationTabsStore();
 
   // Add tab when ticket data loaded
   useEffect(() => {
@@ -66,12 +58,11 @@ export default function ConversationTabsLayout({
       if (type === "client") return dataQuery.data.name;
       return dataQuery.data.data?.title;
     })();
-    
 
     addTab({ id: tabId, subject, type });
   }, [tabId, dataQuery.data?.data]);
 
-console.log("tabs before addTab:", tabs);
+  console.log("tabs before addTab:", tabs);
 
   // Clear tabs when leaving conversation/client pages
   useEffect(() => {
@@ -134,7 +125,9 @@ console.log("tabs before addTab:", tabs);
             <div
               key={tab.id}
               className={`px-3 py-1 rounded-t-md cursor-pointer flex items-center gap-1 ml-2 ${
-                tab.id === activeId ? "bg-white border" : "text-muted-foreground"
+                tab.id === activeId
+                  ? "bg-white border"
+                  : "text-muted-foreground"
               }`}
               onClick={() => handleTabClick(tab)}
             >

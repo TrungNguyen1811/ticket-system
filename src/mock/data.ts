@@ -1,27 +1,103 @@
-import type { User, Client, Ticket, Comment, AuditLog } from "@/types/user"
+import type { User, Client, Ticket, Comment, AuditLog } from "@/types/user";
 
 export const mockUsers: User[] = [
-  { id: "user1", name: "John Admin", email: "admin@example.com", role: "Admin", nickname: "John", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user1" },
-  { id: "user2", name: "Sarah Staff", email: "staff@example.com", role: "Staff", nickname: "Sarah", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user2" },
-  { id: "user3", name: "Mike Support", email: "mike@example.com", role: "Staff", nickname: "Mike", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user3" },
-  { id: "user4", name: "Lisa Manager", email: "manager@example.com", role: "Manager", nickname: "Lisa", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user4" },
-  { id: "user5", name: "Tom Tech", email: "tom@example.com", role: "Staff", nickname: "Tom", picture: "https://example.com/picture.jpg", updated_at: "2025-06-01T08:00:00Z", created_at: "2025-06-01T08:00:00Z", sub: "user5" },
-]
+  {
+    id: "user1",
+    name: "John Admin",
+    email: "admin@example.com",
+    role: "Admin",
+    nickname: "John",
+    picture: "https://example.com/picture.jpg",
+    updated_at: "2025-06-01T08:00:00Z",
+    created_at: "2025-06-01T08:00:00Z",
+    sub: "user1",
+  },
+  {
+    id: "user2",
+    name: "Sarah Staff",
+    email: "staff@example.com",
+    role: "Staff",
+    nickname: "Sarah",
+    picture: "https://example.com/picture.jpg",
+    updated_at: "2025-06-01T08:00:00Z",
+    created_at: "2025-06-01T08:00:00Z",
+    sub: "user2",
+  },
+  {
+    id: "user3",
+    name: "Mike Support",
+    email: "mike@example.com",
+    role: "Staff",
+    nickname: "Mike",
+    picture: "https://example.com/picture.jpg",
+    updated_at: "2025-06-01T08:00:00Z",
+    created_at: "2025-06-01T08:00:00Z",
+    sub: "user3",
+  },
+  {
+    id: "user4",
+    name: "Lisa Manager",
+    email: "manager@example.com",
+    role: "Manager",
+    nickname: "Lisa",
+    picture: "https://example.com/picture.jpg",
+    updated_at: "2025-06-01T08:00:00Z",
+    created_at: "2025-06-01T08:00:00Z",
+    sub: "user4",
+  },
+  {
+    id: "user5",
+    name: "Tom Tech",
+    email: "tom@example.com",
+    role: "Staff",
+    nickname: "Tom",
+    picture: "https://example.com/picture.jpg",
+    updated_at: "2025-06-01T08:00:00Z",
+    created_at: "2025-06-01T08:00:00Z",
+    sub: "user5",
+  },
+];
 
 export const mockClients: Client[] = [
-  { id: "client1", name: "Company ABC", email: "contact@abc.com", ticketCount: 5 },
-  { id: "client2", name: "XYZ Corporation", email: "support@xyz.com", ticketCount: 3 },
-  { id: "client3", name: "Tech Solutions Ltd", email: "info@techsolutions.com", ticketCount: 8 },
-  { id: "client4", name: "Digital Innovations", email: "hello@digital.com", ticketCount: 2 },
-  { id: "client5", name: "Global Systems", email: "contact@global.com", ticketCount: 6 },
-]
+  {
+    id: "client1",
+    name: "Company ABC",
+    email: "contact@abc.com",
+    ticketCount: 5,
+  },
+  {
+    id: "client2",
+    name: "XYZ Corporation",
+    email: "support@xyz.com",
+    ticketCount: 3,
+  },
+  {
+    id: "client3",
+    name: "Tech Solutions Ltd",
+    email: "info@techsolutions.com",
+    ticketCount: 8,
+  },
+  {
+    id: "client4",
+    name: "Digital Innovations",
+    email: "hello@digital.com",
+    ticketCount: 2,
+  },
+  {
+    id: "client5",
+    name: "Global Systems",
+    email: "contact@global.com",
+    ticketCount: 6,
+  },
+];
 
 export const mockTickets: Ticket[] = [
   {
     id: "ticket1",
     client_id: "client1",
     title: "Screen not working",
-    description: "The computer screen is black after power on. Need urgent assistance.",
+    description:
+      "The computer screen is black after power on. Need urgent assistance.",
     holder_id: "user1",
     staff_id: "user2",
     status: "Open",
@@ -72,14 +148,15 @@ export const mockTickets: Ticket[] = [
     created_at: "2025-05-30T11:00:00Z",
     updated_at: "2025-06-01T13:20:00Z",
   },
-]
+];
 
 export const mockComments: Comment[] = [
   {
     id: "comment1",
     ticket_id: "ticket1",
     user_id: "user2",
-    content: "I have checked the power connections and they seem fine. Will investigate further.",
+    content:
+      "I have checked the power connections and they seem fine. Will investigate further.",
     created_at: "2025-06-02T09:30:00Z",
     updated_at: "2025-06-02T09:30:00Z",
   },
@@ -95,11 +172,12 @@ export const mockComments: Comment[] = [
     id: "comment3",
     ticket_id: "ticket2",
     user_id: "user3",
-    content: "Network diagnostics completed. Found issues with the main router.",
+    content:
+      "Network diagnostics completed. Found issues with the main router.",
     created_at: "2025-06-02T14:15:00Z",
     updated_at: "2025-06-02T14:15:00Z",
   },
-]
+];
 
 export const mockAuditLogs: AuditLog[] = [
   {
@@ -129,4 +207,4 @@ export const mockAuditLogs: AuditLog[] = [
     new_value: "Done",
     created_at: "2025-06-01T16:30:00Z",
   },
-]
+];

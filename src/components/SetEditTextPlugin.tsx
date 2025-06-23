@@ -1,13 +1,16 @@
-import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import { useEffect } from 'react';
-import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { useEffect } from "react";
+import { $getRoot, $createParagraphNode, $createTextNode } from "lexical";
 
 interface SetEditTextPluginProps {
   text: string;
   isEditMode: boolean;
 }
 
-export default function SetEditTextPlugin({ text, isEditMode }: SetEditTextPluginProps) {
+export default function SetEditTextPlugin({
+  text,
+  isEditMode,
+}: SetEditTextPluginProps) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -15,7 +18,9 @@ export default function SetEditTextPlugin({ text, isEditMode }: SetEditTextPlugi
       try {
         // Try to parse as JSON first
         const jsonContent = JSON.parse(text);
-        editor.setEditorState(editor.parseEditorState(JSON.stringify(jsonContent)));
+        editor.setEditorState(
+          editor.parseEditorState(JSON.stringify(jsonContent)),
+        );
       } catch (e) {
         // If not JSON, treat as plain text
         editor.update(() => {

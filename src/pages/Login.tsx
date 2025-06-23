@@ -1,53 +1,59 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Navigate, useLocation } from "react-router-dom"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useAuth } from "@/contexts/AuthContext"
-import { useToast } from "@/components/ui/use-toast"
-import { AlertCircle, Ticket } from "lucide-react"
-import { useAuth0 } from "@auth0/auth0-react"
+import { useState, useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+import { AlertCircle, Ticket } from "lucide-react";
+import { useAuth0 } from "@auth0/auth0-react";
 
 export default function Login() {
-  const [error, setError] = useState("")
-  const [isRedirecting, setIsRedirecting] = useState(false)
+  const [error, setError] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const { login, isLoading, isAuthenticated } = useAuth()
-  const { loginWithRedirect } = useAuth0()
-  const { toast } = useToast()
-  const location = useLocation()
+  const { login, isLoading, isAuthenticated } = useAuth();
+  const { loginWithRedirect } = useAuth0();
+  const { toast } = useToast();
+  const location = useLocation();
 
-  const from = location.state?.from?.pathname || "/"
+  const from = location.state?.from?.pathname || "/";
 
   // Handle redirect after successful login
   useEffect(() => {
     if (isAuthenticated && !isRedirecting) {
-      setIsRedirecting(true)
+      setIsRedirecting(true);
     }
-  }, [isAuthenticated, isRedirecting])
+  }, [isAuthenticated, isRedirecting]);
 
   // Redirect if already authenticated
   if (isAuthenticated && isRedirecting) {
-    return <Navigate to={from} replace />
+    return <Navigate to={from} replace />;
   }
 
   const handleSlackLogin = async () => {
     try {
       await loginWithRedirect({
         connection: "slack",
-        appState: { returnTo: from }
-      } as any)
+        appState: { returnTo: from },
+      } as any);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      setError(err instanceof Error ? err.message : "Login failed");
       toast({
         title: "Error",
         description: "Failed to login with Slack",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-blue-100 flex items-center justify-center p-4">
@@ -63,7 +69,9 @@ export default function Login() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
               TasketES
             </h1>
-            <p className="text-gray-600 text-lg">Your Ticket Management Solution</p>
+            <p className="text-gray-600 text-lg">
+              Your Ticket Management Solution
+            </p>
           </div>
         </div>
 
@@ -79,24 +87,27 @@ export default function Login() {
           </CardHeader>
           <CardContent className="space-y-6">
             {error && (
-              <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-2">
+              <Alert
+                variant="destructive"
+                className="animate-in fade-in slide-in-from-top-2"
+              >
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <div className="flex flex-col items-center space-y-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="lg"
                 className="w-full max-w-sm h-14 bg-white hover:bg-gray-50 border-2 border-gray-200 shadow-sm hover:shadow-md transition-all duration-300"
                 onClick={handleSlackLogin}
                 disabled={isLoading}
               >
                 <div className="flex items-center space-x-3">
-                  <img 
-                    src="src/assets/Slack_icon.svg" 
-                    alt="Slack Logo" 
+                  <img
+                    src="src/assets/Slack_icon.svg"
+                    alt="Slack Logo"
                     className="h-6 w-6"
                   />
                   <span className="text-gray-700 font-semibold text-lg">
@@ -106,7 +117,8 @@ export default function Login() {
               </Button>
 
               <p className="text-sm text-gray-500 text-center max-w-sm">
-                By continuing, you agree to our Terms of Service and Privacy Policy
+                By continuing, you agree to our Terms of Service and Privacy
+                Policy
               </p>
             </div>
           </CardContent>
@@ -123,5 +135,5 @@ export default function Login() {
         </div>
       </div>
     </div>
-  )
+  );
 }

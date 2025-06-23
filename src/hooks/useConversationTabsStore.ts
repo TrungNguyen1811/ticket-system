@@ -44,6 +44,6 @@ export const useConversationTabsStore = create<ConversationTabsState>()(
     }),
     {
       name: "conversation-tabs", // key trong localStorage
-    }
-  )
+    },
+  ),
 );

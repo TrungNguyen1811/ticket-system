@@ -14,4 +14,4 @@ export const useTicketLogMutations = () => {
   return {
     deleteLog,
   };
-}; 
+};

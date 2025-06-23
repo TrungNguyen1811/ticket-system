@@ -1,39 +1,50 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { mockClients } from "@/mock/data"
-import { Plus, Search, MoreHorizontal, Building2, Eye } from "lucide-react"
-import { Link } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
-import { userService } from "@/services/user.service"
-
+import { useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { mockClients } from "@/mock/data";
+import { Plus, Search, MoreHorizontal, Building2, Eye } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { userService } from "@/services/user.service";
 
 export default function Clients() {
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
     queryFn: () => userService.getClients(),
-  })
+  });
 
   const filteredClients = clients?.data?.data?.filter(
     (client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
+  );
 
   return (
     <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-600 text-sm">Manage your client organizations</p>
+          <p className="text-gray-600 text-sm">
+            Manage your client organizations
+          </p>
         </div>
         {/* <Button>
           <Plus className="h-4 w-4 mr-2" />
@@ -76,11 +87,15 @@ export default function Clients() {
                         </div>
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{client.name}</div>
+                        <div className="font-medium text-gray-900">
+                          {client.name}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-gray-600">{client.email}</TableCell>
+                  <TableCell className="text-gray-600">
+                    {client.email}
+                  </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {client.tickets_count || 0} tickets
@@ -100,5 +115,5 @@ export default function Clients() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

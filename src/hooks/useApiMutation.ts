@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useToast } from "@/components/ui/use-toast"
+import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface UseApiMutationOptions<T> {
-  onSuccess?: (data: T) => void
-  onError?: (error: Error) => void
-  showSuccessToast?: boolean
-  showErrorToast?: boolean
-  successMessage?: string
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+  showSuccessToast?: boolean;
+  showErrorToast?: boolean;
+  successMessage?: string;
 }
 
 interface UseApiMutationReturn<T, P> {
-  data: T | null
-  loading: boolean
-  error: Error | null
-  mutate: (params: P) => Promise<T>
-  reset: () => void
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+  mutate: (params: P) => Promise<T>;
+  reset: () => void;
 }
 
 export function useApiMutation<T, P = any>(
   apiFunction: (params: P) => Promise<T>,
   options: UseApiMutationOptions<T> = {},
 ): UseApiMutationReturn<T, P> {
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-  const { toast } = useToast()
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const { toast } = useToast();
 
   const {
     onSuccess,
@@ -34,34 +34,34 @@ export function useApiMutation<T, P = any>(
     showSuccessToast = true,
     showErrorToast = true,
     successMessage = "Operation completed successfully",
-  } = options
+  } = options;
 
   const mutate = async (params: P): Promise<T> => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
-      const result = await apiFunction(params)
-      setData(result)
+      const result = await apiFunction(params);
+      setData(result);
 
       if (onSuccess) {
-        onSuccess(result)
+        onSuccess(result);
       }
 
       if (showSuccessToast) {
         toast({
           title: "Success",
           description: successMessage,
-        })
+        });
       }
 
-      return result
+      return result;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("An error occurred")
-      setError(error)
+      const error = err instanceof Error ? err : new Error("An error occurred");
+      setError(error);
 
       if (onError) {
-        onError(error)
+        onError(error);
       }
 
       if (showErrorToast) {
@@ -69,20 +69,20 @@ export function useApiMutation<T, P = any>(
           title: "Error",
           description: error.message,
           variant: "destructive",
-        })
+        });
       }
 
-      throw error
+      throw error;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const reset = () => {
-    setData(null)
-    setError(null)
-    setLoading(false)
-  }
+    setData(null);
+    setError(null);
+    setLoading(false);
+  };
 
   return {
     data,
@@ -90,5 +90,5 @@ export function useApiMutation<T, P = any>(
     error,
     mutate,
     reset,
-  }
+  };
 }

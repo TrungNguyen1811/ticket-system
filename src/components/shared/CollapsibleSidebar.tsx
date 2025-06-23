@@ -52,18 +52,16 @@ export function CollapsibleSidebar({
     <div
       className={cn(
         "relative bg-white border-r border-gray-200 transition-all duration-200",
-        isCollapsed ? "w-16" : `w-[${width}px]`
+        isCollapsed ? "w-16" : `w-[${width}px]`,
       )}
     >
-      <div className="h-full">
-        {children}
-      </div>
-      
+      <div className="h-full">{children}</div>
+
       {/* Resize handle */}
       <div
         className={cn(
           "absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500",
-          isDragging && "bg-blue-500"
+          isDragging && "bg-blue-500",
         )}
         onMouseDown={handleMouseDown}
       />
@@ -83,4 +81,4 @@ export function CollapsibleSidebar({
       </Button>
     </div>
   );
-} 
+}

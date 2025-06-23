@@ -1,94 +1,153 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreHorizontal, Building2, Eye, Filter, ArrowUpDown, RefreshCw, Loader2 } from "lucide-react"
-import { UserAvatar } from "@/components/shared/UserAvatar"
-import { formatDate } from "@/lib/utils"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Status, Ticket } from "@/types/ticket"
-import { useQuery } from "@tanstack/react-query"
-import { Response, DataResponse } from "@/types/reponse"
-import { ticketService } from "@/services/ticket.service"
-import { Link } from "react-router-dom"
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useDebounce } from "@/hooks/useDebouce"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
+import { useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Search,
+  MoreHorizontal,
+  Building2,
+  Eye,
+  Filter,
+  ArrowUpDown,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { formatDate } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Status, Ticket } from "@/types/ticket";
+import { useQuery } from "@tanstack/react-query";
+import { Response, DataResponse } from "@/types/reponse";
+import { ticketService } from "@/services/ticket.service";
+import { Link } from "react-router-dom";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounce } from "@/hooks/useDebouce";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
 
-const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100]
+const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
 export default function Conversation() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedStatus, setSelectedStatus] = useState<Status | "all">("all")
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "updated">("newest")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  
-  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<Status | "all">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "updated">(
+    "newest",
+  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const { data: tickets, isLoading, isError, refetch } = useQuery<Response<DataResponse<Ticket[]>>>({
-    queryKey: ["tickets", currentPage, itemsPerPage, debouncedSearchTerm, selectedStatus, sortBy],
-    queryFn: () => ticketService.getTickets({
-      page: currentPage,
-      limit: itemsPerPage,
-      search: debouncedSearchTerm || undefined,
-      status: selectedStatus === "all" ? undefined : selectedStatus,
-      sort_by: sortBy === "newest" ? "created_at" : sortBy === "oldest" ? "created_at" : "updated_at",
-      sort_order: sortBy === "oldest" ? "asc" : "desc",
-    }),
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  const {
+    data: tickets,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<Response<DataResponse<Ticket[]>>>({
+    queryKey: [
+      "tickets",
+      currentPage,
+      itemsPerPage,
+      debouncedSearchTerm,
+      selectedStatus,
+      sortBy,
+    ],
+    queryFn: () =>
+      ticketService.getTickets({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearchTerm || undefined,
+        status: selectedStatus === "all" ? undefined : selectedStatus,
+        sort_by:
+          sortBy === "newest"
+            ? "created_at"
+            : sortBy === "oldest"
+              ? "created_at"
+              : "updated_at",
+        sort_order: sortBy === "oldest" ? "asc" : "desc",
+      }),
   });
 
-  const ticketsData = tickets?.data.data || []
-  const pagination = tickets?.data.pagination
-  const totalPages = pagination ? Math.ceil(pagination.total / pagination.perPage) : 0
+  const ticketsData = tickets?.data.data || [];
+  const pagination = tickets?.data.pagination;
+  const totalPages = pagination
+    ? Math.ceil(pagination.total / pagination.perPage)
+    : 0;
 
   const handleRefresh = () => {
-    refetch()
-  }
+    refetch();
+  };
 
   const handleSearchChange = (value: string) => {
-    setSearchTerm(value)
-    setCurrentPage(1)
-  }
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
 
   const handleStatusChange = (value: Status | "all") => {
-    setSelectedStatus(value)
-    setCurrentPage(1)
-  }
+    setSelectedStatus(value);
+    setCurrentPage(1);
+  };
 
   const handleSortChange = (value: "newest" | "oldest" | "updated") => {
-    setSortBy(value)
-    setCurrentPage(1)
-  }
+    setSortBy(value);
+    setCurrentPage(1);
+  };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-  }
+    setCurrentPage(page);
+  };
 
   const handleItemsPerPageChange = (value: number) => {
-    setItemsPerPage(value)
-    setCurrentPage(1)
-  }
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="h-full flex flex-col p-6">
       {/* Header Section */}
       <div className="flex items-center justify-between mb-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Conversations</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Conversations
+          </h1>
           <p className="text-sm text-muted-foreground">
             Manage and track all your conversations in one place
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleRefresh}
           disabled={isLoading}
         >
@@ -106,9 +165,9 @@ export default function Conversation() {
         <div className="flex-1">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search conversations..." 
-              className="pl-10" 
+            <Input
+              placeholder="Search conversations..."
+              className="pl-10"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
@@ -147,14 +206,18 @@ export default function Conversation() {
             <div>
               <h2 className="text-lg font-semibold">All Conversations</h2>
               <p className="text-sm text-muted-foreground">
-                {isLoading ? "Loading..." : `${pagination?.total || 0} conversations found`}
+                {isLoading
+                  ? "Loading..."
+                  : `${pagination?.total || 0} conversations found`}
               </p>
             </div>
             <div className="flex items-center space-x-2">
               <p className="text-sm text-muted-foreground">Rows per page</p>
               <Select
                 value={itemsPerPage.toString()}
-                onValueChange={(value) => handleItemsPerPageChange(Number(value))}
+                onValueChange={(value) =>
+                  handleItemsPerPageChange(Number(value))
+                }
               >
                 <SelectTrigger className="h-8 w-[70px]">
                   <SelectValue placeholder={itemsPerPage} />
@@ -242,8 +305,14 @@ export default function Conversation() {
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8">
                         <div className="space-y-2">
-                          <p className="text-muted-foreground">Failed to load conversations</p>
-                          <Button variant="outline" size="sm" onClick={handleRefresh}>
+                          <p className="text-muted-foreground">
+                            Failed to load conversations
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                          >
                             Try Again
                           </Button>
                         </div>
@@ -254,7 +323,9 @@ export default function Conversation() {
                       <TableCell colSpan={6} className="text-center py-8">
                         <div className="space-y-2">
                           <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
-                          <p className="text-muted-foreground">No conversations found</p>
+                          <p className="text-muted-foreground">
+                            No conversations found
+                          </p>
                           {searchTerm && (
                             <p className="text-sm text-muted-foreground">
                               Try adjusting your search criteria
@@ -265,7 +336,10 @@ export default function Conversation() {
                     </TableRow>
                   ) : (
                     ticketsData.map((ticket) => (
-                      <TableRow key={ticket.id} className="hover:bg-muted/50 transition-colors">
+                      <TableRow
+                        key={ticket.id}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
                         <TableCell>
                           <div className="flex items-center space-x-3">
                             <div className="flex-shrink-0">
@@ -277,12 +351,14 @@ export default function Conversation() {
                               <div className="font-medium text-foreground hover:text-primary transition-colors">
                                 {ticket.title}
                               </div>
-                              <div className="text-sm text-muted-foreground">#{ticket.id}</div>
+                              <div className="text-sm text-muted-foreground">
+                                #{ticket.id}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <TicketStatusDisplay status={ticket.status}/>
+                          <TicketStatusDisplay status={ticket.status} />
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
@@ -307,25 +383,39 @@ export default function Conversation() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
-                            <Link to={`/communication/conversation/${ticket.id}`}>
-                              <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <Link
+                              to={`/communication/conversation/${ticket.id}`}
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </Link>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link to={`/communication/conversation/${ticket.id}`}>
+                                  <Link
+                                    to={`/communication/conversation/${ticket.id}`}
+                                  >
                                     View Details
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -337,25 +427,33 @@ export default function Conversation() {
               </Table>
             </ScrollArea>
           </div>
-          
+
           {/* Pagination */}
           {!isLoading && !isError && ticketsData.length > 0 && (
             <div className="flex items-center justify-between p-4 border-t flex-shrink-0">
               <div className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, pagination?.total || 0)} of {pagination?.total || 0} results
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                {Math.min(currentPage * itemsPerPage, pagination?.total || 0)}{" "}
+                of {pagination?.total || 0} results
               </div>
-              
+
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
                     <PaginationPrevious
-                      onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      onClick={() =>
+                        handlePageChange(Math.max(currentPage - 1, 1))
+                      }
+                      className={
+                        currentPage === 1
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
                     />
                   </PaginationItem>
 
                   {[...Array(totalPages)].map((_, i) => {
-                    const page = i + 1
+                    const page = i + 1;
                     if (
                       page === 1 ||
                       page === totalPages ||
@@ -370,7 +468,7 @@ export default function Conversation() {
                             {page}
                           </PaginationLink>
                         </PaginationItem>
-                      )
+                      );
                     } else if (
                       (page === currentPage - 2 && currentPage > 3) ||
                       (page === currentPage + 2 && currentPage < totalPages - 2)
@@ -379,15 +477,21 @@ export default function Conversation() {
                         <PaginationItem key={page}>
                           <PaginationEllipsis />
                         </PaginationItem>
-                      )
+                      );
                     }
-                    return null
+                    return null;
                   })}
 
                   <PaginationItem>
                     <PaginationNext
-                      onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      onClick={() =>
+                        handlePageChange(Math.min(currentPage + 1, totalPages))
+                      }
+                      className={
+                        currentPage === totalPages
+                          ? "pointer-events-none opacity-50"
+                          : ""
+                      }
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -397,5 +501,5 @@ export default function Conversation() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

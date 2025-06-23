@@ -1,23 +1,30 @@
-import { lazy, Suspense } from 'react';
-import { Outlet, RouteObject } from 'react-router-dom';
-import { Loader2, Ticket, MessageSquare, Users, Settings, Home } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { lazy, Suspense } from "react";
+import { Outlet, RouteObject } from "react-router-dom";
+import {
+  Loader2,
+  Ticket,
+  MessageSquare,
+  Users,
+  Settings,
+  Home,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import Layout from '@/components/shared/Layout';
-import ConversationTabsLayout from '@/components/shared/ConversationTabsLayout';
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import Layout from "@/components/shared/Layout";
+import ConversationTabsLayout from "@/components/shared/ConversationTabsLayout";
 
 // Lazy load components
-const Login = lazy(() => import('@/pages/Login'));
-const Dashboard = lazy(() => import('@/pages/Dashboard'));
-const Tickets = lazy(() => import('@/pages/Tickets'));
-const TicketDetail = lazy(() => import('@/pages/TicketDetail'));
-const Clients = lazy(() => import('@/pages/Clients'));
-const ClientDetail = lazy(() => import('@/pages/ClientDetail'));
-const UsersPage = lazy(() => import('@/pages/Users'));
-const SettingsPage = lazy(() => import('@/pages/Settings'));
-const Conversation = lazy(() => import('@/pages/Conversation'));
-const ConversationDetail = lazy(() => import('@/pages/ConversationDetail'));
+const Login = lazy(() => import("@/pages/Login"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Tickets = lazy(() => import("@/pages/Tickets"));
+const TicketDetail = lazy(() => import("@/pages/TicketDetail"));
+const Clients = lazy(() => import("@/pages/Clients"));
+const ClientDetail = lazy(() => import("@/pages/ClientDetail"));
+const UsersPage = lazy(() => import("@/pages/Users"));
+const SettingsPage = lazy(() => import("@/pages/Settings"));
+const Conversation = lazy(() => import("@/pages/Conversation"));
+const ConversationDetail = lazy(() => import("@/pages/ConversationDetail"));
 
 // Loading component
 const LoadingFallback = () => (
@@ -34,18 +41,29 @@ const LoadingFallback = () => (
         <Ticket className="w-8 h-8 text-blue-500" />
       </div>
     </div>
-    
+
     {/* Loading text with animation */}
     <div className="mt-8 text-center">
       <h2 className="text-2xl font-semibold text-gray-800 mb-2">Loading</h2>
-      <p className="text-gray-500">Please wait while we prepare your workspace</p>
+      <p className="text-gray-500">
+        Please wait while we prepare your workspace
+      </p>
     </div>
 
     {/* Loading indicators */}
     <div className="flex items-center gap-2 mt-8">
-      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div
+        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        style={{ animationDelay: "0ms" }}
+      />
+      <div
+        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        style={{ animationDelay: "150ms" }}
+      />
+      <div
+        className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+        style={{ animationDelay: "300ms" }}
+      />
     </div>
 
     {/* Feature icons */}
@@ -77,7 +95,7 @@ const LoadingFallback = () => (
 // Route configuration
 export const routes: RouteObject[] = [
   {
-    path: '/login',
+    path: "/login",
     element: (
       <Suspense fallback={<LoadingFallback />}>
         <Login />
@@ -85,7 +103,7 @@ export const routes: RouteObject[] = [
     ),
   },
   {
-    path: '/',
+    path: "/",
     element: (
       <ProtectedRoute>
         <Layout>
@@ -103,7 +121,7 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: 'tickets',
+        path: "tickets",
         children: [
           {
             index: true,
@@ -114,7 +132,7 @@ export const routes: RouteObject[] = [
             ),
           },
           {
-            path: ':id',
+            path: ":id",
             element: (
               <Suspense fallback={<LoadingFallback />}>
                 <TicketDetail />
@@ -122,9 +140,9 @@ export const routes: RouteObject[] = [
             ),
           },
         ],
-      },      
+      },
       {
-        path: 'users',
+        path: "users",
         element: (
           <Suspense fallback={<LoadingFallback />}>
             <UsersPage />
@@ -132,7 +150,7 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: 'communication',
+        path: "communication",
         element: (
           <ConversationTabsLayout>
             <Outlet />
@@ -140,7 +158,7 @@ export const routes: RouteObject[] = [
         ),
         children: [
           {
-            path: 'conversation',
+            path: "conversation",
             element: (
               <Suspense fallback={<LoadingFallback />}>
                 <Conversation />
@@ -148,7 +166,7 @@ export const routes: RouteObject[] = [
             ),
           },
           {
-            path: 'conversation/:id',
+            path: "conversation/:id",
             element: (
               <Suspense fallback={<LoadingFallback />}>
                 <ConversationDetail />
@@ -156,7 +174,7 @@ export const routes: RouteObject[] = [
             ),
           },
           {
-            path: 'clients',
+            path: "clients",
             element: (
               <Suspense fallback={<LoadingFallback />}>
                 <Clients />
@@ -164,7 +182,7 @@ export const routes: RouteObject[] = [
             ),
           },
           {
-            path: 'clients/:id',
+            path: "clients/:id",
             element: (
               <Suspense fallback={<LoadingFallback />}>
                 <ClientDetail />
@@ -174,7 +192,7 @@ export const routes: RouteObject[] = [
         ],
       },
       {
-        path: 'settings',
+        path: "settings",
         element: (
           <ProtectedRoute requiredRole="admin">
             <Suspense fallback={<LoadingFallback />}>
@@ -185,4 +203,4 @@ export const routes: RouteObject[] = [
       },
     ],
   },
-]; 
+];

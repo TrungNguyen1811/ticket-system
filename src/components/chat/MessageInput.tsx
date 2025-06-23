@@ -8,7 +8,10 @@ interface MessageInputProps {
   placeholder?: string;
 }
 
-export function MessageInput({ onSend, placeholder = "Write a message..." }: MessageInputProps) {
+export function MessageInput({
+  onSend,
+  placeholder = "Write a message...",
+}: MessageInputProps) {
   const [message, setMessage] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,4 +39,4 @@ export function MessageInput({ onSend, placeholder = "Write a message..." }: Mes
       </Button>
     </form>
   );
-} 
+}

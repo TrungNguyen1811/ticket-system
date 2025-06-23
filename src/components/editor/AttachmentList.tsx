@@ -1,7 +1,15 @@
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, ImageIcon, FileText, Download, Trash, Paperclip } from "lucide-react";
+import {
+  Search,
+  Loader2,
+  ImageIcon,
+  FileText,
+  Download,
+  Trash,
+  Paperclip,
+} from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import React from "react";
 
@@ -31,8 +39,8 @@ export function AttachmentList({
 }: AttachmentListProps) {
   const [search, setSearch] = React.useState("");
 
-  const filtered = attachments.filter(a =>
-    a.file_name.toLowerCase().includes(search.toLowerCase())
+  const filtered = attachments.filter((a) =>
+    a.file_name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -46,7 +54,7 @@ export function AttachmentList({
           <Input
             placeholder="Search attachments..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
           />
         </div>
@@ -61,7 +69,7 @@ export function AttachmentList({
             </div>
           ) : filtered.length > 0 ? (
             <div className="grid gap-2">
-              {filtered.map(attachment => (
+              {filtered.map((attachment) => (
                 <div
                   key={attachment.id}
                   className="flex items-center justify-between p-3 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
@@ -84,10 +92,13 @@ export function AttachmentList({
                         
                       </a> */}
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium text-gray-900">{attachment.file_name}</p>
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {attachment.file_name}
+                        </p>
                       </div>
                       <p className="truncate text-xs text-gray-500">
-                        {attachment.file_size} • {formatDate(attachment.created_at)}
+                        {attachment.file_size} •{" "}
+                        {formatDate(attachment.created_at)}
                       </p>
                     </div>
                   </div>
@@ -97,7 +108,7 @@ export function AttachmentList({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={e => {
+                        onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           onDownload(attachment.id);

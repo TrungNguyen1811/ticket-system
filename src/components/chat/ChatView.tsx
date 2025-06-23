@@ -13,14 +13,17 @@ export function ChatView({ messages, onSendMessage }: ChatViewProps) {
   const [activeTab, setActiveTab] = useState<"public" | "internal">("public");
 
   const filteredMessages = messages.filter(
-    (message) => message.internal === (activeTab === "internal")
+    (message) => message.internal === (activeTab === "internal"),
   );
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Chat header */}
       <div className="flex-none p-4 border-b border-gray-200 bg-white">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "public" | "internal")}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as "public" | "internal")}
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="public">Public Messages</TabsTrigger>
             <TabsTrigger value="internal">Internal Notes</TabsTrigger>
@@ -35,11 +38,15 @@ export function ChatView({ messages, onSendMessage }: ChatViewProps) {
 
       {/* Message input */}
       <div className="flex-none p-4 border-t border-gray-200 bg-white">
-        <MessageInput 
+        <MessageInput
           onSend={(message) => onSendMessage(message, activeTab === "internal")}
-          placeholder={activeTab === "internal" ? "Write an internal note..." : "Write a message..."}
+          placeholder={
+            activeTab === "internal"
+              ? "Write an internal note..."
+              : "Write a message..."
+          }
         />
       </div>
     </div>
   );
-} 
+}

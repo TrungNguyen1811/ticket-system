@@ -1,177 +1,208 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useRef, useCallback, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/components/ui/use-toast"
-import { Paperclip, X, FileText, ImageIcon, File, Loader2 } from "lucide-react"
-import { LexicalComposer } from "@lexical/react/LexicalComposer"
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin"
-import { ContentEditable } from "@lexical/react/LexicalContentEditable"
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin"
-import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin"
-import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin"
-import { ListPlugin } from "@lexical/react/LexicalListPlugin"
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin"
-import { TRANSFORMERS } from "@lexical/markdown"
-import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary"
-import ToolbarPlugin from "@/components/editor/ToolbarPlugin"
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
+import { useState, useRef, useCallback, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { Paperclip, X, FileText, ImageIcon, File, Loader2 } from "lucide-react";
+import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { ContentEditable } from "@lexical/react/LexicalContentEditable";
+import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
+import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
+import { TRANSFORMERS } from "@lexical/markdown";
+import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
+import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 
-import { $getRoot, EditorState } from "lexical"
-import { HeadingNode, QuoteNode } from "@lexical/rich-text"
-import { ListItemNode, ListNode } from "@lexical/list"
-import { LinkNode } from "@lexical/link"
-import { CodeNode, CodeHighlightNode } from "@lexical/code"
-import { $generateHtmlFromNodes } from "@lexical/html"
+import { $getRoot, EditorState } from "lexical";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { LinkNode } from "@lexical/link";
+import { CodeNode, CodeHighlightNode } from "@lexical/code";
+import { $generateHtmlFromNodes } from "@lexical/html";
 
 interface AddCommentDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSubmit: (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => void
-  ticketId?: string
-  isComplete?: boolean
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: {
+    editorContent: { raw: string; html: string };
+    attachments?: File[];
+  }) => void;
+  ticketId?: string;
+  isComplete?: boolean;
 }
 
-  // Editor configuration
-  export const initialConfig = {
-    namespace: "ticket-comment-editor",
-    theme: {
-      root: "p-4 border border-input rounded-md min-h-[150px] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-      link: "cursor-pointer text-blue-500 underline",
-      text: {
-        bold: "font-bold",
-        italic: "italic",
-        underline: "underline",
-        strikethrough: "line-through",
-        underlineStrikethrough: "underline line-through",
-      },
-      heading: {
-        h1: 'text-2xl font-bold',
-        h2: 'text-xl font-bold',
-      },
-      paragraph: 'text-base text-muted-foreground',
+// Editor configuration
+export const initialConfig = {
+  namespace: "ticket-comment-editor",
+  theme: {
+    root: "p-4 border border-input rounded-md min-h-[150px] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+    link: "cursor-pointer text-blue-500 underline",
+    text: {
+      bold: "font-bold",
+      italic: "italic",
+      underline: "underline",
+      strikethrough: "line-through",
+      underlineStrikethrough: "underline line-through",
     },
-    onError: (error: Error) => {
-      console.error("Editor error:", error)
+    heading: {
+      h1: "text-2xl font-bold",
+      h2: "text-xl font-bold",
     },
-    nodes: [HeadingNode, QuoteNode, ListItemNode, ListNode, LinkNode, CodeNode, CodeHighlightNode],
-  }
+    paragraph: "text-base text-muted-foreground",
+  },
+  onError: (error: Error) => {
+    console.error("Editor error:", error);
+  },
+  nodes: [
+    HeadingNode,
+    QuoteNode,
+    ListItemNode,
+    ListNode,
+    LinkNode,
+    CodeNode,
+    CodeHighlightNode,
+  ],
+};
 
-export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isComplete }: AddCommentDialogProps) {
-  const [attachments, setAttachments] = useState<File[]>([])
-  const [loading, setLoading] = useState(false)
-  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
+export function AddCommentDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  ticketId,
+  isComplete,
+}: AddCommentDialogProps) {
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editorContent, setEditorContent] = useState<{
+    raw: string;
+    html: string;
+  }>({
     raw: "",
     html: "",
-  })
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const dropZoneRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files)
-      setAttachments((prev) => [...prev, ...newFiles])
+      const newFiles = Array.from(e.target.files);
+      setAttachments((prev) => [...prev, ...newFiles]);
     }
-  }
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (dropZoneRef.current) {
-      dropZoneRef.current.classList.add("bg-blue-50", "border-blue-300")
+      dropZoneRef.current.classList.add("bg-blue-50", "border-blue-300");
     }
-  }, [])
+  }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (dropZoneRef.current) {
-      dropZoneRef.current.classList.remove("bg-blue-50", "border-blue-300")
+      dropZoneRef.current.classList.remove("bg-blue-50", "border-blue-300");
     }
-  }, [])
+  }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault()
-      e.stopPropagation()
+      e.preventDefault();
+      e.stopPropagation();
 
       if (dropZoneRef.current) {
-        dropZoneRef.current.classList.remove("bg-blue-50", "border-blue-300")
+        dropZoneRef.current.classList.remove("bg-blue-50", "border-blue-300");
       }
 
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const newFiles = Array.from(e.dataTransfer.files)
-        setAttachments((prev) => [...prev, ...newFiles])
+        const newFiles = Array.from(e.dataTransfer.files);
+        setAttachments((prev) => [...prev, ...newFiles]);
 
         toast({
           title: "Files added",
           description: `${newFiles.length} file(s) added successfully.`,
-        })
+        });
       }
     },
     [toast],
-  )
+  );
 
   const removeAttachment = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index))
-  }
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!editorContent.html.trim()) {
       toast({
         title: "Validation Error",
         description: "Please enter a comment.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       // onSubmit({ editorContent, attachments })
-      onSubmit({ editorContent: { raw: editorContent.raw, html: editorContent.html }, attachments })
-      onOpenChange(false)
-      setLoading(false)
-      setEditorContent({ raw: "", html: "" })
-      setAttachments([])
+      onSubmit({
+        editorContent: { raw: editorContent.raw, html: editorContent.html },
+        attachments,
+      });
+      onOpenChange(false);
+      setLoading(false);
+      setEditorContent({ raw: "", html: "" });
+      setAttachments([]);
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to add comment. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const getFileIcon = (file: File) => {
-    const fileType = file.type.split("/")[0]
+    const fileType = file.type.split("/")[0];
     switch (fileType) {
       case "image":
-        return <ImageIcon className="h-5 w-5 text-blue-500" />
+        return <ImageIcon className="h-5 w-5 text-blue-500" />;
       case "text":
-        return <FileText className="h-5 w-5 text-green-500" />
+        return <FileText className="h-5 w-5 text-green-500" />;
       default:
-        return <File className="h-5 w-5 text-gray-500" />
+        return <File className="h-5 w-5 text-gray-500" />;
     }
-  }
+  };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-  }
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (
+      Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -179,7 +210,10 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isCom
         <DialogHeader>
           <DialogTitle>Add Comment</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-auto ">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 flex-1 overflow-auto "
+        >
           <div className="space-y-2 m-4">
             <Label htmlFor="content">Comment *</Label>
             <LexicalComposer initialConfig={initialConfig}>
@@ -187,8 +221,14 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isCom
                 <ToolbarPlugin />
                 <div className="relative mt-2">
                   <RichTextPlugin
-                    contentEditable={<ContentEditable className="outline-none focus:ring-0 focus:ring-offset-0" />}
-                    placeholder={<div className="absolute top-4 left-4 text-gray-400">Enter your comment here...</div>}
+                    contentEditable={
+                      <ContentEditable className="outline-none focus:ring-0 focus:ring-offset-0" />
+                    }
+                    placeholder={
+                      <div className="absolute top-4 left-4 text-gray-400">
+                        Enter your comment here...
+                      </div>
+                    }
                     ErrorBoundary={LexicalErrorBoundary}
                   />
                 </div>
@@ -231,7 +271,9 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isCom
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  <p className="mt-2 text-sm text-gray-500">or drag and drop files here</p>
+                  <p className="mt-2 text-sm text-gray-500">
+                    or drag and drop files here
+                  </p>
                 </div>
               </div>
             </div>
@@ -259,8 +301,12 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isCom
                       <div className="flex items-center space-x-3 overflow-hidden">
                         {getFileIcon(file)}
                         <div className="overflow-hidden">
-                          <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                          <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatFileSize(file.size)}
+                          </p>
                         </div>
                       </div>
                       <Button
@@ -280,10 +326,18 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isCom
           </div>
 
           <DialogFooter className="pt-4 mx-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !editorContent.html.trim() || isComplete}>
+            <Button
+              type="submit"
+              disabled={loading || !editorContent.html.trim() || isComplete}
+            >
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -297,29 +351,30 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isCom
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 // Custom plugin to get editor content as plain text
 export function OnChangePlugin({
   onChange,
 }: {
-  onChange: (data: { raw: string; html: string; text: string }) => void
+  onChange: (data: { raw: string; html: string; text: string }) => void;
 }) {
-  const [editor] = useLexicalComposerContext()
+  const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState }: { editorState: EditorState }) => {
-      editorState.read(() => {
-        const raw = JSON.stringify(editorState.toJSON())
-        const html = $generateHtmlFromNodes(editor, null)
-        const root = $getRoot()
-        const text = root.getTextContent()
-        onChange({ raw, html, text })
-      })
-    })
-  }, [editor, onChange])
+    return editor.registerUpdateListener(
+      ({ editorState }: { editorState: EditorState }) => {
+        editorState.read(() => {
+          const raw = JSON.stringify(editorState.toJSON());
+          const html = $generateHtmlFromNodes(editor, null);
+          const root = $getRoot();
+          const text = root.getTextContent();
+          onChange({ raw, html, text });
+        });
+      },
+    );
+  }, [editor, onChange]);
 
-  return null
+  return null;
 }
-

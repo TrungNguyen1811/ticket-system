@@ -18,34 +18,39 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
   const queryKey = ["ticket-logs", ticketId];
   const deletedLogIds = useRef<Set<string>>(new Set());
 
-  const { data: logs, isLoading, isError } = useQuery({
+  const {
+    data: logs,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey,
     queryFn: () => logService.getTicketLogs(ticketId),
   });
 
-  const handleLogUpdate = useCallback((data: TicketAuditLog) => {
-    // Update UI for new logs
-    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
-      queryKey,
-      (oldData) => {
-        if (!oldData?.data?.data) return oldData;
-        
-        // Check if log already exists
-        const logExists = oldData.data.data.some(log => log.id === data.id);
-        if (logExists) {
-          // Update existing log
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              data: oldData.data.data.map(log => 
-                log.id === data.id ? { ...log, ...data } : log
-              )
-            }
-          };
-        }
+  const handleLogUpdate = useCallback(
+    (data: TicketAuditLog) => {
+      // Update UI for new logs
+      queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+        queryKey,
+        (oldData) => {
+          if (!oldData?.data?.data) return oldData;
 
-        const updatedOldLogs = [...oldData.data.data];
+          // Check if log already exists
+          const logExists = oldData.data.data.some((log) => log.id === data.id);
+          if (logExists) {
+            // Update existing log
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                data: oldData.data.data.map((log) =>
+                  log.id === data.id ? { ...log, ...data } : log,
+                ),
+              },
+            };
+          }
+
+          const updatedOldLogs = [...oldData.data.data];
           if (updatedOldLogs.length > 0) {
             updatedOldLogs[0] = {
               ...updatedOldLogs[0],
@@ -54,95 +59,106 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
             };
           }
 
-        // Add new log at the beginning
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            data: [data, ...updatedOldLogs]
+          // Add new log at the beginning
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: [data, ...updatedOldLogs],
+            },
+          };
+        },
+      );
+    },
+    [queryClient, queryKey],
+  );
+
+  const handleLogDelete = useCallback(
+    (logId: string) => {
+      // Skip if already deleted
+      if (deletedLogIds.current.has(logId)) {
+        return;
+      }
+
+      // Store the previous data for rollback
+      const previousData =
+        queryClient.getQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+          queryKey,
+        );
+
+      // Optimistically update the cache
+      queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+        queryKey,
+        (oldData) => {
+          if (!oldData?.data?.data) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: oldData.data.data.filter((log) => log.id !== logId),
+            },
+          };
+        },
+      );
+
+      // Add to deleted set
+      deletedLogIds.current.add(logId);
+
+      // Perform the mutation with rollback on error
+      mutations.deleteLog.mutate(logId, {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "Log deleted successfully",
+          });
+        },
+        onError: (error: Error) => {
+          // Remove from deleted set
+          deletedLogIds.current.delete(logId);
+
+          // Rollback on error
+          if (previousData) {
+            queryClient.setQueryData(queryKey, previousData);
           }
-        };
-      }
-    );
-  }, [queryClient, queryKey]);
 
-  const handleLogDelete = useCallback((logId: string) => {
-    // Skip if already deleted
-    if (deletedLogIds.current.has(logId)) {
-      return;
-    }
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        },
+      });
 
-    // Store the previous data for rollback
-    const previousData = queryClient.getQueryData<Response<DataResponse<TicketAuditLog[]>>>(queryKey);
-
-    // Optimistically update the cache
-    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
-      queryKey,
-      (oldData) => {
-        if (!oldData?.data?.data) return oldData;
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            data: oldData.data.data.filter((log) => log.id !== logId)
-          }
-        };
-      }
-    );
-
-    // Add to deleted set
-    deletedLogIds.current.add(logId);
-
-    // Perform the mutation with rollback on error
-    mutations.deleteLog.mutate(logId, {
-      onSuccess: () => {
-        toast({
-          title: "Success",
-          description: "Log deleted successfully",
-        });
-      },
-      onError: (error: Error) => {
-        // Remove from deleted set
-        deletedLogIds.current.delete(logId);
-
-        // Rollback on error
-        if (previousData) {
-          queryClient.setQueryData(queryKey, previousData);
-        }
-
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    });
-
-    return { previousData };
-  }, [queryClient, queryKey, mutations, toast]);
+      return { previousData };
+    },
+    [queryClient, queryKey, mutations, toast],
+  );
 
   // Handle websocket updates
-  const handleWebsocketDelete = useCallback((logId: string) => {
-    // Skip if we initiated this delete
-    if (deletedLogIds.current.has(logId)) {
-      return;
-    }
-
-    // Update UI for external deletes
-    queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
-      queryKey,
-      (oldData) => {
-        if (!oldData?.data?.data) return oldData;
-        return {
-          ...oldData,
-          data: {
-            ...oldData.data,
-            data: oldData.data.data.filter((log) => log.id !== logId)
-          }
-        };
+  const handleWebsocketDelete = useCallback(
+    (logId: string) => {
+      // Skip if we initiated this delete
+      if (deletedLogIds.current.has(logId)) {
+        return;
       }
-    );
-  }, [queryClient, queryKey]);
+
+      // Update UI for external deletes
+      queryClient.setQueryData<Response<DataResponse<TicketAuditLog[]>>>(
+        queryKey,
+        (oldData) => {
+          if (!oldData?.data?.data) return oldData;
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: oldData.data.data.filter((log) => log.id !== logId),
+            },
+          };
+        },
+      );
+    },
+    [queryClient, queryKey],
+  );
 
   // Subscribe to realtime updates
   useLogRealtime(ticketId, handleLogUpdate, handleWebsocketDelete);
@@ -154,4 +170,4 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
     handleLogUpdate,
     handleLogDelete,
   };
-}; 
+};
