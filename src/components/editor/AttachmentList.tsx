@@ -19,10 +19,7 @@ interface AttachmentListProps {
   isLoading?: boolean;
   isError?: boolean;
   onDownload?: (id: string) => void;
-  onDelete?: (id: string) => void;
   downloadingFiles?: Set<string>;
-  deletingFiles?: Set<string>;
-  isTicketComplete?: boolean;
 }
 
 export function AttachmentList({
@@ -30,10 +27,7 @@ export function AttachmentList({
   isLoading,
   isError,
   onDownload,
-  onDelete,
   downloadingFiles = new Set(),
-  deletingFiles = new Set(),
-  isTicketComplete,
 }: AttachmentListProps) {
   const [search, setSearch] = React.useState("");
 
@@ -115,26 +109,6 @@ export function AttachmentList({
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Download className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
-                    {onDelete && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={e => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onDelete(attachment.id);
-                        }}
-                        disabled={deletingFiles.has(attachment.id) || isTicketComplete}
-                        className="h-8 w-8 p-0 hover:text-red-500"
-                      >
-                        {deletingFiles.has(attachment.id) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash className="h-4 w-4" />
                         )}
                       </Button>
                     )}
