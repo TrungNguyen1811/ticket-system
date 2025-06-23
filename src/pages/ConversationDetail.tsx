@@ -1079,7 +1079,8 @@ export default function ConversationDetail() {
                       type="submit" 
                       size="sm" 
                       className="h-8 text-xs gap-1.5 w-full sm:w-auto" 
-                      disabled={isSubmitting || (!editorContent.raw.trim() && selectedFiles.length === 0)}
+                      disabled={isSubmitting || (!editorContent.raw.trim() && selectedFiles.length === 0) || ticketData?.status === "complete" || ticketData?.status === "archived"}
+
                     >
                       {isSubmitting ? (
                         <>
@@ -1195,7 +1196,7 @@ export default function ConversationDetail() {
                                         e.stopPropagation();
                                         deleteAttachment.mutate(attachment.id);
                                       }}
-                                      disabled={deletingFiles.has(attachment.id)}
+                                      disabled={deletingFiles.has(attachment.id) || ticketData?.status === "complete" || ticketData?.status === "archived"}
                                       className="h-6 w-6 p-0 hover:text-red-500"
                                     >
                                       {deletingFiles.has(attachment.id) ? (

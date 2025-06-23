@@ -29,16 +29,16 @@ export default function Clients() {
 
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
           <p className="text-gray-600 text-sm">Manage your client organizations</p>
         </div>
-        <Button>
+        {/* <Button>
           <Plus className="h-4 w-4 mr-2" />
           Add Client
-        </Button>
+        </Button> */}
       </div>
 
       <Card>

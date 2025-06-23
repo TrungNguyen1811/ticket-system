@@ -62,17 +62,17 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
     mutationFn: (attachmentId: string) => AttachmentService.downloadAttachment(attachmentId),
     onMutate: () => {
       toast({
-        title: "Downloading...",
-        description: "Please wait while we prepare your download",
+        title: "Opening...",
+        description: "Please wait while we prepare your file",
       });
     },
     onSuccess: (data) => {
       const url = window.URL.createObjectURL(data);
       window.open(url, '_blank');
-      toast({
-        title: "Success",
-        description: "Attachment downloaded successfully",
-      });
+      // toast({
+      //   title: "Success",
+      //   description: "Attachment downloaded successfully",
+      // });
     },
     onError: () => {
       toast({
@@ -149,16 +149,7 @@ export const CommentList: React.FC<CommentListProps> = ({ ticketId, pagination }
 
     // Update attachments if the comment has them
     if (data.attachments?.length) {
-      queryClient.setQueryData<Response<Attachment[]>>(
-        ["ticket-attachments", ticketId],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
-          return {
-            ...oldData,
-            data: [...(data.attachments || []), ...(oldData.data || [])]
-          };
-        }
-      );
+      queryClient.invalidateQueries({ queryKey: ["ticket-attachments", ticketId] });
     }
 
     // Reset visible menu for new comments

@@ -77,21 +77,21 @@ export default function ClientDetail() {
             <TableBody>
               {tickets?.data?.data?.map((ticket) => (
                 <TableRow key={ticket.id}>
-                  <Link to={`/tickets/${ticket.id}`}>
                     <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <Building2 className="h-4 w-4 text-indigo-600" />
+                      <Link to={`/tickets/${ticket.id}`}>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <Building2 className="h-4 w-4 text-indigo-600" />
+                            </div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 truncate max-w-[200px]">{ticket.title}</div>
+                            <div className="text-gray-600 text-sm">{ticket.id}</div>
                           </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900 truncate max-w-[200px]">{ticket.title}</div>
-                          <div className="text-gray-600 text-sm">{ticket.id}</div>
-                        </div>
-                      </div>
+                      </Link>
                     </TableCell>
-                  </Link>
                   <TableCell>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {ticket.status}

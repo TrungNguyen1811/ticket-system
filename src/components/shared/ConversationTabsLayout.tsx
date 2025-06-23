@@ -175,7 +175,7 @@ console.log("tabs before addTab:", tabs);
       )}
 
       <Separator />
-      <div className="flex-1 overflow-hidden">{children}</div>
+      <div className="flex-1">{children}</div>
     </div>
   );
 }

@@ -118,13 +118,13 @@ export function DashboardCharts() {
     }, 1000)
   }
 
-  const handleExport = (format: "csv" | "json") => {
-    // TODO: Implement export functionality
-    toast({
-      title: "Export not implemented",
-      description: `Export as ${format.toUpperCase()} is not implemented yet.`,
-    })
-  }
+  // const handleExport = (format: "csv" | "json") => {
+  //   // TODO: Implement export functionality
+  //   toast({
+  //     title: "Export not implemented",
+  //     description: `Export as ${format.toUpperCase()} is not implemented yet.`,
+  //   })
+  // }
 
   // Transform staff performance data for the chart
   const staffPerformanceData = adminStats?.data.staff_performance?.map((staff: StaffPerformance[0]) => ({
@@ -170,7 +170,7 @@ export function DashboardCharts() {
               </>
             )}
           </Button>
-          <DropdownMenu>
+          {/* <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
@@ -185,7 +185,7 @@ export function DashboardCharts() {
                 Export as JSON
               </DropdownMenuItem>
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> */}
           <Button
             variant="outline"
             size="sm"

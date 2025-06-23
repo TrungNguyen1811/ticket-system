@@ -22,6 +22,7 @@ interface AttachmentListProps {
   onDelete?: (id: string) => void;
   downloadingFiles?: Set<string>;
   deletingFiles?: Set<string>;
+  isTicketComplete?: boolean;
 }
 
 export function AttachmentList({
@@ -32,6 +33,7 @@ export function AttachmentList({
   onDelete,
   downloadingFiles = new Set(),
   deletingFiles = new Set(),
+  isTicketComplete,
 }: AttachmentListProps) {
   const [search, setSearch] = React.useState("");
 
@@ -79,14 +81,17 @@ export function AttachmentList({
                       )}
                     </div>
                     <div className="min-w-0 flex-1 overflow-hidden">
-                      <a
+                      {/* <a
                         href={attachment.file_path}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block truncate text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
                       >
-                        {attachment.file_name}
-                      </a>
+                        
+                      </a> */}
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium text-gray-900">{attachment.file_name}</p>
+                      </div>
                       <p className="truncate text-xs text-gray-500">
                         {attachment.file_size} • {formatDate(attachment.created_at)}
                       </p>
@@ -123,7 +128,7 @@ export function AttachmentList({
                           e.stopPropagation();
                           onDelete(attachment.id);
                         }}
-                        disabled={deletingFiles.has(attachment.id)}
+                        disabled={deletingFiles.has(attachment.id) || isTicketComplete}
                         className="h-8 w-8 p-0 hover:text-red-500"
                       >
                         {deletingFiles.has(attachment.id) ? (

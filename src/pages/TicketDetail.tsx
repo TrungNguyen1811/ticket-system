@@ -467,12 +467,14 @@ export default function TicketDetail() {
                           autoFocus
                           onBlur={handleTitleBlur}
                           onKeyDown={handleTitleKeyDown}
-                          disabled={savingTitle}
                         />
                       ) : (
                         <h1
                           className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
-                          onClick={() => setIsEditingTitle(true)}
+                          onClick={() => {
+                            if (ticketData.status === "complete" || ticketData.status === "archived") return
+                            setIsEditingTitle(true)
+                          }}
                           title="Click to edit title"
                         >
                           {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticketData.title}
@@ -512,6 +514,7 @@ export default function TicketDetail() {
                         autoFocus
                         maxLength={2000}
                         style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
+                        disabled={ticketData.status === "complete" || ticketData.status === "archived"}
                       />
                       <div className="flex gap-2 mt-2">
                         <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
@@ -529,7 +532,10 @@ export default function TicketDetail() {
                           "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
                           !showFullDescription && isDescriptionClamped(editedDescription) && "line-clamp-4"
                         )}
-                        onClick={() => setIsEditingDescription(true)}
+                        onClick={() => {
+                          if (ticketData.status === "complete" || ticketData.status === "archived") return
+                          setIsEditingDescription(true)
+                        }}
                         title="Click to edit description"
                         style={{ minHeight: 48, wordBreak: 'break-word', overflowWrap: 'break-word' }}
                       >
@@ -614,6 +620,7 @@ export default function TicketDetail() {
               onDelete={deleteAttachment.mutate}
               downloadingFiles={downloadingFiles}
               deletingFiles={deletingFiles}
+              isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
             />
           </div>
         </div>
@@ -648,7 +655,7 @@ export default function TicketDetail() {
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" onClick={() => setDialogOpen("comment")}>
+                    <Button variant="outline" onClick={() => setDialogOpen("comment")} disabled={ticketData.status === "complete" || ticketData.status === "archived"}>
                       <MessageSquare className="h-4 w-4 mr-2" />
                       Add Comment
                     </Button>
@@ -685,6 +692,7 @@ export default function TicketDetail() {
                     currentStatus={ticketData?.status || ""}
                     onStatusChange={handleOptimisticStatusChange}
                     onStaffChange={handleOptimisticStaffChange}
+                    isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
                   />
                 )}
               </div>
@@ -699,6 +707,7 @@ export default function TicketDetail() {
         onOpenChange={(open) => !open && setDialogOpen(null)}
         onSubmit={handleAddComment}
         ticketId={id}
+        isComplete={ticketData.status === "complete" || ticketData.status === "archived"}
       />
 
       <UploadAttachmentDialog

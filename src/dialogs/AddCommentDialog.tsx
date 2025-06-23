@@ -33,6 +33,7 @@ interface AddCommentDialogProps {
   onOpenChange: (open: boolean) => void
   onSubmit: (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => void
   ticketId?: string
+  isComplete?: boolean
 }
 
   // Editor configuration
@@ -60,7 +61,7 @@ interface AddCommentDialogProps {
     nodes: [HeadingNode, QuoteNode, ListItemNode, ListNode, LinkNode, CodeNode, CodeHighlightNode],
   }
 
-export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: AddCommentDialogProps) {
+export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isComplete }: AddCommentDialogProps) {
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
@@ -282,7 +283,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !editorContent.html.trim()}>
+            <Button type="submit" disabled={loading || !editorContent.html.trim() || isComplete}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

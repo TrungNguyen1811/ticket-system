@@ -34,7 +34,8 @@ interface AuditLogTableProps {
   currentStatus: string;
   onStatusChange?: (status: string) => void;
   onStaffChange?: (staffId: string) => void;
-}
+  isTicketComplete?: boolean;
+  }
 
 export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   ticketId,
@@ -42,6 +43,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   currentStatus,
   onStatusChange,
   onStaffChange,
+  isTicketComplete,
 }) => {
   const {
     logs,
@@ -267,6 +269,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                             }}
                             className="h-8 w-8 hover:bg-primary/10"
                             title="Change Status"
+                            disabled={isTicketComplete}
                           >
                             <Tag className="h-4 w-4" />
                           </Button>
@@ -279,6 +282,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                             }}
                             className="h-8 w-8 hover:bg-primary/10"
                             title="Reassign Staff"
+                            disabled={isTicketComplete}
                           >
                             <UserPlus className="h-4 w-4" />
                           </Button>
@@ -291,8 +295,9 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                           setDeletingLog(true);
                           setLogId(log.id);
                         }}
-                        className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                        className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Delete Log"
+                        disabled={isTicketComplete}
                       >
                         <Trash className="h-4 w-4" />
                       </Button>

@@ -77,16 +77,7 @@ export const useTicketComments = ({ ticketId }: UseTicketCommentsProps) => {
 
       // Update attachments if the comment has them
       if (data.attachments && data.attachments.length > 0) {
-        queryClient.setQueryData<Response<Attachment[]>>(
-          ["ticket-attachments", ticketId],
-          (oldData) => {
-            if (!oldData?.data) return oldData;
-            return {
-              ...oldData,
-              data: [...oldData.data, ...(data.attachments || [])]
-            };
-          }
-        );
+        queryClient.invalidateQueries({ queryKey: ["ticket-attachments", ticketId] });
       }
     }
   }, [queryClient, ticketId, page, perPage]);
