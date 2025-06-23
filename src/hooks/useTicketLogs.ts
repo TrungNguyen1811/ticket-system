@@ -32,19 +32,34 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
         
         // Check if log already exists
         const logExists = oldData.data.data.some(log => log.id === data.id);
-        if (logExists) return oldData;
-
-        if(oldData.data.data.length > 0){
-          oldData.data.data[0].end_at = data.start_at;
-          oldData.data.data[0].to_status = data.status;
+        if (logExists) {
+          // Update existing log
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              data: oldData.data.data.map(log => 
+                log.id === data.id ? { ...log, ...data } : log
+              )
+            }
+          };
         }
+
+        const updatedOldLogs = [...oldData.data.data];
+          if (updatedOldLogs.length > 0) {
+            updatedOldLogs[0] = {
+              ...updatedOldLogs[0],
+              end_at: data.start_at,
+              to_status: data.status,
+            };
+          }
 
         // Add new log at the beginning
         return {
           ...oldData,
           data: {
             ...oldData.data,
-            data: [data, ...oldData.data.data]
+            data: [data, ...updatedOldLogs]
           }
         };
       }

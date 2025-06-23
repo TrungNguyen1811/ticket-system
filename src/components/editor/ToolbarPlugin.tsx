@@ -21,7 +21,7 @@ import {
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link"
 import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, ListNode } from "@lexical/list"
 import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils"
-import { $isHeadingNode } from "@lexical/rich-text"
+import { $isHeadingNode, $createHeadingNode } from "@lexical/rich-text"
 import { Button } from "@/components/ui/button"
 import {
   Bold,
@@ -119,6 +119,21 @@ export default function ToolbarPlugin() {
     }
   }, [editor, isLink])
 
+  function toggleHeading(tag: "h1" | "h2") {
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;  
+      const nodes = selection.getNodes();
+      nodes.forEach((node) => {
+        const parent = node.getParent();
+        if ($isHeadingNode(parent)) {
+          parent.replace($createHeadingNode(tag));
+        }
+      });
+    });
+  }
+  
+
   return (
     <div className="border border-input rounded-t-md bg-muted/50 p-1 flex flex-wrap gap-1 items-center">
       <Button
@@ -201,25 +216,23 @@ export default function ToolbarPlugin() {
 
       <div className="w-px h-6 bg-border mx-1" />
       <Button
-  type="button"
-  variant="ghost"
-  size="sm"
-  className={cn("h-8 w-8 p-0", isH1 && "bg-muted")}
-  onClick={() => 
-    editor.dispatchCommand(SET_HEADING_LEVEL_COMMAND, 'h1' as HeadingTagType)}
-  title="Heading 1"
->
-  <Heading1 className="h-4 w-4" />
-</Button>
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn("h-8 w-8 p-0", isH1 && "bg-muted")}
+        onClick={() => toggleHeading("h1")}
+        title="Heading 1"
+      >
+        <Heading1 className="h-4 w-4" />
+      </Button>
+
 
       <Button
         type="button"
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isH2 && "bg-muted")}
-        onClick={() =>
-          editor.dispatchCommand(SET_HEADING_LEVEL_COMMAND, "h2" as HeadingTagType)
-        }
+        onClick={() => toggleHeading("h2")}
         title="Heading 2"
       >
         <Heading2 className="h-4 w-4" />

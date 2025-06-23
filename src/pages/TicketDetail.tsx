@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { formatDate, getStatusColor } from "@/lib/utils"
 import { UserAvatar } from "@/components/shared/UserAvatar"
-import { StatusBadge } from "@/components/shared/StatusBadge"
+import { getStatusIcon, StatusBadge } from "@/components/shared/StatusBadge"
 import { AddCommentDialog } from "@/dialogs/AddCommentDialog"
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog"
 import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog"
@@ -49,11 +49,10 @@ import { Command, CommandList, CommandGroup, CommandInput, CommandItem } from "@
 import { cn } from "@/lib/utils"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DataResponse, Response } from "@/types/reponse"
-import { Attachment, Ticket, TicketAuditLog } from "@/types/ticket"
+import { Attachment, Status, Ticket, TicketAuditLog } from "@/types/ticket"
 import { Comment, CommentFormData } from "@/types/comment"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { commentService } from "@/services/comment.services"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"  
 import { CommentList } from "@/components/editor/CommentList"
 import attachmentService from "@/services/attachment.service"
 import { logService } from "@/services/log.service"
@@ -62,14 +61,14 @@ import { STATUS_OPTIONS } from "@/lib/constants"
 import { User } from "@/types/user"
 import { userService } from "@/services/user.service"
 import { useTicketMutations } from "@/hooks/useTicketMutations"
-import { useTicketRealtime } from "@/hooks/useTicketRealtime"
-import { useCommentRealtime } from "@/hooks/useCommentRealtime"
 import { useTicketComments } from "@/hooks/useTicketComments"
 import { useTicketLogs } from "@/hooks/useTicketLogs"
 import { useTicket } from "@/hooks/useTicket"
-import { useTicketUpdate } from "@/hooks/useTicketUpdate"
 import { useAuth } from "@/contexts/AuthContext"
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants"
+import { AttachmentList } from "@/components/editor/AttachmentList"
+import AssigneeUser from "@/components/AssigneeUser"
+import ChangeStatus from "@/components/ChangeStatus"
 
 
 function isDescriptionClamped(text: string, maxLines = 4) {
@@ -96,7 +95,6 @@ export default function TicketDetail() {
   const [attachmentSearchTerm, setAttachmentSearchTerm] = useState("")
   const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isStaffOpen, setIsStaffOpen] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<string>("")
   const [selectedStaff, setSelectedStaff] = useState<string>("")
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
@@ -106,6 +104,7 @@ export default function TicketDetail() {
   const [savingTitle, setSavingTitle] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<string | null>(null)
   const [pendingStaff, setPendingStaff] = useState<string | null>(null)
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [confirmType, setConfirmType] = useState<"status" | "staff" | null>(null)
   const [isViewingLogs, setIsViewingLogs] = useState(false)
@@ -131,142 +130,6 @@ export default function TicketDetail() {
   } = useTicketLogs({ ticketId: id || "" })
 
   const { ticket: ticketData, isLoading: isLoadingTicket, isError: isErrorTicket, handleUpdate, handleAssign, handleChangeStatus, markAsUpdated } = useTicket({ ticketId: id || "" })
-
-  const handleCommentUpdate = useCallback((data: Comment) => {
-    // Get current comments data to check pagination
-    const currentData = queryClient.getQueryData<Response<DataResponse<Comment[]>>>(
-      ["ticket-comments", id, commentPage, commentPerPage]
-    );
-
-    // Only update if we're on the first page (newest comments)
-    const shouldUpdate = currentData?.data && commentPage === 1;
-
-    if (shouldUpdate) {
-      // Check if this is a temporary comment being updated
-      const isUpdatingTempComment = currentData.data.data.some(comment => 
-        comment.id.startsWith('temp-') && 
-        comment.user_id === data.user_id && 
-        comment.created_at === data.created_at
-      );
-
-      if (isUpdatingTempComment) {
-        // If it's updating a temp comment, just replace it
-        queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-          ["ticket-comments", id, commentPage, commentPerPage],
-          (oldData) => {
-            if (!oldData?.data) return oldData;
-            return {
-              ...oldData,
-              data: {
-                ...oldData.data,
-                data: oldData.data.data.map(comment => 
-                  comment.id.startsWith('temp-') && 
-                  comment.user_id === data.user_id && 
-                  comment.created_at === data.created_at
-                    ? data 
-                    : comment
-                )
-              }
-            };
-          }
-        );
-      } else {
-        // If it's a new comment, add it to the beginning
-        queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-          ["ticket-comments", id, commentPage, commentPerPage],
-          (oldData) => {
-            if (!oldData?.data) return oldData;
-            
-            // Check if comment already exists
-            const commentExists = oldData.data.data.some(comment => comment.id === data.id);
-            if (commentExists) return oldData;
-
-            const newTotal = (oldData.data.pagination?.total || 0) + 1;
-            
-            return {
-              ...oldData,
-              data: {
-                ...oldData.data,
-                data: [data, ...oldData.data.data],
-                pagination: {
-                  total: newTotal,
-                  page: oldData.data.pagination?.page || 1,
-                  perPage: oldData.data.pagination?.perPage || commentPerPage
-                }
-              }
-            };
-          }
-        );
-
-        // Update attachments if the comment has attachments
-        if (data.attachments && data.attachments.length > 0) {
-          queryClient.setQueryData<Response<Attachment[]>>(
-            ["ticket-attachments", id],
-            (oldData) => {
-              if (!oldData?.data) return oldData;
-              return {
-                ...oldData,
-                data: [...(data.attachments || []), ...(oldData.data || [])]
-              };
-            }
-          );
-        }
-      }
-    } else {
-      // If not on page 1, just update the total count
-      queryClient.setQueryData<Response<DataResponse<Comment[]>>>(
-        ["ticket-comments", id, commentPage, commentPerPage],
-        (oldData) => {
-          if (!oldData?.data) return oldData;
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              pagination: {
-                total: (oldData.data.pagination?.total || 0) + 1,
-                page: oldData.data.pagination?.page || commentPage,
-                perPage: oldData.data.pagination?.perPage || commentPerPage
-              }
-            }
-          };
-        }
-      );
-
-      // Update attachments even if not on page 1
-      if (data.attachments && data.attachments.length > 0) {
-        queryClient.setQueryData<Response<Attachment[]>>(
-          ["ticket-attachments", id],
-          (oldData) => {
-            if (!oldData?.data) return oldData;
-            return {
-              ...oldData,
-              data: [...(data.attachments || []), ...(oldData.data || [])]
-            };
-          }
-        );
-      }
-    }
-
-    // Only show notification for new comments (not updates)
-    if (!data.id.startsWith('temp-')) {
-      toast({
-        title: "New Comment",
-        description: `${data.user?.name || 'Someone'} added a new comment`,
-        action: commentPage !== 1 ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setCommentPage(1)}
-          >
-            View Latest
-          </Button>
-        ) : undefined
-      });
-    }
-  }, [queryClient, id, commentPage, commentPerPage, toast]);
-
-  useCommentRealtime(id || "", handleCommentUpdate);
-
 
   const { data: usersData, isLoading: isLoadingUsers, isError: isErrorUsers } = useQuery<Response<DataResponse<User[]>>>({
     queryKey: ["users"],
@@ -353,13 +216,21 @@ export default function TicketDetail() {
     }
   })
 
-  // Get ticket audit logs
+  // Auto-save title and description
   useEffect(() => {
     if (ticketData) {
       setEditedTitle(ticketData.title)
       setEditedDescription(ticketData.description)
     }
   }, [ticketData])
+
+  // Update selectedStatus and selectedStaff when ticket data changes
+  useEffect(() => {
+      if (ticketData) {
+        setSelectedStatus(ticketData.status);
+        setSelectedStaff(ticketData.staff?.id || "");
+      }
+  }, [ticketData]);
   
   const handleStatusChange = (status: string) => {
     if (!id) return
@@ -369,7 +240,6 @@ export default function TicketDetail() {
       _method: "PUT"
     })
   }
-
   const handleStaffAssign = (staffId: string) => {
     if (!id) return
     markAsUpdated(id);
@@ -397,13 +267,12 @@ export default function TicketDetail() {
       _method: "PUT"
     })
   }
-
   const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
     if (!id) return
 
     try {
       const formData = new FormData()
-      formData.append("content", data.editorContent.html)
+      formData.append("content", data.editorContent.raw)
   
       if (data.attachments?.length) {
         data.attachments.forEach((file) => {
@@ -412,6 +281,12 @@ export default function TicketDetail() {
       }
   
       await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
+
+      // // Invalidate both comments and attachments queries to update UI
+      // queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
+      // if (data.attachments?.length) {
+      //   queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+      // }
 
       toast({
         title: "Success",
@@ -436,7 +311,6 @@ export default function TicketDetail() {
   }
 
   // Save handlers
-
   const handleSaveDescription = async () => {
     if (!id) return
     try {
@@ -450,8 +324,6 @@ export default function TicketDetail() {
       toast({ title: "Error", description: "Failed to update description", variant: "destructive" })
     }
   }
-
-  // Auto-save title on blur or Enter
   const handleTitleBlur = async () => {
     if (!id || editedTitle.trim() === ticketData?.title) {
       setIsEditingTitle(false)
@@ -481,63 +353,48 @@ export default function TicketDetail() {
     }
   }
 
-  // Xác nhận đổi status
+  // Confirm status change
   const handleStatusSelect = (status: string) => {
-    setPendingStatus(status)
-    setConfirmType("status")
-    setConfirmDialogOpen(true)
+    if (status === "complete" || status === "archived") {
+      setPendingStatus(status)
+      setConfirmType("status")
+      setConfirmDialogOpen(true)
+    } else {
+      handleStatusChange(status)
+    }
   }
   const handleStaffSelect = (staffId: string) => {
-    setPendingStaff(staffId)
-    setConfirmType("staff")
-    setConfirmDialogOpen(true)
+    handleStaffAssign(staffId)
   }
-  
+
+  // Confirm staff change
   const handleConfirmChange = () => {
     if (confirmType === "status" && pendingStatus) {
       handleStatusChange(pendingStatus)
-    } else if (confirmType === "staff" && pendingStaff) {
-      handleStaffAssign(pendingStaff)
     }
     setConfirmDialogOpen(false)
     setPendingStatus(null)
-    setPendingStaff(null)
     setConfirmType(null)
   }
   const handleCancelChange = () => {
-    // Reset selectedStatus and selectedStaff to original values
+    // Reset selectedStatus to original value
     if (ticketData) {
       setSelectedStatus(ticketData.status);
-      setSelectedStaff(ticketData.staff?.id || "");
     }
     setConfirmDialogOpen(false);
     setPendingStatus(null);
-    setPendingStaff(null);
     setConfirmType(null);
   }
 
-
-
-  // Update selectedStatus and selectedStaff when ticket data changes
-  useEffect(() => {
-    if (ticketData) {
-      setSelectedStatus(ticketData.status);
-      setSelectedStaff(ticketData.staff?.id || "");
-    }
-  }, [ticketData]);
-
+  // Optimistic status 
   const handleOptimisticStatusChange = (status: string) => {
     setSelectedStatus(status);
   };
-
   const handleOptimisticStaffChange = (staffId: string) => {
     setSelectedStaff(staffId);
   };
 
-  const isAdmin = user?.role === "admin"
-  const isHolder = ticketData?.holder?.id === user?.id
-  const canArchive = isAdmin || isHolder
-
+  // Loading ticket
   if (isLoadingTicket) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -575,23 +432,6 @@ export default function TicketDetail() {
     )
   }
 
-  const getStatusIcon = (status: string) => {
-    const statusOption = STATUS_OPTIONS.find(s => s.value === status)
-    if (!statusOption) return <AlertCircle className="h-4 w-4 text-gray-600" />
-    
-    return (
-      <div className={cn(
-        "h-2 w-2 rounded-full",
-        statusOption.color === "blue" && "bg-blue-500",
-        statusOption.color === "yellow" && "bg-yellow-500",
-        statusOption.color === "orange" && "bg-orange-500",
-        statusOption.color === "purple" && "bg-purple-500",
-        statusOption.color === "green" && "bg-green-500",
-        statusOption.color === "red" && "bg-red-500",
-      )} />
-    )
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header - Fixed height */}
@@ -609,10 +449,10 @@ export default function TicketDetail() {
       </div>
 
       {/* Main Content - Scrollable */}
-      <div className="flex-1 p-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex-1 p-4 lg:p-6 space-y-6">
+        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 lg:gap-6">
           {/* Left Column - Ticket Information */}
-          <div className="lg:col-span-2">
+          <div className="2xl:col-span-2">
             <Card>
               <CardHeader className="bg-gray-50 border-b pb-4">
                 <div className="space-y-2">
@@ -627,12 +467,14 @@ export default function TicketDetail() {
                           autoFocus
                           onBlur={handleTitleBlur}
                           onKeyDown={handleTitleKeyDown}
-                          disabled={savingTitle}
                         />
                       ) : (
                         <h1
                           className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
-                          onClick={() => setIsEditingTitle(true)}
+                          onClick={() => {
+                            if (ticketData.status === "complete" || ticketData.status === "archived") return
+                            setIsEditingTitle(true)
+                          }}
                           title="Click to edit title"
                         >
                           {savingTitle ? <span className="text-sm text-gray-500">Đang lưu...</span> : ticketData.title}
@@ -672,6 +514,7 @@ export default function TicketDetail() {
                         autoFocus
                         maxLength={2000}
                         style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
+                        disabled={ticketData.status === "complete" || ticketData.status === "archived"}
                       />
                       <div className="flex gap-2 mt-2">
                         <Button size="sm" onClick={handleSaveDescription} disabled={loading || !editedDescription.trim()}>
@@ -689,7 +532,10 @@ export default function TicketDetail() {
                           "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
                           !showFullDescription && isDescriptionClamped(editedDescription) && "line-clamp-4"
                         )}
-                        onClick={() => setIsEditingDescription(true)}
+                        onClick={() => {
+                          if (ticketData.status === "complete" || ticketData.status === "archived") return
+                          setIsEditingDescription(true)
+                        }}
                         title="Click to edit description"
                         style={{ minHeight: 48, wordBreak: 'break-word', overflowWrap: 'break-word' }}
                       >
@@ -712,7 +558,7 @@ export default function TicketDetail() {
                 {/* Client Information */}
                 <div className="space-y-2">
                   <h3 className="font-medium text-gray-900">Client Information</h3>
-                  <div className="bg-gray-50 p-4 rounded-md border">
+                  <div className="bg-gray-50 p-4 rounded-md border flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <UserAvatar name={ticketData.client_name} />
                       <div>
@@ -720,138 +566,44 @@ export default function TicketDetail() {
                         <p className="text-sm text-gray-500">{ticketData.client_email}</p>
                       </div>
                     </div>
+                    <Button variant="outline" className="ml-auto" onClick={() => navigate(`/communication/conversation/${ticketData.id}`)}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                        View Conversation
+                    </Button>
                   </div>
                 </div>
 
                 {/* Status and Staff Assignment */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {/* Status */}
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">Status</h3>
-                    <Popover open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isStatusOpen}
-                          className="w-full justify-between"
-                          disabled={isLoadingUsers}
-                        >
-                          {selectedStatus ? (
-                            <div className="flex items-center">
-                              {getStatusIcon(selectedStatus)}
-                              <span className="ml-2">
-                                {SHOW_STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              {getStatusIcon(ticketData.status)}
-                              <span className="ml-2">
-                                {SHOW_STATUS_OPTIONS.find(s => s.value === ticketData.status)?.label}
-                              </span>
-                            </div>
-                          )}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search status..." />
-                          <CommandList>
-                            <CommandEmpty>No status found.</CommandEmpty>
-                            <CommandGroup>
-                              {STATUS_OPTIONS.map((status) => {
-                                // Skip archived status if user doesn't have permission
-                                if (status.value === "archived" && !canArchive) {
-                                  return null
-                                }
-                                
-                                return (
-                                  <CommandItem
-                                    key={status.value}
-                                    value={status.value}
-                                    onSelect={() => {
-                                      setSelectedStatus(status.value)
-                                      handleStatusSelect(status.value)
-                                    }}
-                                  >
-                                    <div className="flex items-center">
-                                      {getStatusIcon(status.value)}
-                                      <span className="ml-2">{status.label}</span>
-                                      {status.value === ticketData.status && <Check className="h-4 w-4 ml-2 text-green-500" />}
-                                    </div>
-                                  </CommandItem>
-                                )
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    <ChangeStatus
+                      isStatusOpen={isStatusOpen}
+                      setIsStatusOpen={setIsStatusOpen}
+                      isLoadingUsers={isLoadingUsers}
+                      ticketData={ticketData}
+                      selectedStatus={selectedStatus as Status}
+                      handleStatusSelect={handleStatusSelect}
+                      setSelectedStatus={setSelectedStatus}
+                      isTicketComplete={ticketData.status === "archived"}
+                    />
                   </div>
 
                   {/* Staff Assignment */}
                   <div className="space-y-2">
                     <h3 className="font-medium text-gray-900">Assigned To</h3>
-                    <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={isStaffOpen}
-                          className="w-full justify-between"
-                          disabled={isLoadingUsers}
-                        >
-                          {selectedStaff ? (
-                          <div className="flex items-center">
-                              <UserAvatar name={usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"} size="sm" />
-                              <span className="ml-2">{usersData?.data.data.find(user => user.id === selectedStaff)?.name || "Unassigned"}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <UserAvatar name={ticketData.staff?.name || "Unassigned"} size="sm" />
-                              <span className="ml-2">{ticketData.staff?.name || "Unassigned"}</span>
-                            </div>
-                          )}
-                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search staff..." />
-                          <CommandList>
-                            <CommandEmpty>No staff found.</CommandEmpty>
-                            <CommandGroup>
-                              {isLoadingUsers ? (
-                                <div className="flex items-center justify-center p-2">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                </div>
-                              ) : isErrorUsers ? (
-                                <div className="p-2 text-sm text-red-500">Failed to load users</div>
-                              ) : (
-                                usersData?.data.data.map((user) => (
-                                  <CommandItem
-                                    key={user.id}
-                                    value={user.id}
-                                    onSelect={() => {
-                                      setSelectedStaff(user.id)
-                                      handleStaffSelect(user.id)
-                                    }}
-                                  >
-                                    <div className="flex items-center">
-                                      <UserAvatar name={user.name} size="sm" />
-                                      <span className="ml-2">{user.name}</span>
-                                      {user.id === ticketData.staff?.id && <Check className="h-4 w-4 ml-2 text-green-500" />}
-                                    </div>
-                                  </CommandItem>
-                                ))
-                              )}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    {/* Assignee User */}
+                    <AssigneeUser
+                      isStaffOpen={isStaffOpen}
+                      setIsStaffOpen={setIsStaffOpen}
+                      isLoadingUsers={isLoadingUsers}
+                      usersData={usersData}
+                      selectedStaff={selectedStaff}
+                      handleStaffSelect={handleStaffSelect}
+                      isErrorUsers={isErrorUsers}
+                      isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
+                    />  
                   </div>
                 </div>
               </CardContent>
@@ -859,121 +611,24 @@ export default function TicketDetail() {
           </div>
 
           {/* Right Column - Attachments */}
-          <div>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-lg font-medium">Attachments</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search attachments..."
-                    value={attachmentSearchTerm}
-                    onChange={(e) => setAttachmentSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <div className="space-y-2 max-h-[calc(100vh-535px)] overflow-y-auto pr-2">
-                  {isLoadingAttachments ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                    </div>
-                  ) : isErrorAttachments ? (
-                    <div className="text-center p-4 text-red-500">
-                      Failed to load attachments
-                    </div>
-                  ) : Array.isArray(attachmentsData?.data) && attachmentsData?.data.length > 0 ? (
-                    <div className="grid gap-2">
-                      {attachmentsData.data
-                        .filter((attachment: Attachment) => 
-                          attachment.file_name.toLowerCase().includes(attachmentSearchTerm.toLowerCase())
-                        )
-                        .map((attachment: Attachment) => (
-                          <div 
-                            key={attachment.id} 
-                            className="flex items-center justify-between p-3 rounded-lg border bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden"
-                          >
-                            <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                              <div className="flex-shrink-0">
-                                {attachment.content_type.startsWith('image/') ? (
-                                  <ImageIcon className="h-5 w-5 text-blue-500" />
-                                ) : (
-                                  <FileText className="h-5 w-5 text-gray-500" />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1 overflow-hidden">
-                                <a
-                                  href={attachment.file_path}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block truncate text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                                >
-                                  {attachment.file_name}
-                                </a>
-                                <p className="truncate text-xs text-gray-500">
-                                  {formatFileSize(attachment.file_size)} • {formatDate(attachment.created_at)}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  downloadAttachment.mutate(attachment.id);
-                                }}
-                                disabled={downloadingFiles.has(attachment.id)}
-                                className="h-8 w-8 p-0"
-                              >
-                                {downloadingFiles.has(attachment.id) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Download className="h-4 w-4" />
-                                )}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  deleteAttachment.mutate(attachment.id);
-                                }}
-                                disabled={deletingFiles.has(attachment.id)}
-                                className="h-8 w-8 p-0 hover:text-red-500"
-                              >
-                                {deletingFiles.has(attachment.id) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg bg-gray-50/50">
-                      <Paperclip className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No attachments found</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          <div className="2xl:col-span-1">
+            <AttachmentList
+              attachments={attachmentsData?.data || []}
+              isLoading={isLoadingAttachments}
+              isError={isErrorAttachments}
+              onDownload={downloadAttachment.mutate}
+              onDelete={deleteAttachment.mutate}
+              downloadingFiles={downloadingFiles}
+              deletingFiles={deletingFiles}
+              isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
+            />
           </div>
         </div>
 
         {/* Activity Section */}
         <Card>
           <CardHeader className="flex-shrink-0 pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <CardTitle className="text-lg font-medium">Activity</CardTitle>
               <div className="flex items-center space-x-2">
                 <Button 
@@ -998,14 +653,14 @@ export default function TicketDetail() {
           <CardContent>
             {!isViewingLogs ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" onClick={() => setDialogOpen("comment")}>
+                    <Button variant="outline" onClick={() => setDialogOpen("comment")} disabled={ticketData.status === "complete" || ticketData.status === "archived"}>
                       <MessageSquare className="h-4 w-4 mr-2" />
                       Add Comment
                     </Button>
                   </div>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs self-start sm:self-auto">
                     {comments.length} comments
                   </Badge>
                 </div>
@@ -1037,6 +692,7 @@ export default function TicketDetail() {
                     currentStatus={ticketData?.status || ""}
                     onStatusChange={handleOptimisticStatusChange}
                     onStaffChange={handleOptimisticStaffChange}
+                    isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
                   />
                 )}
               </div>
@@ -1051,6 +707,7 @@ export default function TicketDetail() {
         onOpenChange={(open) => !open && setDialogOpen(null)}
         onSubmit={handleAddComment}
         ticketId={id}
+        isComplete={ticketData.status === "complete" || ticketData.status === "archived"}
       />
 
       <UploadAttachmentDialog
@@ -1068,9 +725,6 @@ export default function TicketDetail() {
               <AlertDialogDescription className="text-gray-600 mb-4">
                 {confirmType === "status" && pendingStatus && (
                   <>Are you sure you want to change the status to <b>{STATUS_OPTIONS.find(s => s.value === pendingStatus)?.label}</b>?</>
-                )}
-                {confirmType === "staff" && pendingStaff && (
-                  <>Are you sure you want to assign to <b>{usersData?.data.data.find(user => user.id === pendingStaff)?.name || "Unassigned"}</b>?</>
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>

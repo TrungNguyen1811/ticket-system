@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ticketService } from "@/services/ticket.service";
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useToast } from "@/components/ui/use-toast";
-import { CommentFormData, DataUpdateComment } from "@/types/comment";
+import { CommentFormData } from "@/types/comment";
 import { commentService } from "@/services/comment.services";
 import { logService } from "@/services/log.service";
 
@@ -80,7 +80,7 @@ export const useTicketMutations = () => {
       ...toastConfig("Comment created"),
     }),
     updateComment: useMutation({
-      mutationFn: ({ id, data }: { id: string; data: DataUpdateComment }) => commentService.updateComment(id, data),
+      mutationFn: ({ id, data }: { id: string; data: CommentFormData }) => commentService.updateComment(id, data),
       ...toastConfig("Comment updated"),
     }),
     deleteComment: useMutation({

@@ -73,7 +73,7 @@ export const useTicketUpdate = ({ ticketId }: UseTicketUpdateProps) => {
         setIsUpdating(false);
 
         // Update log if available
-        const ticketResponse = response.data as TicketResponse;
+        const ticketResponse = response.data as unknown as TicketResponse;
         if (ticketResponse.log) {
           handleLogUpdate(ticketResponse.log);
         } else {
@@ -131,7 +131,7 @@ export const useTicketUpdate = ({ ticketId }: UseTicketUpdateProps) => {
         setIsUpdating(false);
 
         // Update log if available
-        const ticketResponse = response.data as TicketResponse;
+        const ticketResponse = response.data as unknown as TicketResponse;
         if (ticketResponse.log) {
           handleLogUpdate(ticketResponse.log);
         } else {
@@ -189,7 +189,7 @@ export const useTicketUpdate = ({ ticketId }: UseTicketUpdateProps) => {
         setIsUpdating(false);
 
         // Update log if available
-        const ticketResponse = response.data as TicketResponse;
+        const ticketResponse = response.data as unknown as TicketResponse;
         if (ticketResponse.log) {
           handleLogUpdate(ticketResponse.log);
         } else {

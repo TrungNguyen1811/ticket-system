@@ -21,7 +21,7 @@ import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary"
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin"
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext"
 
-import { EditorState } from "lexical"
+import { $getRoot, EditorState } from "lexical"
 import { HeadingNode, QuoteNode } from "@lexical/rich-text"
 import { ListItemNode, ListNode } from "@lexical/list"
 import { LinkNode } from "@lexical/link"
@@ -33,22 +33,11 @@ interface AddCommentDialogProps {
   onOpenChange: (open: boolean) => void
   onSubmit: (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => void
   ticketId?: string
+  isComplete?: boolean
 }
 
-export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: AddCommentDialogProps) {
-  const [attachments, setAttachments] = useState<File[]>([])
-  const [loading, setLoading] = useState(false)
-  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
-    raw: "",
-    html: "",
-  })
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const dropZoneRef = useRef<HTMLDivElement>(null)
-  const { toast } = useToast()
-
   // Editor configuration
-  const initialConfig = {
+  export const initialConfig = {
     namespace: "ticket-comment-editor",
     theme: {
       root: "p-4 border border-input rounded-md min-h-[150px] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
@@ -71,6 +60,18 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
     },
     nodes: [HeadingNode, QuoteNode, ListItemNode, ListNode, LinkNode, CodeNode, CodeHighlightNode],
   }
+
+export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId, isComplete }: AddCommentDialogProps) {
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [loading, setLoading] = useState(false)
+  const [editorContent, setEditorContent] = useState<{ raw: string; html: string }>({
+    raw: "",
+    html: "",
+  })
+  
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropZoneRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -135,7 +136,8 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
     setLoading(true)
 
     try {
-      onSubmit({ editorContent, attachments })
+      // onSubmit({ editorContent, attachments })
+      onSubmit({ editorContent: { raw: editorContent.raw, html: editorContent.html }, attachments })
       onOpenChange(false)
       setLoading(false)
       setEditorContent({ raw: "", html: "" })
@@ -281,7 +283,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !editorContent.html.trim()}>
+            <Button type="submit" disabled={loading || !editorContent.html.trim() || isComplete}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -302,7 +304,7 @@ export function AddCommentDialog({ open, onOpenChange, onSubmit, ticketId }: Add
 export function OnChangePlugin({
   onChange,
 }: {
-  onChange: (data: { raw: string; html: string }) => void
+  onChange: (data: { raw: string; html: string; text: string }) => void
 }) {
   const [editor] = useLexicalComposerContext()
 
@@ -311,7 +313,9 @@ export function OnChangePlugin({
       editorState.read(() => {
         const raw = JSON.stringify(editorState.toJSON())
         const html = $generateHtmlFromNodes(editor, null)
-        onChange({ raw, html })
+        const root = $getRoot()
+        const text = root.getTextContent()
+        onChange({ raw, html, text })
       })
     })
   }, [editor, onChange])

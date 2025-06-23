@@ -7,14 +7,21 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { mockClients } from "@/mock/data"
-import { Plus, Search, MoreHorizontal, Building2 } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Building2, Eye } from "lucide-react"
+import { Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
+import { userService } from "@/services/user.service"
 
 
 export default function Clients() {
-  const [clients, setClients] = useState(mockClients)
   const [searchTerm, setSearchTerm] = useState("")
 
-  const filteredClients = clients.filter(
+  const { data: clients, isLoading } = useQuery({
+    queryKey: ["clients"],
+    queryFn: () => userService.getClients(),
+  })
+
+  const filteredClients = clients?.data?.data?.filter(
     (client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -22,16 +29,16 @@ export default function Clients() {
 
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="mt-2 text-gray-600">Manage your client organizations</p>
+          <h1 className="text-2xl font-bold text-gray-900">Clients</h1>
+          <p className="text-gray-600 text-sm">Manage your client organizations</p>
         </div>
-        <Button>
+        {/* <Button>
           <Plus className="h-4 w-4 mr-2" />
           Add Client
-        </Button>
+        </Button> */}
       </div>
 
       <Card>
@@ -48,7 +55,7 @@ export default function Clients() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -59,7 +66,7 @@ export default function Clients() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredClients.map((client) => (
+              {filteredClients?.map((client) => (
                 <TableRow key={client.id}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -76,19 +83,15 @@ export default function Clients() {
                   <TableCell className="text-gray-600">{client.email}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {client.ticketCount || 0} tickets
+                      {client.tickets_count || 0} tickets
                     </span>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Link to={`/communication/clients/${client.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

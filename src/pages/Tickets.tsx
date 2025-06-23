@@ -398,7 +398,7 @@ export default function Tickets() {
                   <TableBody>
                     {data?.data.data.map((ticket: Ticket) => (
                       <TableRow key={ticket.id} className="hover:bg-muted/50">
-                        <TableCell className="font-medium truncate max-w-[250px]">{ticket.title}</TableCell>
+                        <TableCell className="font-medium truncate max-w-[250px]"> <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link></TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <div>
@@ -443,7 +443,7 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("edit")
                                 }}
-                                disabled={isLoadingStates.update}
+                                disabled={isLoadingStates.update || ticket.status === "complete" || ticket.status === "archived"}
                               >
                                 {isLoadingStates.update ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -457,7 +457,7 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("assign")
                                 }}
-                                disabled={isLoadingStates.assign}
+                                disabled={isLoadingStates.assign || ticket.status === "archived" || ticket.status === "complete"}
                               >
                                 {isLoadingStates.assign ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -471,7 +471,7 @@ export default function Tickets() {
                                   setSelectedTicket(ticket)
                                   setDialogOpen("status")
                                 }}
-                                disabled={isLoadingStates.changeStatus}
+                                disabled={isLoadingStates.changeStatus || ticket.status === "archived"}
                               >
                                 {isLoadingStates.changeStatus ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

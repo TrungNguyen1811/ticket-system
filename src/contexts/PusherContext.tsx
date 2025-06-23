@@ -137,7 +137,7 @@ import {
       }
   
       if (!isInitializedRef.current) {
-        initializePusher();
+      initializePusher();
       }
   
       return () => {
