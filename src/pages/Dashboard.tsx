@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockTickets, mockUsers, mockClients } from "@/mock/data";
 import { formatDate } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
@@ -23,9 +22,7 @@ import {
   Users,
   ArrowUpRight,
   ArrowDownRight,
-  Clock,
   CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";

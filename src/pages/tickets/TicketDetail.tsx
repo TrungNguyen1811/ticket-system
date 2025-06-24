@@ -78,19 +78,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import attachmentService from "@/services/attachment.service";
-import { logService } from "@/services/log.service";
 import { AuditLogTable } from "@/components/ticket/AuditLogTable";
 import { STATUS_OPTIONS } from "@/lib/constants";
 import { User } from "@/types/user";
 import { userService } from "@/services/user.service";
 import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
-import { useTicketLogs } from "@/hooks/useTicketLogs";
-import { useTicket } from "@/hooks/useTicket";
 import { useAuth } from "@/contexts/AuthContext";
-import { SHOW_STATUS_OPTIONS } from "@/lib/constants";
 import { AttachmentList } from "@/components/ticket/AttachmentList";
 import AssigneeUser from "@/components/ticket/AssigneeUser";
 import ChangeStatus from "@/components/ticket/ChangeStatus";
+import { useTicket } from "@/hooks/ticket/useTicket";
+import { useTicketLogs } from "@/hooks/ticket/useTicketLogs";
 
 function isDescriptionClamped(text: string, maxLines = 4) {
   return text.split("\n").length > maxLines || text.length > 300;

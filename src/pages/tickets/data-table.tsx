@@ -23,9 +23,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle } from "lucide-react"
 import React, { useMemo, useState } from "react"
 import { Select, SelectValue, SelectTrigger, SelectItem, SelectContent } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { DropdownMenuCheckboxItem } from "@radix-ui/react-dropdown-menu"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -55,6 +52,7 @@ export function DataTable<TData, TValue>({
   setColumnVisibility,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
+  
   const table = useReactTable({
     data,
     columns,
@@ -86,6 +84,8 @@ export function DataTable<TData, TValue>({
 
   // Helper for pagination buttons
   function renderPageButtons() {
+
+    if (totalPages <= 1) return null; 
     
     const buttons = [];
     if (totalPages <= 5) {
@@ -115,7 +115,7 @@ export function DataTable<TData, TValue>({
       );
       // Show ... if needed
       if (page > 3) {
-        buttons.push(<span key="start-ellipsis" className="px-2">...</span>);
+        buttons.push(<span key="start-ellipsis" className="px-2 text-sm text-muted-foreground">...</span>);
       }
       // Show previous, current, next
       for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
@@ -132,7 +132,7 @@ export function DataTable<TData, TValue>({
         );
       }
       if (page < totalPages - 2) {
-        buttons.push(<span key="end-ellipsis" className="px-2">...</span>);
+        buttons.push(<span key="end-ellipsis" className="px-2 text-sm text-muted-foreground">...</span>);
       }
       // Always show last page
       if (totalPages > 1) {
@@ -159,7 +159,7 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap px-6 py-3 text-sm font-semibold text-muted-foreground">
+                  <TableHead key={header.id} className="whitespace-nowrap px-6 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -187,7 +187,7 @@ export function DataTable<TData, TValue>({
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <AlertCircle className="h-8 w-8 text-red-400" />
-                    <span className="text-red-500">Failed to load data.</span>
+                    <span className="text-sm text-red-500">Failed to load data.</span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -212,7 +212,7 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
                   No results.
                 </TableCell>
               </TableRow>
@@ -226,14 +226,14 @@ export function DataTable<TData, TValue>({
           Showing {total === 0 ? 0 : (page - 1) * perPage + 1} to {Math.min(page * perPage, total)} of {total} results
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm">Rows per page</span>
+          <span className="text-sm text-muted-foreground">Rows per page</span>
           <Select value={perPage.toString()} onValueChange={(v) => onPerPageChange(Number(v))}>
-            <SelectTrigger className="h-8 w-[70px] rounded-md">
+            <SelectTrigger className="h-8 w-[70px] rounded-md text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {[10, 20, 50, 100].map(n => (
-                <SelectItem key={n} value={n.toString()}>{n}</SelectItem>
+                <SelectItem key={n} value={n.toString()} className="text-sm">{n}</SelectItem>
               ))}
             </SelectContent>
           </Select>

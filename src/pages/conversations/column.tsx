@@ -17,6 +17,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
             Title
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -33,7 +34,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
               </div>
             </div>
             <div className="min-w-0">
-              <div className="font-medium truncate hover:text-primary transition-colors">
+              <div className="text-sm font-medium truncate hover:text-primary transition-colors">
                 {ticket.title}
               </div>
               <div className="text-xs text-muted-foreground truncate">#{ticket.id}</div>
@@ -50,6 +51,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
             Status
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -68,6 +70,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
             Assignee
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -94,6 +97,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
             Created
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -101,7 +105,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
         )
       },
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
+        <span className="text-sm text-muted-foreground">
           {format(new Date(row.original.created_at), "MMM dd, yyyy, hh:mm a")}
         </span>
       ),
@@ -114,6 +118,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
           <Button
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
             Updated
             <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -121,7 +126,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
         )
       },
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
+        <span className="text-sm text-muted-foreground">
           {format(new Date(row.original.updated_at), "MMM dd, yyyy, hh:mm a")}
         </span>
       ),
@@ -131,7 +136,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
       header: () => (
         <div className="flex items-center gap-2 min-w-0">
           <Settings className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground truncate block max-w-[180px]">Actions</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate block max-w-[180px]">Actions</span>
         </div>
       ),
       cell: ({ row }) => {
@@ -139,7 +144,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
         return (
           <div className="flex items-center gap-2">
             <Link to={`/communication/conversation/${ticket.id}`}>
-              <div className="flex items-center gap-2" >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors" >
                 <Eye className="h-4 w-4" />
                 View
               </div>

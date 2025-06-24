@@ -1,11 +1,12 @@
 import { useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-import { useLogRealtime } from "./userLogRealtime";
+import { useLogRealtime } from "../realtime/userLogRealtime"; 
 import { useTicketLogMutations } from "./useTicketLogMutations";
 import { TicketAuditLog } from "@/types/ticket";
 import { logService } from "@/services/log.service";
 import { Response, DataResponse } from "@/types/reponse";
+
 
 interface UseTicketLogsProps {
   ticketId: string;

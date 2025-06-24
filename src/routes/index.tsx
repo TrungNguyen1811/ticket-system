@@ -9,8 +9,8 @@ import LoadingFallback from "@/components/shared/LoadingFallback";
 // Lazy load components
 const Login = lazy(() => import("@/pages/Login"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
-const Tickets = lazy(() => import("@/pages/Tickets"));
-const TicketDetail = lazy(() => import("@/pages/TicketDetail"));
+const Tickets = lazy(() => import("@/pages/tickets/Tickets"));
+const TicketDetail = lazy(() => import("@/pages/tickets/TicketDetail"));
 const Clients = lazy(() => import("@/pages/clients/ClientsPage"));
 const ClientDetail = lazy(() => import("@/pages/clients/ClientDetailPage"));
 const UsersPage = lazy(() => import("@/pages/users/UsersPage"));
