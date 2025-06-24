@@ -34,11 +34,19 @@ class AttachmentService {
     }
   }
 
-  async downloadAttachment(attachmentId: string): Promise<Blob> {
+  async getAttachment(attachmentId: string): Promise<Response<Attachment>> {
     try {
-      const response = await api.get(`/attachments/${attachmentId}`, {
-        responseType: "blob",
-      });
+      const response = await api.get(`/attachments/${attachmentId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+
+  async downloadAttachment(attachmentId: string) {
+    try {
+      const response = await api.get(`/attachments/${attachmentId}/download`);
       return response.data;
     } catch (error) {
       throw error;

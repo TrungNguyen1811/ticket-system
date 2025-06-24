@@ -270,7 +270,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
               >
                 <TableCell className="font-medium">
                   <div className="flex items-center space-x-2">
-                    <UserAvatar name={log.holder?.name || "-"} size="sm" />
                     <span
                       className="truncate max-w-[100px]"
                       title={log.holder?.name || "-"}
@@ -281,7 +280,6 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
-                    <UserAvatar name={log.staff?.name || "-"} size="sm" />
                     <span
                       className="truncate max-w-[100px]"
                       title={log.staff?.name || "-"}
@@ -292,13 +290,11 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
                   <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
                     <span>{formatDate(log.start_at)}</span>
                   </div>
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
                   <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>{log.end_at ? formatDate(log.end_at) : "-"}</span>
                   </div>
                 </TableCell>

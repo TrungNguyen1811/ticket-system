@@ -1,7 +1,5 @@
 "use client";
 
-import { CommandEmpty } from "@/components/ui/command";
-
 import { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,57 +7,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { formatDate, getStatusColor } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
-import { AddCommentDialog } from "@/components/comment/AddCommentDialog";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
-import { AssignStaffDialog } from "@/components/ticket/AssignStaffDialog";
-import { ChangeStatusDialog } from "@/components/ticket/ChangeStatusDialog";
 import { useToast } from "@/components/ui/use-toast";
 import {
   ArrowLeft,
-  UserPlus,
-  RefreshCw,
   MessageSquare,
-  Paperclip,
-  Save,
-  X,
-  Edit2,
-  Tag,
-  Search,
-  FileText,
-  ImageIcon,
   Download,
   Loader2,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Calendar as CalendarIcon,
-  Filter,
-  File,
-  ChevronDown,
-  ChevronUp,
+  AlertCircle,
   AlertTriangle,
-  Trash,
-  Check,
+  Search,
+  FileText,
+  ImageIcon,
+  Eye,
+  X,
+  Plus,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandList,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
-import { Attachment, Status, Ticket, TicketAuditLog } from "@/types/ticket";
+import { Attachment, Status, Ticket } from "@/types/ticket";
 import {
   Select,
   SelectContent,
@@ -67,40 +39,301 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import attachmentService from "@/services/attachment.service";
 import { AuditLogTable } from "@/components/ticket/AuditLogTable";
 import { STATUS_OPTIONS } from "@/lib/constants";
 import { User } from "@/types/user";
 import { userService } from "@/services/user.service";
-import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
 import { useAuth } from "@/contexts/AuthContext";
-import { AttachmentList } from "@/components/ticket/AttachmentList";
-import AssigneeUser from "@/components/ticket/AssigneeUser";
-import ChangeStatus from "@/components/ticket/ChangeStatus";
 import { useTicket } from "@/hooks/ticket/useTicket";
 import { useTicketLogs } from "@/hooks/ticket/useTicketLogs";
+import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
+import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 
-function isDescriptionClamped(text: string, maxLines = 4) {
-  return text.split("\n").length > maxLines || text.length > 300;
+// ===== COMPONENTS =====
+
+// 1. TicketHeaderSection Component
+interface TicketHeaderSectionProps {
+  ticket: Ticket;
+  isEditingTitle: boolean;
+  editedTitle: string;
+  savingTitle: boolean;
+  onTitleChange: (value: string) => void;
+  onTitleBlur: () => void;
+  onTitleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onEditTitle: () => void;
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+const TicketHeaderSection: React.FC<TicketHeaderSectionProps> = ({
+  ticket,
+  isEditingTitle,
+  editedTitle,
+  savingTitle,
+  onTitleChange,
+  onTitleBlur,
+  onTitleKeyDown,
+  onEditTitle,
+}) => {
+  const isReadOnly = ticket.status === "complete" || ticket.status === "archived";
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              {isEditingTitle ? (
+                <Input
+                  value={editedTitle}
+                  onChange={(e) => onTitleChange(e.target.value)}
+                  className="text-lg font-semibold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
+                  maxLength={200}
+                  autoFocus
+                  onBlur={onTitleBlur}
+                  onKeyDown={onTitleKeyDown}
+                />
+              ) : (
+                <h1
+                  className="text-lg font-semibold text-foreground cursor-pointer hover:underline transition-colors"
+                  onClick={() => !isReadOnly && onEditTitle()}
+                  title={isReadOnly ? undefined : "Click to edit title"}
+                >
+                  {savingTitle ? (
+                    <span className="text-sm text-muted-foreground">
+                      Saving...
+                    </span>
+                  ) : (
+                    ticket.title
+                  )}
+                </h1>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center text-xs text-muted-foreground gap-x-6 gap-y-1">
+            <div className="flex items-center">
+              <CalendarIcon className="h-3 w-3 mr-1" />
+              Created {formatDate(ticket.created_at)}
+            </div>
+            <div className="flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              Updated {formatDate(ticket.updated_at)}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+};
+
+// 2. TicketInfoSection Component
+interface TicketInfoSectionProps {
+  ticket: Ticket;
+  isEditingDescription: boolean;
+  editedDescription: string;
+  showFullDescription: boolean;
+  onDescriptionChange: (value: string) => void;
+  onSaveDescription: () => void;
+  onCancelDescription: () => void;
+  onEditDescription: () => void;
+  onToggleDescription: () => void;
+  isDescriptionClamped: boolean;
+  onStatusChange: (status: string) => void;
+  onStaffAssign: (staffId: string) => void;
+  usersData: any;
+  isLoadingUsers: boolean;
+  isErrorUsers: boolean;
+  navigate: (path: string) => void;
 }
+
+const TicketInfoSection: React.FC<TicketInfoSectionProps> = ({
+  ticket,
+  isEditingDescription,
+  editedDescription,
+  showFullDescription,
+  onDescriptionChange,
+  onSaveDescription,
+  onCancelDescription,
+  onEditDescription,
+  onToggleDescription,
+  isDescriptionClamped,
+  onStatusChange,
+  onStaffAssign,
+  usersData,
+  isLoadingUsers,
+  isErrorUsers,
+  navigate,
+}) => {
+  const isReadOnly = ticket.status === "complete" || ticket.status === "archived";
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-medium">Ticket Information</CardTitle>
+      </CardHeader>
+      <CardContent className="py-3 space-y-6">
+        {/* Description */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Description
+          </label>
+          {isEditingDescription ? (
+            <div className="space-y-3">
+              <Textarea
+                value={editedDescription}
+                onChange={(e) => onDescriptionChange(e.target.value)}
+                className="min-h-[120px] max-h-[300px] resize-y text-sm"
+                autoFocus
+                maxLength={2000}
+                disabled={isReadOnly}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={onSaveDescription}
+                  disabled={!editedDescription.trim()}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onCancelDescription}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div
+                className={cn(
+                  "text-sm text-foreground bg-muted/30 p-4 rounded-lg border cursor-pointer transition-all duration-200 break-words whitespace-pre-line",
+                  !showFullDescription &&
+                    isDescriptionClamped &&
+                    "line-clamp-4",
+                )}
+                onClick={() => !isReadOnly && onEditDescription()}
+                title={isReadOnly ? undefined : "Click to edit description"}
+              >
+                {editedDescription}
+              </div>
+              {isDescriptionClamped && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="px-0 text-primary text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleDescription();
+                  }}
+                >
+                  {showFullDescription ? "Show less" : "Show more"}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Status and Staff Assignment */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* Status */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Status
+            </label>
+            <Select
+              value={ticket.status}
+              onValueChange={onStatusChange}
+              disabled={isReadOnly}
+            >
+              <SelectTrigger className="text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    <TicketStatusDisplay status={status.value} />
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Staff Assignment */}
+          <div className="space-y-2">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Assigned To
+            </label>
+            <Select
+              value={ticket.staff?.id || ""}
+              onValueChange={onStaffAssign}
+              disabled={isReadOnly || isLoadingUsers}
+            >
+              <SelectTrigger className="text-sm">
+                <SelectValue placeholder="Select staff" />
+              </SelectTrigger>
+              <SelectContent>
+                {usersData?.data?.data?.map((user: User) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    <div className="flex items-center gap-2">
+                      <UserAvatar name={user.name} size="sm" />
+                      <span className="text-sm">{user.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// 3. ClientCard Component
+interface ClientCardProps {
+  clientName: string;
+  clientEmail: string;
+  ticketId: string;
+}
+
+const ClientCard: React.FC<ClientCardProps> = ({ clientName, clientEmail, ticketId }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-white">
+      <div className="pt-0">
+        <div className="flex flex-col items-center space-x-3 p-4 bg-muted/30 rounded-lg border">
+            <UserAvatar name={clientName} size="2xl" />
+            <div className="flex flex-col items-center p-2">
+                <p className="text-sm font-medium text-foreground">
+                    {clientName}
+                </p>  
+                <p className="text-xs text-muted-foreground">
+                    {clientEmail}
+                </p>
+            </div>
+            <div className="flex flex-col items-center justify-end mt-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/communication/conversation/${ticketId}`)}
+                className="rounded-full bg-secondary-200 h-10 w-10"  
+              >
+                <MessageSquare className="h-6 w-6" />
+              </Button>
+              <p className="text-xs">
+                Conversation
+              </p>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
+// ===== MAIN COMPONENT =====
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
@@ -108,33 +341,19 @@ export default function TicketDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [dialogOpen, setDialogOpen] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [attachmentSearchTerm, setAttachmentSearchTerm] = useState("");
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [isStaffOpen, setIsStaffOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<string>("");
+  
+  // State
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
   const [editedDescription, setEditedDescription] = useState("");
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [savingTitle, setSavingTitle] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
-  const [pendingStaff, setPendingStaff] = useState<string | null>(null);
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [confirmType, setConfirmType] = useState<"status" | "staff" | null>(
-    null,
-  );
-  const [isViewingLogs, setIsViewingLogs] = useState(false);
-  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(
-    new Set(),
-  );
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const mutations = useTicketMutations();
-
+  // Hooks
   const { logs, isLoading: isLoadingTicketLogs } = useTicketLogs({
     ticketId: id || "",
   });
@@ -182,7 +401,7 @@ export default function TicketDetail() {
       const url = window.URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
-      a.download = ""; // Let the browser determine the filename
+      a.download = "";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -219,71 +438,29 @@ export default function TicketDetail() {
     }
   }, [ticketData]);
 
-  // Update selectedStatus and selectedStaff when ticket data changes
-  useEffect(() => {
-    if (ticketData) {
-      setSelectedStatus(ticketData.status);
-      setSelectedStaff(ticketData.staff?.id || "");
-    }
-  }, [ticketData]);
+  // Helper functions
+  const isDescriptionClamped = (text: string, maxLines = 4) => {
+    return text.split("\n").length > maxLines || text.length > 300;
+  };
 
   const handleStatusChange = (status: string) => {
     if (!id) return;
     markAsUpdated(id);
     handleChangeStatus({
-      status: status as
-        | "new"
-        | "in_progress"
-        | "pending"
-        | "assigned"
-        | "complete"
-        | "archived",
+      status: status as Status,
       _method: "PUT",
     });
   };
+
   const handleStaffAssign = (staffId: string) => {
     if (!id) return;
     markAsUpdated(id);
-
-    // Get the new staff user data
-    const newStaff = usersData?.data.data.find((user) => user.id === staffId);
-
-    // Optimistically update the UI
-    queryClient.setQueryData<Response<Ticket>>(["ticket", id], (oldData) => {
-      if (!oldData?.data) return oldData;
-      return {
-        ...oldData,
-        data: {
-          ...oldData.data,
-          staff: newStaff || null,
-        },
-      };
-    });
-
     handleAssign({
       staff_id: staffId,
       _method: "PUT",
     });
   };
 
-  // Save handlers
-  const handleSaveDescription = async () => {
-    if (!id) return;
-    try {
-      markAsUpdated(id);
-      handleUpdate({
-        description: editedDescription,
-        _method: "PUT",
-      });
-      setIsEditingDescription(false);
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update description",
-        variant: "destructive",
-      });
-    }
-  };
   const handleTitleBlur = async () => {
     if (!id || editedTitle.trim() === ticketData?.title) {
       setIsEditingTitle(false);
@@ -308,6 +485,7 @@ export default function TicketDetail() {
       setIsEditingTitle(false);
     }
   };
+
   const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       (e.target as HTMLInputElement).blur();
@@ -317,54 +495,36 @@ export default function TicketDetail() {
     }
   };
 
-  // Confirm status change
-  const handleStatusSelect = (status: string) => {
-    if (status === "complete" || status === "archived") {
-      setPendingStatus(status);
-      setConfirmType("status");
-      setConfirmDialogOpen(true);
-    } else {
-      handleStatusChange(status);
+  const handleSaveDescription = async () => {
+    if (!id) return;
+    try {
+      markAsUpdated(id);
+      handleUpdate({
+        description: editedDescription,
+        _method: "PUT",
+      });
+      setIsEditingDescription(false);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to update description",
+        variant: "destructive",
+      });
     }
   };
-  const handleStaffSelect = (staffId: string) => {
-    handleStaffAssign(staffId);
+
+  const handlePreviewFile = (attachment: Attachment) => {
+    setPreviewFile(attachment);
+    setIsPreviewOpen(true);
   };
 
-  // Confirm staff change
-  const handleConfirmChange = () => {
-    if (confirmType === "status" && pendingStatus) {
-      handleStatusChange(pendingStatus);
-    }
-    setConfirmDialogOpen(false);
-    setPendingStatus(null);
-    setConfirmType(null);
-  };
-  const handleCancelChange = () => {
-    // Reset selectedStatus to original value
-    if (ticketData) {
-      setSelectedStatus(ticketData.status);
-    }
-    setConfirmDialogOpen(false);
-    setPendingStatus(null);
-    setConfirmType(null);
-  };
-
-  // Optimistic status
-  const handleOptimisticStatusChange = (status: string) => {
-    setSelectedStatus(status);
-  };
-  const handleOptimisticStaffChange = (staffId: string) => {
-    setSelectedStaff(staffId);
-  };
-
-  // Loading ticket
+  // Loading states
   if (isLoadingTicket) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Loading ticket details...</p>
+          <p className="text-sm text-muted-foreground">Loading ticket details...</p>
         </div>
       </div>
     );
@@ -374,13 +534,13 @@ export default function TicketDetail() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-xl font-semibold text-foreground mb-2">
           Error Loading Ticket
         </h2>
-        <p className="mt-2 text-gray-600">
+        <p className="text-sm text-muted-foreground mb-6">
           There was an error loading the ticket details. Please try again later.
         </p>
-        <Button asChild className="mt-6">
+        <Button asChild>
           <Link to="/tickets">Back to Tickets</Link>
         </Button>
       </div>
@@ -391,11 +551,11 @@ export default function TicketDetail() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900">Ticket not found</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-xl font-semibold text-foreground mb-2">Ticket not found</h2>
+        <p className="text-sm text-muted-foreground mb-6">
           The ticket you're looking for doesn't exist or has been deleted.
         </p>
-        <Button asChild className="mt-6">
+        <Button asChild>
           <Link to="/tickets">Back to Tickets</Link>
         </Button>
       </div>
@@ -404,9 +564,9 @@ export default function TicketDetail() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header - Fixed height */}
-      <div className="flex-none border-b">
-        <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex-none border-b bg-white">
+        <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center space-x-4">
             <Button asChild variant="ghost" size="sm">
               <Link to="/tickets">
@@ -418,382 +578,115 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      {/* Main Content - Scrollable */}
-      <div className="flex-1 p-4 lg:p-6 space-y-6">
-        <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 lg:gap-6">
-          {/* Left Column - Ticket Information */}
-          <div className="2xl:col-span-2">
+      {/* Main Content */}
+      <div className="flex-1 p-4 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left Column - Main Content */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Ticket Header */}
+            <TicketHeaderSection
+              ticket={ticketData}
+              isEditingTitle={isEditingTitle}
+              editedTitle={editedTitle}
+              savingTitle={savingTitle}
+              onTitleChange={setEditedTitle}
+              onTitleBlur={handleTitleBlur}
+              onTitleKeyDown={handleTitleKeyDown}
+              onEditTitle={() => setIsEditingTitle(true)}
+            />
+
+            {/* Ticket Information */}
+            <TicketInfoSection
+              ticket={ticketData}
+              isEditingDescription={isEditingDescription}
+              editedDescription={editedDescription}
+              showFullDescription={showFullDescription}
+              onDescriptionChange={setEditedDescription}
+              onSaveDescription={handleSaveDescription}
+              onCancelDescription={() => {
+                setIsEditingDescription(false);
+                setEditedDescription(ticketData?.description || "");
+              }}
+              onEditDescription={() => setIsEditingDescription(true)}
+              onToggleDescription={() => setShowFullDescription(!showFullDescription)}
+              isDescriptionClamped={isDescriptionClamped(editedDescription)}
+              onStatusChange={handleStatusChange}
+              onStaffAssign={handleStaffAssign}
+              usersData={usersData}
+              isLoadingUsers={isLoadingUsers}
+              isErrorUsers={isErrorUsers}
+              navigate={navigate}
+            />
+
+            {/* Audit Logs */}
             <Card>
-              <CardHeader className="bg-gray-50 border-b pb-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 ">
-                      {isEditingTitle ? (
-                        <Input
-                          value={editedTitle}
-                          onChange={(e) => setEditedTitle(e.target.value)}
-                          className="text-xl font-bold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
-                          maxLength={200}
-                          autoFocus
-                          onBlur={handleTitleBlur}
-                          onKeyDown={handleTitleKeyDown}
-                        />
-                      ) : (
-                        <h1
-                          className="text-xl font-bold text-gray-900 cursor-pointer hover:underline"
-                          onClick={() => {
-                            if (
-                              ticketData.status === "complete" ||
-                              ticketData.status === "archived"
-                            )
-                              return;
-                            setIsEditingTitle(true);
-                          }}
-                          title="Click to edit title"
-                        >
-                          {savingTitle ? (
-                            <span className="text-sm text-gray-500">
-                              Đang lưu...
-                            </span>
-                          ) : (
-                            ticketData.title
-                          )}
-                        </h1>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center text-sm text-gray-500 gap-x-4 gap-y-2">
-                    <div className="flex items-center">
-                      <CalendarIcon className="h-4 w-4 mr-1" />
-                      Created {formatDate(ticketData.created_at)}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1" />
-                      Updated {formatDate(ticketData.updated_at)}
-                    </div>
-                  </div>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-medium">Audit Logs</CardTitle>
+                  <Badge variant="outline" className="text-xs">
+                    {logs?.data?.data?.length || 0} logs
+                  </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                {/* Description */}
-                <div className="space-y-2">
-                  <h3 className="font-medium text-gray-900 flex items-center">
-                    Description
-                  </h3>
-                  {isEditingDescription ? (
-                    <div>
-                      <Textarea
-                        value={editedDescription}
-                        onChange={(e) => setEditedDescription(e.target.value)}
-                        className="bg-gray-50 p-4 rounded-md border min-h-[100px] max-h-[300px] resize-y text-base"
-                        autoFocus
-                        maxLength={2000}
-                        style={{ lineHeight: "1.6", fontFamily: "inherit" }}
-                        disabled={
-                          ticketData.status === "complete" ||
-                          ticketData.status === "archived"
-                        }
-                      />
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          size="sm"
-                          onClick={handleSaveDescription}
-                          disabled={loading || !editedDescription.trim()}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setIsEditingDescription(false);
-                            setEditedDescription(ticketData?.description || "");
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1 w-full">
-                      <div
-                        className={cn(
-                          "text-gray-700 bg-gray-50 p-4 rounded-md border cursor-pointer transition-all duration-200 w-full break-words break-all whitespace-pre-line text-base",
-                          !showFullDescription &&
-                            isDescriptionClamped(editedDescription) &&
-                            "line-clamp-4",
-                        )}
-                        onClick={() => {
-                          if (
-                            ticketData.status === "complete" ||
-                            ticketData.status === "archived"
-                          )
-                            return;
-                          setIsEditingDescription(true);
-                        }}
-                        title="Click to edit description"
-                        style={{
-                          minHeight: 48,
-                          wordBreak: "break-word",
-                          overflowWrap: "break-word",
-                        }}
-                      >
-                        {editedDescription}
-                      </div>
-                      {isDescriptionClamped(editedDescription) && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="self-start px-0 text-blue-500 mt-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowFullDescription((v) => !v);
-                          }}
-                        >
-                          {showFullDescription ? "Hide" : "Show more"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Client Information */}
-                <div className="space-y-2">
-                  <h3 className="font-medium text-gray-900">
-                    Client Information
-                  </h3>
-                  <div className="bg-gray-50 p-4 rounded-md border flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <UserAvatar name={ticketData.client_name} />
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {ticketData.client_name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {ticketData.client_email}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="ml-auto"
-                      onClick={() =>
-                        navigate(`/communication/conversation/${ticketData.id}`)
-                      }
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      View Conversation
-                    </Button>
+              <CardContent className="p-0">
+                {isLoadingTicketLogs ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                </div>
-
-                {/* Status and Staff Assignment */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {/* Status */}
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Status</h3>
-                    <ChangeStatus
-                      isStatusOpen={isStatusOpen}
-                      setIsStatusOpen={setIsStatusOpen}
-                      isLoadingUsers={isLoadingUsers}
-                      ticketData={ticketData}
-                      selectedStatus={selectedStatus as Status}
-                      handleStatusSelect={handleStatusSelect}
-                      setSelectedStatus={setSelectedStatus}
-                      isTicketComplete={ticketData.status === "archived"}
+                ) : (
+                  <div className="bg-muted/20 rounded-lg  border-0 overflow-hidden">
+                    <AuditLogTable
+                      ticketId={id || ""}
+                      currentUserId={ticketData?.holder?.id || ""}
+                      currentStatus={ticketData?.status || ""}
+                      onStatusChange={() => {}} // Disabled - only edit in main section
+                      onStaffChange={() => {}} // Disabled - only edit in main section
+                      isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
                     />
                   </div>
-
-                  {/* Staff Assignment */}
-                  <div className="space-y-2">
-                    <h3 className="font-medium text-gray-900">Assigned To</h3>
-                    {/* Assignee User */}
-                    <AssigneeUser
-                      isStaffOpen={isStaffOpen}
-                      setIsStaffOpen={setIsStaffOpen}
-                      isLoadingUsers={isLoadingUsers}
-                      usersData={usersData}
-                      selectedStaff={selectedStaff}
-                      handleStaffSelect={handleStaffSelect}
-                      isErrorUsers={isErrorUsers}
-                      isTicketComplete={
-                        ticketData.status === "complete" ||
-                        ticketData.status === "archived"
-                      }
-                    />
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column - Attachments */}
-          <div className="2xl:col-span-1">
-            <AttachmentList
+          {/* Right Column - Sidebar */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Client Information */}
+            <ClientCard
+              ticketId={id || ""}
+              clientName={ticketData.client_name}
+              clientEmail={ticketData.client_email}
+            />
+
+            {/* Attachments */}
+            <AttachmentsPanel
               attachments={attachmentsData?.data || []}
               isLoading={isLoadingAttachments}
               isError={isErrorAttachments}
               onDownload={downloadAttachment.mutate}
               downloadingFiles={downloadingFiles}
+              onPreviewFile={handlePreviewFile}
             />
           </div>
         </div>
-
-        {/* Activity Section */}
-        <Card>
-          <CardHeader className="flex-shrink-0 pb-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="text-md font-medium">Audit Logs</CardTitle>
-              <div className="flex items-center justify-end">
-                <Badge variant="outline" className="text-xs">
-                  {logs?.data?.data?.length} logs
-                </Badge>
-              </div>
-              {/* <div className="flex items-center space-x-2">
-                <Button 
-                  variant={!isViewingLogs ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setIsViewingLogs(false)}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Comments
-                </Button>
-                <Button 
-                  variant={isViewingLogs ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setIsViewingLogs(true)}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Logs
-                </Button>
-              </div> */}
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 border border-0">
-            {/* {!isViewingLogs ? (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" onClick={() => setDialogOpen("comment")} disabled={ticketData.status === "complete" || ticketData.status === "archived"}>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Add Comment
-                    </Button>
-                  </div>
-                  <Badge variant="outline" className="text-xs self-start sm:self-auto">
-                    {comments.length} comments
-                  </Badge>
-                </div>
-                <CommentList 
-                  ticketId={id || ""} 
-                  pagination={{
-                    page: commentPage,
-                    perPage: commentPerPage,
-                    setPage: setCommentPage,
-                    setPerPage: setCommentPerPage
-                  }} 
-                />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-end">                 
-                  <Badge variant="outline" className="text-xs">
-                    {logs?.data?.data?.length} logs
-                  </Badge>
-                </div>
-                {isLoadingTicketLogs ? (
-                  <div className="flex items-center justify-center p-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                  </div>
-                ) : (
-                  <AuditLogTable 
-                    ticketId={id || ""} 
-                    currentUserId={ticketData?.holder?.id || ""}
-                    currentStatus={ticketData?.status || ""}
-                    onStatusChange={handleOptimisticStatusChange}
-                    onStaffChange={handleOptimisticStaffChange}
-                    isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
-                  />
-                )}
-              </div>
-            )} */}
-            <div className="space-y-4">
-              {isLoadingTicketLogs ? (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                </div>
-              ) : (
-                <AuditLogTable
-                  ticketId={id || ""}
-                  currentUserId={ticketData?.holder?.id || ""}
-                  currentStatus={ticketData?.status || ""}
-                  onStatusChange={handleOptimisticStatusChange}
-                  onStaffChange={handleOptimisticStaffChange}
-                  isTicketComplete={
-                    ticketData.status === "complete" ||
-                    ticketData.status === "archived"
-                  }
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Dialogs */}
-      {/* <AddCommentDialog
-        open={dialogOpen === "comment"}
-        onOpenChange={(open) => !open && setDialogOpen(null)}
-        onSubmit={handleAddComment}
-        ticketId={id}
-        isComplete={ticketData.status === "complete" || ticketData.status === "archived"}
-      /> */}
-
-      <UploadAttachmentDialog
-        open={dialogOpen === "attachment"}
-        onOpenChange={(open) => !open && setDialogOpen(null)}
-        ticketId={id || ""}
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPreviewFile(null);
+        }}
+        attachment={previewFile}
       />
 
-      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <AlertDialogContent className="max-w-md w-full rounded-xl p-6 text-center">
-          <div className="flex flex-col items-center justify-center gap-2">
-            <AlertTriangle className="text-yellow-500 w-10 h-10 mb-2" />
-            <AlertDialogHeader className="w-full">
-              <AlertDialogTitle className="text-lg font-bold text-gray-900 mb-1">
-                Confirm Change
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-600 mb-4">
-                {confirmType === "status" && pendingStatus && (
-                  <>
-                    Are you sure you want to change the status to{" "}
-                    <b>
-                      {
-                        STATUS_OPTIONS.find((s) => s.value === pendingStatus)
-                          ?.label
-                      }
-                    </b>
-                    ?
-                  </>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="flex justify-center gap-4 w-full mt-2">
-              <AlertDialogCancel
-                onClick={handleCancelChange}
-                className="px-6 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmChange}
-                className="px-6 py-2 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
-              >
-                Confirm
-              </AlertDialogAction>
-            </div>
-          </div>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Upload Attachment Dialog */}
+      <UploadAttachmentDialog
+        open={false}
+        onOpenChange={() => {}}
+        ticketId={id || ""}
+      />
     </div>
   );
 }
