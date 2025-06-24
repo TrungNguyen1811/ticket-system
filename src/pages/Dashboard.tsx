@@ -133,7 +133,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: summary, isLoading: isLoadingSummary } = useQuery<
+  const { data: summary } = useQuery<
     Response<DashboardSummary>,
     Error
   >({

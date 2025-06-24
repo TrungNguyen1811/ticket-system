@@ -1,17 +1,12 @@
-import { Client, User } from "@/types/user"
+import { Client } from "@/types/user"
 import { ColumnDef } from "@tanstack/react-table"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Settings, Pencil, Trash, ArrowUpDown, Eye } from "lucide-react"
-import { format } from "date-fns"
+import { Settings, ArrowUpDown, Eye } from "lucide-react"
 import { Link } from "react-router-dom"
 
-export interface UserTableActionProps {
-  onViewDetail: (user: User) => void
-}
-
-export function getUserColumns(actions: UserTableActionProps): ColumnDef<Client>[] {
+export function getUserColumns(): ColumnDef<Client>[] {
   return [
     {
       id: "name",
@@ -96,7 +91,7 @@ export function getUserColumns(actions: UserTableActionProps): ColumnDef<Client>
           </Button>
         )
       },
-      cell: ({ row }) => (
+      cell: () => (
         <span className="text-muted-foreground text-xs">June 18th, 2025</span>
       )
     },

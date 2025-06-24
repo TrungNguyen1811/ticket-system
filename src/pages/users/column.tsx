@@ -3,14 +3,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, UserCog, AlertTriangle, Mail, Calendar, UserIcon, Settings, Pencil, Trash, ArrowUpDown } from "lucide-react"
+import { Settings, Pencil, Trash, ArrowUpDown } from "lucide-react"
 import { format } from "date-fns"
 
 export interface UserTableActionProps {

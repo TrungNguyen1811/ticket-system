@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -10,15 +10,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
 import {
   Loader2,
   Tag,
   Trash,
   UserPlus,
   Check,
-  Clock,
-  Calendar,
 } from "lucide-react";
 import {
   Select,

@@ -21,11 +21,9 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle } from "lucide-react"
-import React, { useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Select, SelectValue, SelectTrigger, SelectItem, SelectContent } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { DropdownMenuCheckboxItem } from "@radix-ui/react-dropdown-menu"
+
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -175,7 +173,7 @@ export function DataTable<TData, TValue>({
             {isLoading ? (
               [...Array(perPage)].map((_, i) => (
                 <TableRow key={i}>
-                  {columns.map((col, j) => (
+                  {columns.map((_, j) => (
                     <TableCell key={j} className="px-6 py-3">
                       <Skeleton className="h-6 w-full rounded" />
                     </TableCell>

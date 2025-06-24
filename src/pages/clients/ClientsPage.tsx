@@ -1,31 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Eye, Building2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { DataTable } from "./data-table";
 import { getUserColumns } from "./column";
 import { VisibilityState } from "@tanstack/react-table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 export default function Clients() {
@@ -78,9 +67,7 @@ export default function Clients() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {getUserColumns({
-                  onViewDetail: () => {},
-                }).map((column) => {
+                {getUserColumns().map((column) => {
                   const colId = column.id;
                     return (
                       <DropdownMenuCheckboxItem
@@ -105,9 +92,7 @@ export default function Clients() {
 
         <div className="p-0">
           <DataTable
-            columns={getUserColumns({
-              onViewDetail: () => {},
-            })}
+            columns={getUserColumns()}
             data={filteredClients || []}
             isLoading={isLoading}
             isError={isError}

@@ -1,12 +1,12 @@
 import { Attachment } from "@/types/ticket";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, AlertCircle, FileText, ImageIcon, Eye, Download } from "lucide-react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import attachmentService from "@/services/attachment.service";
+import { Link } from "react-router-dom";
 
 interface AttachmentsPanelProps {
     attachments: Attachment[];
@@ -27,16 +27,11 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
   }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<"files" | "media">("files");
-    const [loadingUrls, setLoadingUrls] = useState<Set<string>>(new Set());
   
   
     const isImageFile = (ext: string) => {
         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
         return imageExtensions.includes(ext.toLowerCase());
-    };
-  
-    const isPdfFile = (filename: string) => {
-      return filename.toLowerCase().endsWith('.pdf');
     };
   
     const filteredAttachments = attachments.filter(attachment =>
@@ -132,7 +127,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
     }
   
     return (
-      <Card>
+      <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Attachments</CardTitle>
           <div className="relative mt-2">
@@ -186,7 +181,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                     key={attachment.id}
                     className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                    <div className="flex items-center space-x-2 min-w-0 flex-1 cursor-pointer"  onClick={() => onPreviewFile(attachment)}>
                       <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium truncate">
@@ -200,14 +195,17 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onDownload(attachment.id)}
-                      disabled={downloadingFiles.has(attachment.id)}
+                    //   onClick={() => onDownload(attachment.id)}
+                    //   disabled={downloadingFiles.has(attachment.id)}
+                    // onClick={() => window.open(`${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`)}
                       className="h-6 w-6 p-0"
                     >
                       {downloadingFiles.has(attachment.id) ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
-                        <Download className="h-3 w-3" />
+                        <Link to={`${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`} target="_blank">
+                          <Download className="h-3 w-3" />
+                        </Link>
                       )}
                     </Button>
                   </div>
@@ -223,7 +221,6 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                 <div className="grid grid-cols-3 gap-2">
                   {mediaAttachments.map((attachment) => {
                     const imageUrl = attachment.id;
-                    const isLoading = loadingUrls.has(attachment.id);
   
                     return (
                       <div

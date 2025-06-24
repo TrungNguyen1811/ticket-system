@@ -1,22 +1,15 @@
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import {
   Info,
   Clock,
   FileText,
-  Lock,
-  FileIcon,
-  Tag,
   MessageSquare,
   Paperclip,
   Loader2,
   Send,
   X,
-  Pencil,
-  Trash2,
-  MoreVertical,
-  Trash,
   Download,
   Search,
   ImageIcon,
@@ -26,7 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Attachment, AttachmentList } from "@/components/ticket/AttachmentList";
+import { Attachment } from "@/components/ticket/AttachmentList";
 import attachmentService from "@/services/attachment.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Response, DataResponse } from "@/types/reponse";
@@ -54,7 +47,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ClearEditorPlugin } from "@/components/editor/ClearEditorPlugin";
 import { mailService } from "@/services/mail.service";
 import { Mail, MailFormData } from "@/types/mail";
-import SetEditTextPlugin from "@/components/editor/SetEditTextPlugin";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useTicket } from "@/hooks/ticket/useTicket";
@@ -138,7 +130,6 @@ export default function ConversationDetail() {
     ticket: ticketData,
     isLoading: isLoadingTicket,
     isError: isErrorTicket,
-    handleUpdate,
     handleAssign,
     handleChangeStatus,
     markAsUpdated,
@@ -346,6 +337,7 @@ export default function ConversationDetail() {
             updated_at: new Date().toISOString(),
             ticket_id: id,
             comment_id: "",
+            email_id: "",
           })),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

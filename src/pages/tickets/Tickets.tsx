@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,9 +9,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatDate } from "@/lib/utils";
-import { UserAvatar } from "@/components/shared/UserAvatar";
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
 import { CreateTicketDialog } from "@/components/ticket/CreateTicketDialog";
 import { EditTicketDialog } from "@/components/ticket/EditTicketDialog";
 import { ChangeStatusDialog } from "@/components/ticket/ChangeStatusDialog";
@@ -20,21 +17,13 @@ import { DeleteConfirmationDialog } from "@/components/ticket/DeleteConfirmation
 import {
   Plus,
   Search,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  UserPlus,
   RefreshCw,
-  Trash2,
   Loader2,
-  Filter,
-  Settings,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import type { Ticket } from "@/types/ticket";
 import type { Response, DataResponse } from "@/types/reponse";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ticketService, UpdateTicketData } from "@/services/ticket.service";
+import { useQueryClient } from "@tanstack/react-query";
+import { ticketService } from "@/services/ticket.service";
 import {
   Select,
   SelectContent,
@@ -43,12 +32,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useApiQuery } from "@/hooks/api/useApiQuery";
 import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
 import { usePusher } from "@/contexts/PusherContext";
-import { usePusherSubscription } from "@/hooks/pusher/usePusherSubscription";
 import { useTicketRealtime } from "@/hooks/realtime/useTicketRealtime";
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants";
 import { useDebounce } from "@/hooks/utils/useDebouce";

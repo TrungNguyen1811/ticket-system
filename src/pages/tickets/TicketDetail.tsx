@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,21 +15,13 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   ArrowLeft,
   MessageSquare,
-  Download,
   Loader2,
   Clock,
   Calendar as CalendarIcon,
   AlertCircle,
-  AlertTriangle,
-  Search,
-  FileText,
-  ImageIcon,
-  Eye,
-  X,
-  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
 import { Attachment, Status, Ticket } from "@/types/ticket";
 import {
@@ -44,7 +36,6 @@ import { AuditLogTable } from "@/components/ticket/AuditLogTable";
 import { STATUS_OPTIONS } from "@/lib/constants";
 import { User } from "@/types/user";
 import { userService } from "@/services/user.service";
-import { useAuth } from "@/contexts/AuthContext";
 import { useTicket } from "@/hooks/ticket/useTicket";
 import { useTicketLogs } from "@/hooks/ticket/useTicketLogs";
 import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
@@ -170,7 +161,7 @@ const TicketInfoSection: React.FC<TicketInfoSectionProps> = ({
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-medium">Ticket Information</CardTitle>
       </CardHeader>
-      <CardContent className="py-3 space-y-6">
+      <CardContent className="pt-3 space-y-6">
         {/* Description */}
         <div className="space-y-2">
           <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -339,8 +330,6 @@ export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
   
   // State
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -518,6 +507,10 @@ export default function TicketDetail() {
     setIsPreviewOpen(true);
   };
 
+  const startIndex = attachmentsData?.data?.findIndex(
+    (attachment) => attachment.id === previewFile?.id
+  );
+
   // Loading states
   if (isLoadingTicket) {
     return (
@@ -650,7 +643,7 @@ export default function TicketDetail() {
           </div>
 
           {/* Right Column - Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-3">
             {/* Client Information */}
             <ClientCard
               ticketId={id || ""}
@@ -673,13 +666,14 @@ export default function TicketDetail() {
 
       {/* File Preview Modal */}
       <FilePreviewModal
-        isOpen={isPreviewOpen}
+        open={isPreviewOpen}
         onClose={() => {
           setIsPreviewOpen(false);
           setPreviewFile(null);
         }}
-        attachment={previewFile}
-      />
+        files={attachmentsData?.data || []}
+        initialIndex={startIndex !== undefined && startIndex >= 0 ? startIndex : 0}     
+         />
 
       {/* Upload Attachment Dialog */}
       <UploadAttachmentDialog

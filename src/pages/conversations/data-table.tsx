@@ -21,10 +21,8 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AlertCircle } from "lucide-react"
-import React, { useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Select, SelectValue, SelectTrigger, SelectItem, SelectContent } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -88,7 +86,7 @@ export function DataTable<TData, TValue>({
   function renderPageButtons() {
 
     if (totalPages <= 1) return null; 
-    
+
     const buttons = [];
     if (totalPages <= 5) {
       for (let i = 1; i <= totalPages; i++) {
@@ -177,7 +175,7 @@ export function DataTable<TData, TValue>({
             {isLoading ? (
               [...Array(perPage)].map((_, i) => (
                 <TableRow key={i}>
-                  {columns.map((col, j) => (
+                  {columns.map((_, j) => (
                     <TableCell key={j} className="px-6 py-3">
                       <Skeleton className="h-6 w-full rounded" />
                     </TableCell>
