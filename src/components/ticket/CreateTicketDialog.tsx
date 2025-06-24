@@ -25,7 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useDebounce } from "@/hooks/useDebouce";
+import { useDebounce } from "@/hooks/utils/useDebouce";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import {

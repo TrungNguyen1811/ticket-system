@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageList } from "./MessageList";
-import { MessageInput } from "./MessageInput";
-import { cn } from "@/lib/utils";
+import { MessageList } from "@/components/conversation/MessageList";
+import { MessageInput } from "@/components/conversation/MessageInput";
 
 interface ChatViewProps {
   messages: any[];

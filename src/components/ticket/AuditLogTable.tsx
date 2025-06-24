@@ -55,9 +55,9 @@ import {
   CommandList,
 } from "../ui/command";
 import { useInView } from "react-intersection-observer";
-import { useTicketLogs } from "@/hooks/useTicketLogs";
-import { useTicketMutations } from "@/hooks/useTicketMutations";
-import { useApiQuery } from "@/hooks/useApiQuery";
+import { useTicketLogs } from "@/hooks/ticket/useTicketLogs";
+import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
+import { useApiQuery } from "@/hooks/api/useApiQuery";
 import { TicketAuditLog } from "@/types/ticket";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";

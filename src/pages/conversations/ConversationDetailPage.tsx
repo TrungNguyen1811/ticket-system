@@ -26,17 +26,16 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Attachment, AttachmentList } from "@/components/editor/AttachmentList";
+import { Attachment, AttachmentList } from "@/components/ticket/AttachmentList";
 import attachmentService from "@/services/attachment.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Response, DataResponse } from "@/types/reponse";
 import { userService } from "@/services/user.service";
 import { useToast } from "@/components/ui/use-toast";
 import type { User as UserType } from "@/types/user";
-import ChangeStatus from "@/components/ChangeStatus";
-import { useTicket } from "@/hooks/useTicket";
+import ChangeStatus from "@/components/ticket/ChangeStatus";
 import { Status, Ticket } from "@/types/ticket";
-import AssigneeUser from "@/components/AssigneeUser";
+import AssigneeUser from "@/components/ticket/AssigneeUser";
 import { cn, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -48,17 +47,18 @@ import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { OnChangePlugin } from "@/dialogs/AddCommentDialog";
-import { ReadOnlyEditor } from "@/components/ReadOnlyEditor";
+import { OnChangePlugin } from "@/components/comment/AddCommentDialog";
+import { ReadOnlyEditor } from "@/components/comment/ReadOnlyEditor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { ClearEditorPlugin } from "@/components/ClearEditorPlugin";
+import { ClearEditorPlugin } from "@/components/editor/ClearEditorPlugin";
 import { mailService } from "@/services/mail.service";
 import { Mail, MailFormData } from "@/types/mail";
-import SetEditTextPlugin from "@/components/SetEditTextPlugin";
+import SetEditTextPlugin from "@/components/editor/SetEditTextPlugin";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { useMailTicket } from "@/hooks/useMailTicket";
+import { useTicket } from "@/hooks/ticket/useTicket";
+import { useMailTicket } from "@/hooks/mail/useMailTicket";
 
 // Editor configuration
 const initialConfig = {

@@ -6,7 +6,7 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { $getRoot, EditorState } from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
-import ToolbarPlugin from "./editor/ToolbarPlugin";
+import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 
 interface EditCommentEditorProps {
   initialState: string;

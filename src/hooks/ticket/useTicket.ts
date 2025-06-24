@@ -2,14 +2,14 @@ import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ticket } from "@/types/ticket";
 import { Response, DataResponse } from "@/types/reponse";
-import { useTicketRealtime } from "./useTicketRealtime";
 import { useToast } from "@/components/ui/use-toast";
 import { ticketService } from "@/services/ticket.service";
 import { UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useTicketMutations } from "./useTicketMutations";
-import { usePusherSubscription } from "./usePusherSubscription";
+import { usePusherSubscription } from "@/hooks/pusher/usePusherSubscription";
 import { userService } from "@/services/user.service";
 import { User } from "@/types/user";
+import { useTicketRealtime } from "../realtime/useTicketRealtime";
 
 interface UseTicketProps {
   ticketId: string;

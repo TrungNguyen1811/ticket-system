@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Response, DataResponse } from "@/types/reponse";
 import { mailService } from "@/services/mail.service";
 import { Mail } from "@/types/mail";
-import { useMailRealtime } from "./useMailRealtime";
+import { useMailRealtime } from "@/hooks/mail/useMailRealtime";
 import { toast } from "@/components/ui/use-toast";
 
 interface UseMailTicketProps {
@@ -13,8 +13,6 @@ interface UseMailTicketProps {
 export const useMailTicket = ({ ticketId }: UseMailTicketProps) => {
   const [hasNewMails, setHasNewMails] = useState(false);
 
-  console.log("📧 useMailTicket called with ticketId:", ticketId);
-
   const { data: mailsData, isLoading } = useQuery<
     Response<DataResponse<Mail[]>>
   >({
@@ -23,7 +21,6 @@ export const useMailTicket = ({ ticketId }: UseMailTicketProps) => {
   });
 
   const handleMailUpdate = useCallback((data: Mail) => {
-    console.log("📬 handleMailUpdate called with data:", data);
     setHasNewMails(true);
     toast({
       title: "New mail received",

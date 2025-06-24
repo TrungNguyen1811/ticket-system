@@ -12,10 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, getStatusColor } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
-import { AddCommentDialog } from "@/dialogs/AddCommentDialog";
+import { AddCommentDialog } from "@/components/comment/AddCommentDialog";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
-import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog";
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog";
+import { AssignStaffDialog } from "@/components/ticket/AssignStaffDialog";
+import { ChangeStatusDialog } from "@/components/ticket/ChangeStatusDialog";
 import { useToast } from "@/components/ui/use-toast";
 import {
   ArrowLeft,
@@ -79,18 +79,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import attachmentService from "@/services/attachment.service";
 import { logService } from "@/services/log.service";
-import { AuditLogTable } from "@/components/editor/AuditLogTable";
+import { AuditLogTable } from "@/components/ticket/AuditLogTable";
 import { STATUS_OPTIONS } from "@/lib/constants";
 import { User } from "@/types/user";
 import { userService } from "@/services/user.service";
-import { useTicketMutations } from "@/hooks/useTicketMutations";
+import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
 import { useTicketLogs } from "@/hooks/useTicketLogs";
 import { useTicket } from "@/hooks/useTicket";
 import { useAuth } from "@/contexts/AuthContext";
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants";
-import { AttachmentList } from "@/components/editor/AttachmentList";
-import AssigneeUser from "@/components/AssigneeUser";
-import ChangeStatus from "@/components/ChangeStatus";
+import { AttachmentList } from "@/components/ticket/AttachmentList";
+import AssigneeUser from "@/components/ticket/AssigneeUser";
+import ChangeStatus from "@/components/ticket/ChangeStatus";
 
 function isDescriptionClamped(text: string, maxLines = 4) {
   return text.split("\n").length > maxLines || text.length > 300;

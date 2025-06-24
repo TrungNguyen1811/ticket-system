@@ -21,11 +21,11 @@ import {
 import { formatDate } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
-import { CreateTicketDialog } from "@/dialogs/CreateTicketDialog";
-import { EditTicketDialog } from "@/dialogs/EditTicketDialog";
-import { ChangeStatusDialog } from "@/dialogs/ChangeStatusDialog";
-import { AssignStaffDialog } from "@/dialogs/AssignStaffDialog";
-import { DeleteConfirmationDialog } from "@/dialogs/DeleteConfirmationDialog";
+import { CreateTicketDialog } from "@/components/ticket/CreateTicketDialog";
+import { EditTicketDialog } from "@/components/ticket/EditTicketDialog";
+import { ChangeStatusDialog } from "@/components/ticket/ChangeStatusDialog";
+import { AssignStaffDialog } from "@/components/ticket/AssignStaffDialog";
+import { DeleteConfirmationDialog } from "@/components/ticket/DeleteConfirmationDialog";
 import {
   Plus,
   Search,
@@ -62,13 +62,13 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
-import { useApiQuery } from "@/hooks/useApiQuery";
-import { useTicketMutations } from "@/hooks/useTicketMutations";
+import { useApiQuery } from "@/hooks/api/useApiQuery";
+import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
 import { usePusher } from "@/contexts/PusherContext";
-import { usePusherSubscription } from "@/hooks/usePusherSubscription";
-import { useTicketRealtime } from "@/hooks/useTicketRealtime";
+import { usePusherSubscription } from "@/hooks/pusher/usePusherSubscription";
+import { useTicketRealtime } from "@/hooks/realtime/useTicketRealtime";
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants";
-import { useDebounce } from "@/hooks/useDebouce";
+import { useDebounce } from "@/hooks/utils/useDebouce";
 
 const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 

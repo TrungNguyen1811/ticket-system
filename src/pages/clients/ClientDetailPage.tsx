@@ -28,7 +28,6 @@ import {
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { mockClients, mockTickets } from "@/mock/data";
 import { formatDate } from "@/lib/utils";
 import { userService } from "@/services/user.service";
 import { useQuery } from "@tanstack/react-query";

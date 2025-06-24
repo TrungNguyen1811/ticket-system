@@ -42,16 +42,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User } from "@/types/user";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/reponse";
 import { CommentFormData, Comment as CommentType } from "@/types/comment";
 import AttachmentService from "@/services/attachment.service";
-import { Attachment } from "@/types/ticket";
-import { ReadOnlyEditor } from "../ReadOnlyEditor";
-import EditCommentEditor from "../EditCommentEditor";
-import { useCommentRealtime } from "@/hooks/useCommentRealtime";
+import { useCommentRealtime } from "@/hooks/realtime/useCommentRealtime";
+import EditCommentEditor from "../comment/EditCommentEditor";
+import { ReadOnlyEditor } from "../comment/ReadOnlyEditor";
 
 interface CommentListProps {
   ticketId: string;
