@@ -63,5 +63,6 @@ export interface Attachment {
   created_at: string;
   updated_at: string;
   ticket_id: string;
-  comment_id: string;
+  comment_id: string | null;
+  email_id: string;
 }

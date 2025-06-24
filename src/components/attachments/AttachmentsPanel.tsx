@@ -27,12 +27,12 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
   }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<"files" | "media">("files");
-    const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({});
     const [loadingUrls, setLoadingUrls] = useState<Set<string>>(new Set());
   
-    const isImageFile = (filename: string) => {
-      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
-      return imageExtensions.some(ext => filename.toLowerCase().endsWith(ext));
+  
+    const isImageFile = (ext: string) => {
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+        return imageExtensions.includes(ext.toLowerCase());
     };
   
     const isPdfFile = (filename: string) => {
@@ -42,51 +42,55 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
     const filteredAttachments = attachments.filter(attachment =>
       attachment.file_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  
+
     const fileAttachments = filteredAttachments.filter(attachment => 
-      !isImageFile(attachment.file_name)
+      !isImageFile(attachment.file_extension)
     );
-    
+
 
     const mediaAttachments = useMemo(
-        () => filteredAttachments.filter((a) => isImageFile(a.file_name)),
+        () => filteredAttachments.filter((a) => isImageFile(a.file_extension)),
         [filteredAttachments]
       );
-  
-    // Fetch attachment URLs for media files
-    useEffect(() => {
-      const fetchAttachmentUrls = async () => {
-        const mediaAttachmentsToFetch = mediaAttachments.filter(
-          attachment => !attachmentUrls[attachment.id] && !loadingUrls.has(attachment.id)
-        );
-  
-        if (mediaAttachmentsToFetch.length === 0) return;
-  
-        for (const attachment of mediaAttachmentsToFetch) {
-          setLoadingUrls(prev => new Set(prev).add(attachment.id));
+
+    // // Fetch attachment URLs for media files
+    // useEffect(() => {
+    //   const fetchAttachmentUrls = async () => {
+    //     const mediaAttachmentsToFetch = useMemo(() => {
+    //         return mediaAttachments.filter(
+    //           attachment => !attachmentUrls[attachment.id] && !loadingUrls.has(attachment.id)
+    //         );
+    //       }, [mediaAttachments, attachmentUrls, loadingUrls]);
           
-          try {
-            const response = await attachmentService.getAttachment(attachment.id);
-            const attachmentData = response.data;
-            
-            setAttachmentUrls(prev => ({
-              ...prev,
-              [attachment.id]: `${import.meta.env.VITE_API_URL}${attachmentData?.file_path}`
-            }));
-          } catch (error) {
-            console.error(`Failed to fetch attachment URL for ${attachment.id}:`, error);
-          } finally {
-            setLoadingUrls(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(attachment.id);
-              return newSet;
-            });
-          }
-        }
-      };
+    //     console.log("mediaAttachmentsToFetch", mediaAttachmentsToFetch);
   
-      fetchAttachmentUrls();
-    }, [mediaAttachments]);
+    //     if (mediaAttachmentsToFetch.length === 0) return;
+  
+    //     for (const attachment of mediaAttachmentsToFetch) {
+    //       setLoadingUrls(prev => new Set(prev).add(attachment.id));
+          
+    //       try {
+    //         const response = await attachmentService.getAttachment(attachment.id);
+    //         const attachmentData = response.data;
+            
+    //         setAttachmentUrls(prev => ({
+    //           ...prev,
+    //           [attachment.id]: `${import.meta.env.VITE_API_URL}${attachmentData?.file_path}`
+    //         }));
+    //       } catch (error) {
+    //         console.error(`Failed to fetch attachment URL for ${attachment.id}:`, error);
+    //       } finally {
+    //         setLoadingUrls(prev => {
+    //           const newSet = new Set(prev);
+    //           newSet.delete(attachment.id);
+    //           return newSet;
+    //         });
+    //       }
+    //     }
+    //   };
+  
+    //   fetchAttachmentUrls();
+    // }, [mediaAttachments]);
   
     const formatFileSize = (bytes: number): string => {
       if (bytes === 0) return "0 Bytes";
@@ -216,9 +220,9 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                   <p className="text-xs text-muted-foreground">No media found</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {mediaAttachments.map((attachment) => {
-                    const imageUrl = attachmentUrls[attachment.id];
+                    const imageUrl = attachment.id;
                     const isLoading = loadingUrls.has(attachment.id);
   
                     return (
@@ -233,7 +237,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                           </div>
                         ) : imageUrl ? (
                           <img
-                            src={imageUrl}
+                            src={`${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`}
                             alt={attachment.file_name}
                             className="w-full h-full object-cover"
                             // onError={(e) => {
