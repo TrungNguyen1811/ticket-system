@@ -5,6 +5,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Layout from "@/components/layout/Layout";
 import ConversationTabsLayout from "@/components/layout/ConversationTabsLayout";
 import LoadingFallback from "@/components/shared/LoadingFallback";
+import SlackCallback from "@/pages/slack/SlackCallback";
 
 // Lazy load components
 const Login = lazy(() => import("@/pages/Login"));
@@ -128,5 +129,9 @@ export const routes: RouteObject[] = [
         ),
       },
     ],
+  },
+  {
+    path: "/slack/callback",
+    element: <SlackCallback />,
   },
 ];

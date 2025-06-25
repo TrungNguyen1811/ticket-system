@@ -14,3 +14,9 @@ export interface DataResponse<T> {
   data: T;
   pagination?: Pagination;
 }
+
+export interface CallbackResponse {
+  success: boolean;
+  message: string;
+  error: string;
+}

@@ -8,6 +8,7 @@ export interface User {
   updated_at: string;
   created_at: string;
   sub: string;
+  slack_connected: boolean;
 }
 
 export interface Client {

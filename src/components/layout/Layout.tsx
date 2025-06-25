@@ -8,13 +8,12 @@ import {
   Ticket,
   Users,
   Building2,
-  Settings,
   Menu,
   X,
   LogOut,
   User,
-  Bell,
   MessageSquare,
+  Slack,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,7 +25,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { authService } from "@/services/auth.service";
+import { toast } from "../ui/use-toast";
 
 const adminNavigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -48,7 +48,22 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
+
+  const handleDisconnectSlack = async () => {
+    try {
+      const response = await authService.disconnectSlackIntegration();
+      if (response.success) {
+        await refreshUser();
+        toast({
+          title: "Slack integration disconnected successfully",
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to disconnect Slack integration", error);
+    }
+  };
 
   // Admin Layout
   return (
@@ -147,23 +162,40 @@ export default function Layout({ children }: LayoutProps) {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="w-full flex items-center space-x-3 p-2"
+                    className="w-full flex items-center justify-between px-3 py-2"
                   >
-                    <UserAvatar name={user.name} />
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium text-gray-900">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-gray-500">{user.role}</p>
+                    {/* Avatar + name */}
+                    <div className="flex items-center space-x-3">
+                      <UserAvatar name={user.name} />
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                      </div>
+                    </div>
+
+                    {/* Slack status */}
+                    <div className="flex items-center space-x-1">
+                      {user.slack_connected ? (
+                        <img src="src/assets/Slack_icon.svg" alt="Slack Logo" className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Slack className="h-4 w-4 text-gray-500" />
+                      )}
                     </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {/* <DropdownMenuItem>
-                    <User className="h-4 w-4 mr-2" />
-                    Profile Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator /> */}
+                  {user.slack_connected ? (
+                    <DropdownMenuItem onClick={handleDisconnectSlack} className="text-gray-500 hover:text-red-500">
+                      <Slack className="h-4 w-4 mr-2" />
+                      Disconnect Slack
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={authService.initiateSlackIntegration} className="hover:text-green-500">
+                      <img src="src/assets/Slack_icon.svg" alt="Slack Logo" className="h-4 w-4 mr-2" />
+                      Connect Slack
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="text-red-600">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign out

@@ -114,10 +114,10 @@ export const CommentList: React.FC<CommentListProps> = ({
       //   description: "Attachment downloaded successfully",
       // });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to download attachment",
+        description: error.response.data.message || "Failed to download attachment",
         variant: "destructive",
       });
     },

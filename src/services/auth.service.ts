@@ -1,7 +1,8 @@
 import api from "@/lib/axios";
 import { LoginSchema } from "@/schema/auth.schema";
 import type { User } from "@/types/user";
-import type { Response } from "@/types/reponse";
+import type { CallbackResponse, DataResponse, Response } from "@/types/reponse";
+import axios from "axios";
 
 export interface LoginResponse {
   user: User;
@@ -84,6 +85,36 @@ class AuthService {
     }
   }
 
+  async initiateSlackIntegration(): Promise<void> {
+    try {
+      const response = await api.get<Response<{ url: string }>>("/slack/connect-url");
+      window.location.href = response.data.data.url;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  async disconnectSlackIntegration(): Promise<Response<{ url: string }>> {
+    try {
+      const response = await api.post<Response<{ url: string }>>("/slack/disconnect");
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async slackCallback(code: string, state: string): Promise<void> {
+    try {
+      const response = await api.post<CallbackResponse>("/slack/callback", { code, state });
+      if (response.data.success) {
+        window.location.href = "/";
+      } else {
+        window.location.href = "/slack=error";
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
   // // Update user profile
   // async updateProfile(data: Partial<AuthUser>): Promise<AuthUser> {
   //   try {

@@ -23,7 +23,7 @@ import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
 import { TRANSFORMERS } from "@lexical/markdown";
-import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
+import {LexicalErrorBoundary} from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 
@@ -47,7 +47,7 @@ interface AddCommentDialogProps {
 
 // Editor configuration
 export const initialConfig = {
-  namespace: "ticket-comment-editor",
+  namespace: "AddCommentDialogEditor",
   theme: {
     root: "p-4 border border-input rounded-md min-h-[150px] focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
     link: "cursor-pointer text-blue-500 underline",
@@ -86,18 +86,22 @@ export function AddCommentDialog({
   isComplete,
 }: AddCommentDialogProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
   const [editorContent, setEditorContent] = useState<{
     raw: string;
     html: string;
+    text: string;
   }>({
     raw: "",
     html: "",
+    text: "",
   });
-
+  const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Generate unique key for this dialog instance
+  const uniqueKey = `AddCommentDialog_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -150,35 +154,27 @@ export function AddCommentDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editorContent.html.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a comment.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // onSubmit({ editorContent, attachments })
-      onSubmit({
-        editorContent: { raw: editorContent.raw, html: editorContent.html },
+      await onSubmit({
+        editorContent: {
+          raw: editorContent.raw,
+          html: editorContent.html,
+        },
         attachments,
       });
       onOpenChange(false);
       setLoading(false);
-      setEditorContent({ raw: "", html: "" });
+      setEditorContent({ raw: "", html: "", text: "" });
       setAttachments([]);
     } catch (error) {
+      setLoading(false);
       toast({
         title: "Error",
-        description: "Failed to add comment. Please try again.",
+        description: "Failed to add comment",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -216,7 +212,7 @@ export function AddCommentDialog({
         >
           <div className="space-y-2 m-4">
             <Label htmlFor="content">Comment *</Label>
-            <LexicalComposer initialConfig={initialConfig}>
+            <LexicalComposer key={uniqueKey} initialConfig={initialConfig}>
               <div className="relative">
                 <ToolbarPlugin />
                 <div className="relative mt-2">
@@ -336,7 +332,7 @@ export function AddCommentDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading || !editorContent.html.trim() || isComplete}
+              disabled={loading || !editorContent.text.trim() || isComplete}
             >
               {loading ? (
                 <>
@@ -366,11 +362,26 @@ export function OnChangePlugin({
     return editor.registerUpdateListener(
       ({ editorState }: { editorState: EditorState }) => {
         editorState.read(() => {
-          const raw = JSON.stringify(editorState.toJSON());
-          const html = $generateHtmlFromNodes(editor, null);
-          const root = $getRoot();
-          const text = root.getTextContent();
-          onChange({ raw, html, text });
+          try {
+            const raw = JSON.stringify(editorState.toJSON());
+            const root = $getRoot();
+            const text = root.getTextContent();
+            
+            // Generate HTML safely within the read callback
+            let html = "";
+            try {
+              html = $generateHtmlFromNodes(editor, null);
+            } catch (htmlError) {
+              console.warn("Failed to generate HTML, using text content:", htmlError);
+              html = text; // Fallback to text content
+            }
+            
+            onChange({ raw, html, text });
+          } catch (error) {
+            console.error("Error in OnChangePlugin:", error);
+            // Provide fallback values
+            onChange({ raw: "", html: "", text: "" });
+          }
         });
       },
     );

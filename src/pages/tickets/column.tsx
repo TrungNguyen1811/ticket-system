@@ -2,10 +2,12 @@ import { Ticket } from "@/types/ticket"
 import { ColumnDef } from "@tanstack/react-table"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { Button } from "@/components/ui/button"
-import { Settings, ArrowUpDown, Eye, Building2, Edit, UserPlus, RefreshCw, Trash2, Loader2 } from "lucide-react"
+import { Settings, ArrowUpDown, Eye, Building2, Edit, UserPlus, RefreshCw, Trash2, Loader2, MoreHorizontal } from "lucide-react"
 import { format } from "date-fns"
 import { Link } from "react-router-dom"
 import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
+import { DropdownMenu, DropdownMenuItem, DropdownMenuContent } from "@/components/ui/dropdown-menu"
+import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export interface TicketTableActionProps {
   onViewDetail: (ticket: Ticket) => void
@@ -221,69 +223,74 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
                 View
               </div>
             </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => actions.onEdit(ticket)}
-              disabled={
-                actions.isLoadingStates.update ||
-                ticket.status === "complete" ||
-                ticket.status === "archived"
-              }
-            >
-              {actions.isLoadingStates.update ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Edit className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => actions.onAssign(ticket)}
-              disabled={
-                actions.isLoadingStates.assign ||
-                ticket.status === "archived" ||
-                ticket.status === "complete"
-              }
-            >
-              {actions.isLoadingStates.assign ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => actions.onStatusChange(ticket)}
-              disabled={
-                actions.isLoadingStates.changeStatus ||
-                ticket.status === "archived"
-              }
-            >
-              {actions.isLoadingStates.changeStatus ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-              onClick={() => actions.onDelete(ticket)}
-              disabled={actions.isLoadingStates.delete}
-            >
-              {actions.isLoadingStates.delete ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => actions.onEdit(ticket)}
+                  disabled={
+                    actions.isLoadingStates.update ||
+                    ticket.status === "complete" ||
+                    ticket.status === "archived"
+                  }
+                >
+                  {actions.isLoadingStates.update ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Edit className="h-4 w-4 mr-2" />
+                  )}
+                  Edit
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => actions.onAssign(ticket)}
+                  disabled={
+                    actions.isLoadingStates.assign ||
+                    ticket.status === "complete" ||
+                    ticket.status === "archived"
+                  }
+                >
+                  {actions.isLoadingStates.assign ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <UserPlus className="h-4 w-4 mr-2" />
+                  )}
+                  Assign
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => actions.onStatusChange(ticket)}
+                  disabled={
+                    actions.isLoadingStates.changeStatus ||
+                    ticket.status === "archived"
+                  }
+                >
+                  {actions.isLoadingStates.changeStatus ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Change Status
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => actions.onDelete(ticket)}
+                  className="text-red-600 focus:text-red-700"
+                  disabled={actions.isLoadingStates.delete}
+                >
+                  {actions.isLoadingStates.delete ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )
       },

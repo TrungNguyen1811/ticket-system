@@ -33,7 +33,6 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
-import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OnChangePlugin } from "@/components/comment/AddCommentDialog";
@@ -51,7 +50,10 @@ import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 import { ClientCard } from "../tickets/ticket-detail/ClientCard";
 import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
-  
+import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
+
+
+
 // Editor configuration
 const initialConfig = {
   namespace: "ConversationEditor",
@@ -100,12 +102,12 @@ export default function ConversationDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  console.log("selectedFiles", selectedFiles);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [optimisticObjectUrls, setOptimisticObjectUrls] = useState<Set<string>>(new Set());
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -181,6 +183,31 @@ export default function ConversationDetail() {
     }
   }, [shouldAutoScroll, mailsData]);
 
+  // Cleanup object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Revoke all tracked object URLs to prevent memory leaks
+      optimisticObjectUrls.forEach(url => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, [optimisticObjectUrls]);
+
+  // Cleanup optimistic object URLs when mails data updates (optimistic updates replaced)
+  useEffect(() => {
+    if (mailsData && mailsData.length > 0) {
+      // Check if there are any optimistic mails that have been replaced
+      const hasOptimisticMails = mailsData.some(mail => mail.id.startsWith('temp-'));
+      if (!hasOptimisticMails && optimisticObjectUrls.size > 0) {
+        // All optimistic mails have been replaced, cleanup object URLs
+        optimisticObjectUrls.forEach(url => {
+          URL.revokeObjectURL(url);
+        });
+        setOptimisticObjectUrls(new Set());
+      }
+    }
+  }, [mailsData, optimisticObjectUrls]);
+
   // Handlers
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -253,17 +280,22 @@ export default function ConversationDetail() {
 
       const mail = await mailService.createMail(id, formData as MailFormData);
       if (mail.success) {
-        // Optimistic update for mail
-        const optimisticMail: Mail = {
-          id: `temp-${Date.now()}`,
-          from_name: user?.name || "",
-          from_email: "phamphanbang@gmail.com",
-          subject: `Re: ${ticketData?.title || ""}`,
-          body: editorContent.text,
-          attachments: selectedFiles.map((file) => ({
-            id: `temp-${Date.now()}`,
+        // Create object URLs for images and track them
+        const objectUrls: string[] = [];
+        const optimisticAttachments = selectedFiles.map((file, index) => {
+          const tempId = `temp-${Date.now()}-${index}`;
+          const isImage = isImageFileByName(file.name);
+          let objectUrl = "";
+          
+          if (isImage) {
+            objectUrl = URL.createObjectURL(file);
+            objectUrls.push(objectUrl);
+          }
+          
+          return {
+            id: tempId,
             file_name: file.name,
-            file_path: URL.createObjectURL(file),
+            file_path: objectUrl,
             file_type: file.type,
             file_size: file.size,
             file_extension: file.name.split(".").pop() || "",
@@ -273,10 +305,23 @@ export default function ConversationDetail() {
             ticket_id: id,
             comment_id: "",
             email_id: "",
-          })),
+          };
+        });
+
+        // Optimistic update for mail
+        const optimisticMail: Mail = {
+          id: `temp-${Date.now()}`,
+          from_name: user?.name || "",
+          from_email: "phamphanbang@gmail.com",
+          subject: `Re: ${ticketData?.title || ""}`,
+          body: editorContent.text,
+          attachments: optimisticAttachments,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
+
+        // Track object URLs for cleanup
+        setOptimisticObjectUrls(prev => new Set([...prev, ...objectUrls]));
 
         // Add optimistic mail to cache
         queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
@@ -521,6 +566,13 @@ export default function ConversationDetail() {
                                         >
                                           {m.attachments.map((a, idx) => {
                                             const isImg = isImageFile(a.file_extension);
+                                            const isOptimistic = a.id.startsWith('temp-');
+                                            
+                                            // Determine image source based on attachment type
+                                            const imageSrc = isOptimistic 
+                                              ? a.file_path // Use object URL for optimistic attachments
+                                              : `${import.meta.env.VITE_API_URL}/attachments/${a.id}`; // Use API URL for server attachments
+                                            
                                             return (
                                               <div
                                                 key={a.id}
@@ -538,9 +590,15 @@ export default function ConversationDetail() {
                                               >
                                                 {isImg ? (
                                                   <img
-                                                    src={`${import.meta.env.VITE_API_URL}/attachments/${a.id}`}
+                                                    src={imageSrc}
                                                     alt={a.file_name}
                                                     className="object-cover w-full h-full group-hover:opacity-80 transition"
+                                                    onError={(e) => {
+                                                      // Fallback for failed image loads
+                                                      const target = e.target as HTMLImageElement;
+                                                      target.style.display = 'none';
+                                                      target.nextElementSibling?.classList.remove('hidden');
+                                                    }}
                                                   />
                                                 ) : (
                                                   <div className="flex items-center gap-3 w-full p-2 hover:bg-muted/50 rounded-lg transition-colors">
@@ -552,17 +610,19 @@ export default function ConversationDetail() {
                                                   </div>                                                
                                                 )}
                                                 <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                  <button
-                                                    className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
-                                                    onClick={e => {
-                                                      e.stopPropagation();
-                                                      window.open(`${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`, '_blank');
-                                                    }}
-                                                    tabIndex={-1}
-                                                    aria-label={`Download ${a.file_name}`}
-                                                  >
-                                                    <Download className="w-4 h-4" />
-                                                  </button>
+                                                  {!isOptimistic && (
+                                                    <button
+                                                      className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                                                      onClick={e => {
+                                                        e.stopPropagation();
+                                                        window.open(`${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`, '_blank');
+                                                      }}
+                                                      tabIndex={-1}
+                                                      aria-label={`Download ${a.file_name}`}
+                                                    >
+                                                      <Download className="w-4 h-4" />
+                                                    </button>
+                                                  )}
                                                 </div>
                                               </div>
                                             );
@@ -607,7 +667,7 @@ export default function ConversationDetail() {
                               Write a reply...
                             </div>
                           }
-                          ErrorBoundary={LexicalErrorBoundary as any}
+                          ErrorBoundary={LexicalErrorBoundary}
                         />
                         <HistoryPlugin />
                         <AutoFocusPlugin />
@@ -619,34 +679,6 @@ export default function ConversationDetail() {
                       </div>
                     </LexicalComposer>
                   </div>
-
-                  {selectedFiles.length > 0 && (
-                    <div className="flex flex-wrap">
-                      {selectedFiles.map((file, index) => (
-                        <div key={index} className="inline-flex items-center gap-1.5 rounded text-xs text-gray-700 max-w-full relative">
-                          {isImageFileByName(file.name) ? (
-                            <div className="relative">
-                              <img src={URL.createObjectURL(file)} alt={file.name} className="h-12 m-2 w-auto text-gray-500 flex-shrink-0 rounded-lg" />
-                            </div>
-                          ) : (
-                            <div className="bg-gray-200 rounded-sm m-2 flex items-center px-2 gap-1.5 h-12 w-auto">
-                              <Paperclip className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                              <span className="truncate inline-block max-w-[150px] sm:max-w-[70px]">
-                                {file.name}
-                              </span>
-                            </div>
-                          )}
-                            <button
-                                type="button"
-                                className="text-gray-500 hover:text-gray-700 absolute top-0 right-0 bg-white rounded-full p-1 bg-gray-200  "
-                                onClick={() => handleRemoveFile(index)}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                     <input
@@ -670,33 +702,60 @@ export default function ConversationDetail() {
                         <span className="sm:hidden">Attach</span>
                       </Button>
                     </label>
+                      {selectedFiles.length > 0 && (
+                      <div className="flex flex-wrap">
+                        {selectedFiles.map((file, index) => (
+                          <div key={index} className="inline-flex items-center gap-1.5 rounded text-xs text-gray-700 max-w-full relative">
+                            {isImageFileByName(file.name) ? (
+                              <div className="relative">
+                                <img src={URL.createObjectURL(file)} alt={file.name} className="h-12 m-2 w-auto text-gray-500 flex-shrink-0 rounded-lg" />
+                              </div>
+                            ) : (
+                              <div className="bg-gray-200 rounded-sm m-2 flex items-center px-2 gap-1.5 h-12 w-auto">
+                                <Paperclip className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                                <span className="truncate inline-block max-w-[150px] sm:max-w-[100px]">
+                                  {file.name}
+                                </span>
+                              </div>
+                            )}
+                              <button
+                                  type="button"
+                                  className="text-gray-500 hover:text-gray-700 absolute top-0 right-0 bg-white rounded-full p-1 bg-gray-200  "
+                                  onClick={() => handleRemoveFile(index)}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex-1" />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="h-8 text-xs gap-1.5 w-full sm:w-auto"
-                      disabled={
-                        isSubmitting ||
-                        (!editorContent.raw.trim() &&
-                          selectedFiles.length === 0) ||
-                        ticketData?.status === "complete" ||
-                        ticketData?.status === "archived"
-                      }
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span className="hidden sm:inline">Sending...</span>
-                          <span className="sm:hidden">Send</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-3 w-3" />
-                          <span className="hidden sm:inline">Send</span>
-                          <span className="sm:hidden">Send</span>
-                        </>
-                      )}
-                    </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="h-8 text-xs gap-1.5 w-full sm:w-auto"
+                        disabled={
+                          isSubmitting ||
+                          (!editorContent.raw.trim() &&
+                            selectedFiles.length === 0) ||
+                          ticketData?.status === "complete" ||
+                          ticketData?.status === "archived"
+                        }
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span className="hidden sm:inline">Sending...</span>
+                            <span className="sm:hidden">Send</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-3 w-3" />
+                            <span className="hidden sm:inline">Send</span>
+                            <span className="sm:hidden">Send</span>
+                          </>
+                        )}
+                      </Button>
                   </div>
                 </form>
               </div>
