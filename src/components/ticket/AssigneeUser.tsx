@@ -32,18 +32,21 @@ const AssigneeUser = ({
   handleStaffSelect,
   isErrorUsers,
   isTicketComplete = false,
+  setSelectedStaff,
 }: {
   isStaffOpen: boolean;
   setIsStaffOpen: (open: boolean) => void;
   isLoadingUsers: boolean;
   usersData: Response<DataResponse<User[]>> | undefined;
-  selectedStaff: string | null;
+  selectedStaff: User | null;
   handleStaffSelect: (staffId: string) => void;
   isErrorUsers: boolean;
   isTicketComplete?: boolean;
+  setSelectedStaff: (staff: User | null) => void;
 }) => {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const { data: usersSearchData, isLoading: isLoadingUsersSearch } = useQuery({
     queryKey: ["users-search", debouncedSearch],
@@ -61,10 +64,6 @@ const AssigneeUser = ({
       ? usersSearchData.data.data
       : usersData?.data.data || [];
 
-  const selectedStaffMember = displayUsers.find(
-    (user) => user.id === selectedStaff,
-  );
-
   return (
     <Popover open={isStaffOpen} onOpenChange={setIsStaffOpen}>
       <PopoverTrigger asChild>
@@ -75,19 +74,22 @@ const AssigneeUser = ({
           className="w-full justify-between"
           disabled={isLoadingUsers || isTicketComplete}
         >
-          <div className="flex items-center">
-            <UserAvatar
-              name={selectedStaffMember?.name || "Unassigned"}
-              size="sm"
-            />
-            <span className="ml-2">
-              {selectedStaffMember?.name || "Unassigned"}
-            </span>
-          </div>
-          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          {isAssigning ? (
+            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+          ) : (
+            <>
+              <div className="flex items-center">
+                <UserAvatar name={selectedStaff?.name || "Unassigned"} size="sm" />
+                <span className="ml-2">
+                  {selectedStaff?.name || "Unassigned"}
+                </span>
+              </div>
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </>
+          )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0 z-50">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-50 border rounded-md shadow-md">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search staff..."
@@ -114,15 +116,26 @@ const AssigneeUser = ({
                   <CommandItem
                     key={user.id}
                     value={`${user.id} ${user.name}`}
-                    onSelect={() =>
-                      !isTicketComplete && handleStaffSelect(user.id)
-                    }
-                    disabled={isTicketComplete}
+                    onSelect={async () => {
+                      if (!isTicketComplete) {
+                        try {
+                          setIsAssigning(true);
+                          await handleStaffSelect(user.id);
+                          setIsStaffOpen(false);
+                          setSelectedStaff(user);
+                        } catch (error) {
+                        } finally {
+                          setIsAssigning(false);
+                        }
+                      }
+                    }}
+                    disabled={isTicketComplete || selectedStaff?.id === user.id}
+                    className="cursor-pointer hover:bg-muted"
                   >
                     <div className="flex items-center">
                       <UserAvatar name={user.name} size="sm" />
                       <span className="ml-2">{user.name}</span>
-                      {user.id === selectedStaff && (
+                      {user.id === selectedStaff?.id && (
                         <Check className="h-4 w-4 ml-2 text-green-500" />
                       )}
                     </div>

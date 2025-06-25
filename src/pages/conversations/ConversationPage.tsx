@@ -80,7 +80,7 @@ export default function Conversation() {
   const total = tickets?.data.pagination?.total || 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 bg-slate-100">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Conversations</h1>
         <p className="text-sm text-muted-foreground">Manage and track all your conversations in one place</p>

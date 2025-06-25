@@ -6,6 +6,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "./components/theme/theme-provider";
 import { PusherProvider } from "@/contexts/PusherContext";
 import { routes } from "@/routes";
+import { pdfjs } from 'react-pdf';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
 
 // Create router with future flags
 const router = createBrowserRouter(routes, {

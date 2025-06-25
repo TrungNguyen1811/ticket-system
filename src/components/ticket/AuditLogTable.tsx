@@ -322,7 +322,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end">
                     {log.id === logs?.data?.data?.[0]?.id && (
                       <>
                         <Button

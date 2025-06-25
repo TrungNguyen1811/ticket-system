@@ -1,18 +1,15 @@
-import { X } from "lucide-react";
+import { X, ArrowLeft, ArrowRight, Download, FileText } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, ArrowRight, Download, FileText, ImageIcon } from "lucide-react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/esm/Page/AnnotationLayer.css";
-import "react-pdf/dist/esm/Page/TextLayer.css";
+import { Document, Page } from "react-pdf";
 import { cn } from "@/lib/utils";
 import { Attachment } from "@/types/ticket";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
-
-const PDF_EXTS = ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"];
+const PDF_EXTS = ["pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt"];
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
 
-function canPreviewWithPdfViewer(ext: string) {
+
+
+function canPreviewPdf(ext: string) {
   return PDF_EXTS.includes(ext.toLowerCase());
 }
 
@@ -28,39 +25,44 @@ interface FilePreviewOverlayProps {
 }
 
 export function FilePreviewModal({
-  files,
+  files = [],
   open,
   initialIndex = 0,
   onClose,
 }: FilePreviewOverlayProps) {
-  const [current, setCurrent] = useState(initialIndex);
-  const [pdfNumPages, setPdfNumPages] = useState<number | null>(null);
-  const [pdfError, setPdfError] = useState(false);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const [autoOpened, setAutoOpened] = useState(false);
+  const clampIndex = (idx: number) =>
+    files.length === 0 ? 0 : Math.max(0, Math.min(idx, files.length - 1));
 
-  useEffect(() => {
-    setCurrent(initialIndex);
-    setPdfNumPages(null);
-    setPdfError(false);
-    setAutoOpened(false);
-  }, [open, initialIndex]);
+  const [current, setCurrent] = useState(() => clampIndex(initialIndex));
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pdfError, setPdfError] = useState(false);
+  const [autoOpened, setAutoOpened] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const file = files[current];
   const ext = file?.file_extension?.toLowerCase() || "";
-  const canPdf = canPreviewWithPdfViewer(ext);
+  const canPdf = canPreviewPdf(ext);
   const isImg = isImage(ext);
+
+  const fileUrl = `${import.meta.env.VITE_API_URL}/attachments/${file?.id}`;
+
+  // Reset state when modal opens
+  useEffect(() => {
+    setCurrent(clampIndex(initialIndex));
+    setNumPages(null);
+    setPdfError(false);
+    setAutoOpened(false);
+  }, [open, files.length, initialIndex]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!open) return;
+      if (!open || files.length === 0) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") prev();
-      if (e.key === "ArrowRight") next();
-      if (e.key === "Enter") next();
+      if (e.key === "ArrowRight" || e.key === "Enter") next();
     },
-    [open, current, files]
+    [open, files.length]
   );
 
   useEffect(() => {
@@ -70,55 +72,53 @@ export function FilePreviewModal({
   }, [open, handleKeyDown]);
 
   function prev() {
-    setPdfNumPages(null);
+    setNumPages(null);
     setPdfError(false);
     setAutoOpened(false);
     setCurrent((c) => (c > 0 ? c - 1 : files.length - 1));
   }
+
   function next() {
-    setPdfNumPages(null);
+    setNumPages(null);
     setPdfError(false);
     setAutoOpened(false);
     setCurrent((c) => (c < files.length - 1 ? c + 1 : 0));
   }
 
-  // Download handler (force download, not open tab)
-  function handleDownload() {
-    const link = document.createElement("a");
-    link.href = `${import.meta.env.VITE_API_URL}/attachments/${file.id}/download`;
-    link.download = file.file_name;
-    link.rel = "noopener";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
-  // Auto open new tab for long PDF or on error
+  // Only open new tab if PDF is valid but has too many pages
   useEffect(() => {
-    if (!open || !canPdf || !pdfNumPages || autoOpened) return;
-    if (pdfNumPages > 5 || pdfError) {
-      window.open(`${import.meta.env.VITE_API_URL}/attachments/${file.id}`, "_blank");
+    if (!open || !canPdf || autoOpened || !file || numPages === null) return;
+
+    if (numPages > 5) {
+      window.open(fileUrl, "_blank");
       setAutoOpened(true);
-      setTimeout(onClose, 300); // auto close overlay
+      setTimeout(onClose, 300);
     }
-  }, [open, canPdf, pdfNumPages, pdfError, file, autoOpened, onClose]);
+  }, [open, canPdf, numPages, autoOpened, file]);
 
-  // Animation: fade in/out
+  // Handle error separately
   useEffect(() => {
-    if (open && overlayRef.current) {
-      overlayRef.current.classList.remove("opacity-0");
-      overlayRef.current.classList.add("opacity-100");
-    }
-  }, [open]);
+    if (!open || !canPdf || autoOpened || !file || !pdfError) return;
+
+    window.open(fileUrl, "_blank");
+    setAutoOpened(true);
+    setTimeout(onClose, 300);
+  }, [open, canPdf, pdfError, autoOpened, file]);
+
+  function handleDownload() {
+    if (!file) return;
+    const link = document.createElement("a");
+    link.href = `${fileUrl}/download`;
+    link.download = file.file_name;
+    link.click();
+  }
 
   if (!open) return null;
   if (!file) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-        <div className="text-center text-white">
-          <FileText className="mx-auto mb-2 h-10 w-10" />
-          <div className="text-lg">No file to preview</div>
-        </div>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 text-white">
+        <FileText className="w-8 h-8 mb-2" />
+        No file to preview
       </div>
     );
   }
@@ -127,112 +127,89 @@ export function FilePreviewModal({
     <div
       ref={overlayRef}
       className={cn(
-        "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 transition-opacity duration-200 opacity-0",
-        "animate-fade-in"
+        "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 transition-opacity duration-200 opacity-100"
       )}
       tabIndex={-1}
     >
-      {/* Close button */}
+      {/* Close */}
       <button
-        className="absolute top-4 right-4 z-60 bg-black/60 hover:bg-black/80 rounded-full p-2 text-white"
+        className="absolute top-4 right-4 bg-black/60 p-2 rounded-full text-white hover:bg-black/80"
         onClick={onClose}
-        aria-label="Close"
       >
-        <X className="h-6 w-6" />
+        <X className="w-6 h-6" />
       </button>
 
-      {/* Prev/Next arrows */}
+      {/* Prev / Next */}
       {files.length > 1 && (
         <>
           <button
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-60 bg-black/60 hover:bg-black/80 rounded-full p-2 text-white"
+            className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 p-2 rounded-full text-white hover:bg-black/80"
             onClick={prev}
-            aria-label="Previous"
           >
-            <ArrowLeft className="h-7 w-7" />
+            <ArrowLeft className="w-6 h-6" />
           </button>
           <button
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-60 bg-black/60 hover:bg-black/80 rounded-full p-2 text-white"
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 p-2 rounded-full text-white hover:bg-black/80"
             onClick={next}
-            aria-label="Next"
           >
-            <ArrowRight className="h-7 w-7" />
+            <ArrowRight className="w-6 h-6" />
           </button>
         </>
       )}
 
-      {/* Download button */}
+      {/* Download */}
       <button
-        className="absolute top-4 left-4 z-60 bg-black/60 hover:bg-black/80 rounded-full p-2 text-white"
+        className="absolute top-4 left-4 bg-black/60 p-2 rounded-full text-white hover:bg-black/80"
         onClick={handleDownload}
-        aria-label="Download"
       >
-        <Download className="h-6 w-6" />
+        <Download className="w-6 h-6" />
       </button>
 
-      {/* File content */}
-      <div className="flex flex-col items-center justify-center w-full h-full">
-        <div className="flex items-center justify-center w-full h-full">
-          {/* PDF Preview */}
-          {canPdf ? (
-            <div className="flex flex-col items-center justify-center bg-white rounded-lg shadow-lg max-w-[90vw] max-h-[90vh] p-2">
-              <Document
-                file={`${import.meta.env.VITE_API_URL}/attachments/${file.id}`}
-                onLoadSuccess={({ numPages }: { numPages: number }) => setPdfNumPages(numPages)}
-                onLoadError={() => setPdfError(true)}
-                loading={
-                  <div className="flex items-center justify-center h-40 w-40">
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                    <span className="ml-2 text-muted-foreground">Loading PDF...</span>
-                  </div>
-                }
-                error={
-                  <div className="flex flex-col items-center justify-center h-40 w-40">
-                    <FileText className="h-8 w-8 text-red-400" />
-                    <span className="mt-2 text-red-400">Không hỗ trợ xem trước</span>
-                  </div>
-                }
-              >
-                {pdfNumPages && pdfNumPages <= 5 ? (
-                  Array.from(new Array(pdfNumPages), (_, idx) => (
-                    <Page
-                      key={`page_${idx + 1}`}
-                      pageNumber={idx + 1}
-                      width={Math.min(800, window.innerWidth * 0.9)}
-                    />
-                  ))
-                ) : null}
-              </Document>
-            </div>
-          ) : isImg ? (
-            <img
-              src={`${import.meta.env.VITE_API_URL}/attachments/${file.id}`}
-              alt={file.file_name}
-              className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-lg object-contain bg-white"
-              style={{ transition: "all 0.2s" }}
+      {/* File Content */}
+      <div className="w-full h-full flex items-center justify-center">
+        {canPdf ? (
+          <div className="bg-white rounded shadow max-w-[90vw] max-h-[90vh] w-[90vw] h-[90vh] overflow-hidden">
+            <iframe
+              src={fileUrl}
+              title={file.file_name}
+              width="100%"
+              height="100%"
+              className="border-none"
             />
-          ) : (
-            <div className="flex flex-col items-center justify-center bg-white rounded-lg shadow-lg max-w-[90vw] max-h-[90vh] p-8">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <span className="text-lg text-muted-foreground">Không hỗ trợ xem trước</span>
-              <a
-                href={`${import.meta.env.VITE_API_URL}/attachments/${file.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded hover:bg-primary/80"
-              >
-                <Download className="h-5 w-5" />
-                Download file
-              </a>
-            </div>
-          )}
-        </div>
-        {/* File name and index */}
-        <div className="mt-4 text-white text-xs text-center select-none">
-          {file.file_name} <span className="mx-2">|</span> {current + 1} / {files.length}
-        </div>
+            <button
+              className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-3 py-1 rounded hover:bg-black/80 transition"
+              onClick={() => window.open(fileUrl, "_blank")}
+            >
+              Open new tab
+            </button>
+          </div>
+        ) : isImg ? (
+          <img
+            src={fileUrl}
+            alt={file.file_name}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded shadow bg-white"
+          />
+        ) : (
+          <div className="bg-white text-black rounded p-8 text-center">
+            <FileText className="h-12 w-12 mb-4" />
+            <div>This file type is not supported for preview</div>
+            <a
+              href={fileUrl}
+              target="_blank"
+              className="mt-4 inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              <Download className="h-5 w-5" />
+              Download
+            </a>
+          </div>
+        )}
+      </div>
+
+
+      {/* Footer */}
+      <div className="mt-4 text-white text-sm select-none">
+        {file.file_name} <span className="mx-2">|</span> {current + 1} / {files.length}
       </div>
     </div>
   );
 }
-  

@@ -84,71 +84,99 @@ export function DataTable<TData, TValue>({
 
   // Helper for pagination buttons
   function renderPageButtons() {
-
-    if (totalPages <= 1) return null; 
-
-    const buttons = [];
+    if (totalPages <= 1) return null;
+  
+    const PaginationButton = ({
+      label,
+      active,
+      onClick,
+    }: {
+      label: string;
+      active?: boolean;
+      onClick?: () => void;
+    }) => (
+      <button
+        onClick={onClick}
+        className={`px-2 py-1 text-sm rounded border ${
+          active
+            ? "bg-white border-primary"
+            : "text-muted-foreground hover:bg-muted/70"
+        } transition-colors`}
+        aria-current={active ? "page" : undefined}
+      >
+        {label}
+      </button>
+    );
+  
+    const buttons: React.ReactNode[] = [];
+  
     if (totalPages <= 5) {
       for (let i = 1; i <= totalPages; i++) {
         buttons.push(
-          <button
+          <PaginationButton
             key={i}
-            className={`px-2 py-1 text-sm rounded border ${i === page ? 'bg-primary text-white border-primary' : 'border-muted-foreground text-muted-foreground hover:bg-muted/70'} transition-colors`}
+            label={i.toString()}
+            active={i === page}
             onClick={() => onPageChange(i)}
-            aria-current={i === page ? 'page' : undefined}
-          >
-            {i}
-          </button>
+          />
         );
       }
     } else {
+      const showStartEllipsis = page > 3;
+      const showEndEllipsis = page < totalPages - 2;
+  
       // Always show first page
       buttons.push(
-        <button
+        <PaginationButton
           key={1}
-          className={`px-2 py-1 text-sm rounded border ${page === 1 ? 'bg-primary text-white border-primary' : 'border-muted-foreground text-muted-foreground hover:bg-muted/70'} transition-colors`}
+          label="1"
+          active={page === 1}
           onClick={() => onPageChange(1)}
-          aria-current={page === 1 ? 'page' : undefined}
-        >
-          1
-        </button>
+        />
       );
-      // Show ... if needed
-      if (page > 3) {
-        buttons.push(<span key="start-ellipsis" className="px-2 text-sm text-muted-foreground">...</span>);
-      }
-      // Show previous, current, next
-      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
-        if (i === 1 || i === totalPages) continue;
+  
+      if (showStartEllipsis) {
         buttons.push(
-          <button
-            key={i}
-            className={`px-2 py-1 text-sm rounded border ${i === page ? 'bg-primary text-white border-primary' : 'border-muted-foreground text-muted-foreground hover:bg-muted/70'} transition-colors`}
-            onClick={() => onPageChange(i)}
-            aria-current={i === page ? 'page' : undefined}
-          >
-            {i}
-          </button>
+          <span key="start-ellipsis" className="px-2 text-sm text-muted-foreground">
+            ...
+          </span>
         );
       }
-      if (page < totalPages - 2) {
-        buttons.push(<span key="end-ellipsis" className="px-2 text-sm text-muted-foreground">...</span>);
+  
+      // Show up to 3 middle pages (ensure current page always shown)
+      for (let i = page - 1; i <= page + 1; i++) {
+        if (i > 1 && i < totalPages) {
+          buttons.push(
+            <PaginationButton
+              key={i}
+              label={i.toString()}
+              active={i === page}
+              onClick={() => onPageChange(i)}
+            />
+          );
+        }
       }
+  
+      if (showEndEllipsis) {
+        buttons.push(
+          <span key="end-ellipsis" className="px-2 text-sm text-muted-foreground">
+            ...
+          </span>
+        );
+      }
+  
       // Always show last page
-      if (totalPages > 1) {
-        buttons.push(
-          <button
-            key={totalPages}
-            className={`px-2 py-1 text-sm rounded border ${page === totalPages ? 'bg-primary text-white border-primary' : 'border-muted-foreground text-muted-foreground hover:bg-muted/70'} transition-colors`}
-            onClick={() => onPageChange(totalPages)}
-            aria-current={page === totalPages ? 'page' : undefined}
-          >
-            {totalPages}
-          </button>
-        );
-      }
+      buttons.push(
+        <PaginationButton
+          key={totalPages}
+          label={totalPages.toString()}
+          active={page === totalPages}
+          onClick={() => onPageChange(totalPages)}
+        />
+      );
     }
-    return buttons;
+  
+    return <div className="flex gap-1 flex-wrap">{buttons}</div>;
   }
 
   return (

@@ -61,11 +61,9 @@ const ChangeStatus = ({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border rounded-md shadow-md">
         <Command>
-          <CommandInput placeholder="Search status..." />
           <CommandList>
-            <CommandEmpty>No status found.</CommandEmpty>
             <CommandGroup>
               {STATUS_OPTIONS.map((status) => {
                 // Skip archived status if user doesn't have permission
@@ -81,7 +79,8 @@ const ChangeStatus = ({
                       setSelectedStatus(status.value as Status);
                       handleStatusSelect(status.value as Status);
                     }}
-                    disabled={isTicketComplete}
+                    disabled={isTicketComplete || selectedStatus === status.value}
+                    className="cursor-pointer hover:bg-muted"
                   >
                     <TicketStatusDisplay
                       status={status.value}

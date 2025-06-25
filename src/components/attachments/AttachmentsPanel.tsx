@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
+import { SearchToggleInput } from "../ui/search-toggle-input";
 
 interface AttachmentsPanelProps {
     attachments: Attachment[];
@@ -14,14 +15,13 @@ interface AttachmentsPanelProps {
     isError: boolean;
     onDownload: (attachmentId: string) => void;
     downloadingFiles: Set<string>;
-    onPreviewFile: (attachment: Attachment) => void;
+    onPreviewFile: (attachment: Attachment, scope: Attachment[]) => void;
   }
   
 export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
     attachments,
     isLoading,
     isError,
-    onDownload,
     downloadingFiles,
     onPreviewFile,
   }) => {
@@ -48,45 +48,16 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
         [filteredAttachments]
       );
 
-    // // Fetch attachment URLs for media files
-    // useEffect(() => {
-    //   const fetchAttachmentUrls = async () => {
-    //     const mediaAttachmentsToFetch = useMemo(() => {
-    //         return mediaAttachments.filter(
-    //           attachment => !attachmentUrls[attachment.id] && !loadingUrls.has(attachment.id)
-    //         );
-    //       }, [mediaAttachments, attachmentUrls, loadingUrls]);
-          
-    //     console.log("mediaAttachmentsToFetch", mediaAttachmentsToFetch);
-  
-    //     if (mediaAttachmentsToFetch.length === 0) return;
-  
-    //     for (const attachment of mediaAttachmentsToFetch) {
-    //       setLoadingUrls(prev => new Set(prev).add(attachment.id));
-          
-    //       try {
-    //         const response = await attachmentService.getAttachment(attachment.id);
-    //         const attachmentData = response.data;
-            
-    //         setAttachmentUrls(prev => ({
-    //           ...prev,
-    //           [attachment.id]: `${import.meta.env.VITE_API_URL}${attachmentData?.file_path}`
-    //         }));
-    //       } catch (error) {
-    //         console.error(`Failed to fetch attachment URL for ${attachment.id}:`, error);
-    //       } finally {
-    //         setLoadingUrls(prev => {
-    //           const newSet = new Set(prev);
-    //           newSet.delete(attachment.id);
-    //           return newSet;
-    //         });
-    //       }
-    //     }
-    //   };
-  
-    //   fetchAttachmentUrls();
-    // }, [mediaAttachments]);
-  
+    function handleDownload(attachment: Attachment) {
+      const link = document.createElement("a");
+      link.href = `${import.meta.env.VITE_API_URL}/attachments/${attachment.id}/download`;
+      link.download = attachment.file_name;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
     const formatFileSize = (bytes: number): string => {
       if (bytes === 0) return "0 Bytes";
       const k = 1024;
@@ -127,20 +98,12 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
     }
   
     return (
-      <Card className="w-full">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Attachments</CardTitle>
-          <div className="relative mt-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-3 w-3" />
-            <Input
-              placeholder="Search attachments..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 text-xs"
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
+      <div  className="w-full h-[65vh]">
+        <div className="pb-3 flex flex-row items-center justify-between">
+          <div className="text-sm font-semibold">Attachments</div>
+          <SearchToggleInput searchTerm={searchTerm} onChange={setSearchTerm} />
+        </div>
+        <div className="pt-0">
           {/* Tabs */}
           <div className="flex border-b mb-4">
             <button
@@ -181,7 +144,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                     key={attachment.id}
                     className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex items-center space-x-2 min-w-0 flex-1 cursor-pointer"  onClick={() => onPreviewFile(attachment)}>
+                    <div className="flex items-center space-x-2 min-w-0 flex-1 cursor-pointer"  onClick={() => onPreviewFile(attachment, fileAttachments)}>
                       <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium truncate">
@@ -194,18 +157,14 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                     </div>
                     <Button
                       variant="ghost"
-                      size="sm"
-                    //   onClick={() => onDownload(attachment.id)}
-                    //   disabled={downloadingFiles.has(attachment.id)}
-                    // onClick={() => window.open(`${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`)}
+                      onClick={() => handleDownload(attachment)}
+                      aria-label="Download"
                       className="h-6 w-6 p-0"
                     >
                       {downloadingFiles.has(attachment.id) ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Link to={`${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`} target="_blank">
-                          <Download className="h-3 w-3" />
-                        </Link>
+                        <Download className="h-4 w-4" />
                       )}
                     </Button>
                   </div>
@@ -226,7 +185,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
                       <div
                         key={attachment.id}
                         className="group relative aspect-square rounded-lg border overflow-hidden hover:border-primary transition-colors cursor-pointer"
-                        onClick={() => onPreviewFile(attachment)}
+                        onClick={() => onPreviewFile(attachment, mediaAttachments)}
                       >
                         {isLoading ? (
                           <div className="w-full h-full flex items-center justify-center bg-muted/30">
@@ -258,7 +217,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
               )
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   };

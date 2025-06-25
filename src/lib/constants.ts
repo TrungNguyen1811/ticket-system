@@ -23,7 +23,13 @@ export const STATUS_OPTIONS = [
   { value: "complete", label: "Complete", color: "green" },
   { value: "archived", label: "Archived", color: "red" },
 ];
-
+export const DEFAULT_STATUS_OPTIONS = [
+  { value: "new", label: "New", color: "blue" },
+  { value: "in_progress", label: "In Progress", color: "yellow" },
+  { value: "pending", label: "Pending", color: "purple" },
+  { value: "complete", label: "Complete", color: "green" },
+  { value: "archived", label: "Archived", color: "red" },
+];
 export const SHOW_STATUS_OPTIONS = [
   { value: "new", label: "New", color: "blue" },
   { value: "in_progress", label: "In Progress", color: "yellow" },
