@@ -10,13 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import {
-  Loader2,
-  Tag,
-  Trash,
-  UserPlus,
-  Check,
-} from "lucide-react";
+import { Loader2, Tag, Trash, UserPlus, Check } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -88,7 +82,8 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   );
   const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
-  const [deletingLog, setDeletingLog] = useState<boolean>(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [logId, setLogId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [perPage, setPerPage] = useState(10);
@@ -226,8 +221,8 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
 
   return (
     <div className="space-y-4">
-      <Table>
-        <TableHeader>
+      <Table className="bg-white">
+        <TableHeader className="bg-white">
           <TableRow>
             <TableHead className="w-[120px]">By</TableHead>
             <TableHead className="w-[120px]">Staff</TableHead>
@@ -357,7 +352,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        setDeletingLog(true);
+                        setShowDeleteDialog(true);
                         setLogId(log.id);
                       }}
                       className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
@@ -440,17 +435,17 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             </Button>
             <Button
               disabled={!selectedStatus || mutations.changeStatus.isPending}
-              onClick={() =>
-                handleStatusChange(
-                  selectedStatus as
-                    | "new"
-                    | "in_progress"
-                    | "pending"
-                    | "assigned"
-                    | "complete"
-                    | "archived",
-                )
-              }
+              onClick={() => {
+                handleStatusChange(selectedStatus as
+                  | "new"
+                  | "in_progress"
+                  | "pending"
+                  | "assigned"
+                  | "complete"
+                  | "archived");
+                setEditingType(null);
+                setSelectedStatus("");
+              }}
               className="min-w-[100px]"
             >
               {mutations.changeStatus.isPending ? (
@@ -574,8 +569,8 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
       </Dialog>
 
       <AlertDialog
-        open={deletingLog}
-        onOpenChange={() => setDeletingLog(false)}
+        open={showDeleteDialog}
+        onOpenChange={() => setShowDeleteDialog(false)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -586,18 +581,24 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             undone.
           </AlertDialogDescription>
           <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setDeletingLog(false)}>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={() => {
-                handleLogDelete(logId);
-                setDeletingLog(false);
+              disabled={isDeleting || mutations.deleteLog.isPending}
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  await handleLogDelete(logId);
+                } finally {
+                  setIsDeleting(false);
+                  setShowDeleteDialog(false);
+                }
               }}
               className="min-w-[100px]"
             >
-              {deletingLog ? (
+              {isDeleting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   Deleting...

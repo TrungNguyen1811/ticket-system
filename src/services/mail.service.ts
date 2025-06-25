@@ -1,10 +1,15 @@
 import api from "@/lib/axios";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { Mail, MailFormData } from "@/types/mail";
 
 class MailService {
-  async getMails(ticketId: string): Promise<Response<DataResponse<Mail[]>>> {
-    const response = await api.get(`/tickets/${ticketId}/mails`);
+  async getMails(
+    ticketId: string,
+    params: { cursor?: string; limit?: number },
+  ): Promise<Response<DataResponse<Mail[]>>> {
+    const response = await api.get(`/tickets/${ticketId}/mails`, {
+      params,
+    });
     return response.data;
   }
 

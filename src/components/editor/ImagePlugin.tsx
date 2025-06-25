@@ -10,10 +10,9 @@
 //     useEffect
 //   } from "react";
 
-  
 //   export function ImagePlugin() {
 //     const [editor] = useLexicalComposerContext();
-  
+
 //     useEffect(() => {
 //       return editor.registerCommand(
 //         INSERT_IMAGE_COMMAND,
@@ -25,7 +24,6 @@
 //         COMMAND_PRIORITY_LOW
 //       );
 //     }, [editor]);
-  
+
 //     return null;
 //   }
-  

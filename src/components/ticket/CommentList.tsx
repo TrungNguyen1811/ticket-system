@@ -44,7 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { CommentFormData, Comment as CommentType } from "@/types/comment";
 import AttachmentService from "@/services/attachment.service";
 import { useCommentRealtime } from "@/hooks/realtime/useCommentRealtime";
@@ -117,7 +117,8 @@ export const CommentList: React.FC<CommentListProps> = ({
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.response.data.message || "Failed to download attachment",
+        description:
+          error.response.data.message || "Failed to download attachment",
         variant: "destructive",
       });
     },

@@ -7,8 +7,6 @@ import { Attachment } from "@/types/ticket";
 const PDF_EXTS = ["pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt"];
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
 
-
-
 function canPreviewPdf(ext: string) {
   return PDF_EXTS.includes(ext.toLowerCase());
 }
@@ -62,7 +60,7 @@ export function FilePreviewModal({
       if (e.key === "ArrowLeft") prev();
       if (e.key === "ArrowRight" || e.key === "Enter") next();
     },
-    [open, files.length]
+    [open, files.length],
   );
 
   useEffect(() => {
@@ -127,7 +125,7 @@ export function FilePreviewModal({
     <div
       ref={overlayRef}
       className={cn(
-        "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 transition-opacity duration-200 opacity-100"
+        "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 transition-opacity duration-200 opacity-100",
       )}
       tabIndex={-1}
     >
@@ -205,10 +203,10 @@ export function FilePreviewModal({
         )}
       </div>
 
-
       {/* Footer */}
       <div className="mt-4 text-white text-sm select-none">
-        {file.file_name} <span className="mx-2">|</span> {current + 1} / {files.length}
+        {file.file_name} <span className="mx-2">|</span> {current + 1} /{" "}
+        {files.length}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 import { TicketAuditLog } from "@/types/ticket";
 
 class LogService {

@@ -16,8 +16,12 @@ const Clients = lazy(() => import("@/pages/clients/ClientsPage"));
 const ClientDetail = lazy(() => import("@/pages/clients/ClientDetailPage"));
 const UsersPage = lazy(() => import("@/pages/users/UsersPage"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
-const Conversation = lazy(() => import("@/pages/conversations/ConversationPage"));
-const ConversationDetail = lazy(() => import("@/pages/conversations/ConversationDetailPage"));
+const Conversation = lazy(
+  () => import("@/pages/conversations/ConversationPage"),
+);
+const ConversationDetail = lazy(
+  () => import("@/pages/conversations/ConversationDetailPage"),
+);
 
 // Route configuration
 export const routes: RouteObject[] = [

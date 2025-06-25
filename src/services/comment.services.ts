@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 import { ParamsComment, CommentFormData } from "@/types/comment";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 import { Comment } from "@/types/comment";
 
 class CommentService {

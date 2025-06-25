@@ -9,14 +9,10 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Search,
-  RefreshCw,
-  Loader2,
-} from "lucide-react";
+import { Search, RefreshCw, Loader2 } from "lucide-react";
 import { Status, Ticket } from "@/types/ticket";
 import { useQuery } from "@tanstack/react-query";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 import { ticketService } from "@/services/ticket.service";
 import {
   Select,
@@ -33,7 +29,9 @@ import { VisibilityState } from "@tanstack/react-table";
 export default function Conversation() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<Status | "all">("all");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "updated">("newest");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "updated">(
+    "newest",
+  );
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -80,12 +78,14 @@ export default function Conversation() {
   const total = tickets?.data.pagination?.total || 0;
 
   return (
-    <div className="space-y-6 p-6 bg-slate-100">
+    <div className="space-y-6 p-6 pb-0 bg-slate-100">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Conversations</h1>
-        <p className="text-sm text-muted-foreground">Manage and track all your conversations in one place</p>
+        <p className="text-sm text-muted-foreground">
+          Manage and track all your conversations in one place
+        </p>
       </div>
-      
+
       <div className="rounded-xl shadow-sm">
         <div className="bg-muted/50 rounded-t-x py-4 flex flex-wrap gap-4 items-center justify-between">
           <div className="flex justify-between w-full">
@@ -113,13 +113,27 @@ export default function Conversation() {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-sm">All Status</SelectItem>
-                  <SelectItem value="new" className="text-sm">New</SelectItem>
-                  <SelectItem value="in_progress" className="text-sm">In Progress</SelectItem>
-                  <SelectItem value="pending" className="text-sm">Pending</SelectItem>
-                  <SelectItem value="assigned" className="text-sm">Assigned</SelectItem>
-                  <SelectItem value="complete" className="text-sm">Complete</SelectItem>
-                  <SelectItem value="archived" className="text-sm">Archived</SelectItem>
+                  <SelectItem value="all" className="text-sm">
+                    All Status
+                  </SelectItem>
+                  <SelectItem value="new" className="text-sm">
+                    New
+                  </SelectItem>
+                  <SelectItem value="in_progress" className="text-sm">
+                    In Progress
+                  </SelectItem>
+                  <SelectItem value="pending" className="text-sm">
+                    Pending
+                  </SelectItem>
+                  <SelectItem value="assigned" className="text-sm">
+                    Assigned
+                  </SelectItem>
+                  <SelectItem value="complete" className="text-sm">
+                    Complete
+                  </SelectItem>
+                  <SelectItem value="archived" className="text-sm">
+                    Archived
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
@@ -135,16 +149,25 @@ export default function Conversation() {
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest" className="text-sm">Newest First</SelectItem>
-                  <SelectItem value="oldest" className="text-sm">Oldest First</SelectItem>
-                  <SelectItem value="updated" className="text-sm">Recently Updated</SelectItem>
+                  <SelectItem value="newest" className="text-sm">
+                    Newest First
+                  </SelectItem>
+                  <SelectItem value="oldest" className="text-sm">
+                    Oldest First
+                  </SelectItem>
+                  <SelectItem value="updated" className="text-sm">
+                    Recently Updated
+                  </SelectItem>
                 </SelectContent>
               </Select>
 
               {/* Column visibility toggle */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto bg-white border border-gray-200 shadow-sm w-24 hover:bg-white hover:border-secondary-300 hover:shadow-none text-sm">
+                  <Button
+                    variant="outline"
+                    className="ml-auto bg-white border border-gray-200 shadow-sm w-24 hover:bg-white hover:border-secondary-300 hover:shadow-none text-sm"
+                  >
                     Hidden
                   </Button>
                 </DropdownMenuTrigger>
@@ -174,22 +197,22 @@ export default function Conversation() {
             </div>
             {/* Refresh button */}
             <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="rounded-md text-sm"
-              >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                Refresh
-              </Button>
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="rounded-md text-sm"
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Refresh
+            </Button>
           </div>
         </div>
-        
+
         <div className="p-0">
           <DataTable
             columns={columns}
@@ -200,7 +223,10 @@ export default function Conversation() {
             perPage={perPage}
             total={total}
             onPageChange={setPage}
-            onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+            onPerPageChange={(n) => {
+              setPerPage(n);
+              setPage(1);
+            }}
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
           />

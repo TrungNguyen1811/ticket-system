@@ -13,15 +13,9 @@ import { CreateTicketDialog } from "@/components/ticket/CreateTicketDialog";
 import { EditTicketDialog } from "@/components/ticket/EditTicketDialog";
 import { ChangeStatusDialog } from "@/components/ticket/ChangeStatusDialog";
 import { AssignStaffDialog } from "@/components/ticket/AssignStaffDialog";
-import { DeleteConfirmationDialog } from "@/components/ticket/DeleteConfirmationDialog";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  Loader2,
-} from "lucide-react";
+import { Plus, Search, RefreshCw, Loader2 } from "lucide-react";
 import type { Ticket } from "@/types/ticket";
-import type { Response, DataResponse } from "@/types/reponse";
+import type { Response, DataResponse } from "@/types/response";
 import { useQueryClient } from "@tanstack/react-query";
 import { ticketService } from "@/services/ticket.service";
 import {
@@ -98,13 +92,7 @@ export default function Tickets() {
         queryParamsRef.current;
 
       queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
-        [
-          "tickets",
-          page,
-          perPage,
-          debouncedSearchTerm,
-          selectedStatus,
-        ],
+        ["tickets", page, perPage, debouncedSearchTerm, selectedStatus],
         (oldData) => {
           if (!oldData?.data?.pagination) return oldData;
           return {
@@ -153,13 +141,7 @@ export default function Tickets() {
     isLoading: isLoadingTickets,
     isError,
   } = useApiQuery<Response<DataResponse<Ticket[]>>>({
-    queryKey: [
-      "tickets",
-      page,
-      perPage,
-      debouncedSearchTerm,
-      selectedStatus,
-    ],
+    queryKey: ["tickets", page, perPage, debouncedSearchTerm, selectedStatus],
     queryFn: () =>
       ticketService.getTickets({
         limit: perPage,
@@ -173,7 +155,6 @@ export default function Tickets() {
   const isLoadingStates = {
     create: mutations.create.isPending,
     update: mutations.update.isPending,
-    delete: mutations.delete.isPending,
     assign: mutations.assign.isPending,
     changeStatus: mutations.changeStatus.isPending,
   };
@@ -182,13 +163,7 @@ export default function Tickets() {
   const handleMutationSuccess = (response: any, action: string) => {
     const updatedTicket = response.data;
     queryClient.setQueryData<Response<DataResponse<Ticket[]>>>(
-      [
-        "tickets",
-        page,
-        perPage,
-        debouncedSearchTerm,
-        selectedStatus,
-      ],
+      ["tickets", page, perPage, debouncedSearchTerm, selectedStatus],
       (oldData) => {
         if (!oldData?.data?.data) return oldData;
         return {
@@ -282,21 +257,6 @@ export default function Tickets() {
     );
   };
 
-  const handleDeleteTicket = () => {
-    if (!selectedTicket) return;
-    mutations.delete.mutate(selectedTicket.id, {
-      onSuccess: () => {
-        setDialogOpen(null);
-        setSelectedTicket(null);
-        toast({
-          title: "Success",
-          description: "Ticket deleted successfully",
-        });
-      },
-      onError: (error) => handleMutationError(error, "delete"),
-    });
-  };
-
   // Loading state
   const isLoading =
     isLoadingTickets || Object.values(isLoadingStates).some(Boolean);
@@ -321,10 +281,6 @@ export default function Tickets() {
       setSelectedTicket(ticket);
       setDialogOpen("status");
     },
-    onDelete: (ticket: Ticket) => {
-      setSelectedTicket(ticket);
-      setDialogOpen("delete");
-    },
     isLoadingStates,
   });
 
@@ -332,9 +288,11 @@ export default function Tickets() {
     <div className="space-y-6 p-6">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">Tickets</h1>
-        <p className="text-sm text-muted-foreground">Manage and track all support tickets</p>
+        <p className="text-sm text-muted-foreground">
+          Manage and track all support tickets
+        </p>
       </div>
-      
+
       <div className="rounded-xl shadow-sm">
         <div className="bg-muted/50 rounded-t-xl px-6 py-4 flex flex-wrap gap-4 items-center justify-between">
           <div className="flex justify-between w-full">
@@ -381,8 +339,8 @@ export default function Tickets() {
               </div>
 
               {/* Status filter */}
-              <Select 
-                value={selectedStatus} 
+              <Select
+                value={selectedStatus}
                 onValueChange={(value) => {
                   setSelectedStatus(value);
                   setPage(1);
@@ -392,7 +350,9 @@ export default function Tickets() {
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-sm">All Status</SelectItem>
+                  <SelectItem value="all" className="text-sm">
+                    All Status
+                  </SelectItem>
                   {SHOW_STATUS_OPTIONS.map(({ value, label }) => (
                     <SelectItem key={value} value={value} className="text-sm">
                       {label}
@@ -404,7 +364,10 @@ export default function Tickets() {
               {/* Column visibility toggle */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="ml-auto bg-white border border-gray-200 shadow-sm w-24 hover:bg-white hover:border-secondary-300 hover:shadow-none text-sm">
+                  <Button
+                    variant="outline"
+                    className="ml-auto bg-white border border-gray-200 shadow-sm w-24 hover:bg-white hover:border-secondary-300 hover:shadow-none text-sm"
+                  >
                     Hidden
                   </Button>
                 </DropdownMenuTrigger>
@@ -450,9 +413,9 @@ export default function Tickets() {
                 )}
                 Refresh
               </Button>
-              
-              <Button 
-                onClick={() => setDialogOpen("create")} 
+
+              <Button
+                onClick={() => setDialogOpen("create")}
                 disabled={isLoading}
                 className="text-sm"
               >
@@ -466,7 +429,7 @@ export default function Tickets() {
             </div>
           </div>
         </div>
-        
+
         <div className="p-0">
           <DataTable
             columns={columns}
@@ -477,7 +440,10 @@ export default function Tickets() {
             perPage={perPage}
             total={total}
             onPageChange={setPage}
-            onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+            onPerPageChange={(n) => {
+              setPerPage(n);
+              setPage(1);
+            }}
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
           />
@@ -516,15 +482,6 @@ export default function Tickets() {
             currentStaffId={selectedTicket.staff?.id || ""}
             onSubmit={handleStaffAssign}
             isLoading={isLoadingStates.assign}
-          />
-
-          <DeleteConfirmationDialog
-            open={dialogOpen === "delete"}
-            onOpenChange={(open) => !open && setDialogOpen(null)}
-            onConfirm={handleDeleteTicket}
-            isLoading={isLoadingStates.delete}
-            title="Delete Ticket"
-            description={`Are you sure you want to delete ticket "${selectedTicket.title}"? This action cannot be undone.`}
           />
         </>
       )}

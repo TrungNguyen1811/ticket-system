@@ -168,15 +168,23 @@ export default function Layout({ children }: LayoutProps) {
                     <div className="flex items-center space-x-3">
                       <UserAvatar name={user.name} />
                       <div className="text-left">
-                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-gray-500 capitalize">
+                          {user.role}
+                        </p>
                       </div>
                     </div>
 
                     {/* Slack status */}
                     <div className="flex items-center space-x-1">
                       {user.slack_connected ? (
-                        <img src="src/assets/Slack_icon.svg" alt="Slack Logo" className="h-4 w-4 mr-2" />
+                        <img
+                          src="src/assets/Slack_icon.svg"
+                          alt="Slack Logo"
+                          className="h-4 w-4 mr-2"
+                        />
                       ) : (
                         <Slack className="h-4 w-4 text-gray-500" />
                       )}
@@ -185,13 +193,23 @@ export default function Layout({ children }: LayoutProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   {user.slack_connected ? (
-                    <DropdownMenuItem onClick={handleDisconnectSlack} className="text-gray-500 hover:text-red-500">
+                    <DropdownMenuItem
+                      onClick={handleDisconnectSlack}
+                      className="text-gray-500 hover:text-red-500"
+                    >
                       <Slack className="h-4 w-4 mr-2" />
                       Disconnect Slack
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={authService.initiateSlackIntegration} className="hover:text-green-500">
-                      <img src="src/assets/Slack_icon.svg" alt="Slack Logo" className="h-4 w-4 mr-2" />
+                    <DropdownMenuItem
+                      onClick={authService.initiateSlackIntegration}
+                      className="hover:text-green-500"
+                    >
+                      <img
+                        src="src/assets/Slack_icon.svg"
+                        alt="Slack Logo"
+                        className="h-4 w-4 mr-2"
+                      />
                       Connect Slack
                     </DropdownMenuItem>
                   )}

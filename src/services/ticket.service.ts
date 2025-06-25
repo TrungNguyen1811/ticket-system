@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import type { Status, Ticket } from "@/types/ticket";
 
 export interface TicketFilters {
@@ -16,7 +16,7 @@ export interface TicketFilters {
 
 export interface CreateTicketData {
   title: string;
-  description: string;
+  description?: string;
   client_email: string;
 }
 

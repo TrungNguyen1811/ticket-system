@@ -66,7 +66,7 @@ export function CreateTicketDialog({
   const { data: clientData, isLoading: isLoadingClient } = useQuery({
     queryKey: ["client", debouncedSearch],
     queryFn: () =>
-      userService.getUsers({
+      userService.getClients({
         page: 1,
         limit: 1000,
         search: debouncedSearch,

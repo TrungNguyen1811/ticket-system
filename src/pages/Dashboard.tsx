@@ -29,7 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { useQuery } from "@tanstack/react-query";
 import { ticketService } from "@/services/ticket.service";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { Ticket } from "@/types/ticket";
 import { DashboardSummary } from "@/types/dashboard";
 import { dashboardService } from "@/services/dashboard.service";
@@ -133,10 +133,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const { data: summary } = useQuery<
-    Response<DashboardSummary>,
-    Error
-  >({
+  const { data: summary } = useQuery<Response<DashboardSummary>, Error>({
     queryKey: ["dashboard", "summary"],
     queryFn: () => dashboardService.getSummary(),
   });

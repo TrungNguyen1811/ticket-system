@@ -1,6 +1,6 @@
 import api from "@/lib/axios";
 import type { User, Client } from "@/types/user";
-import type { DataResponse, Response } from "@/types/reponse";
+import type { DataResponse, Response } from "@/types/response";
 import { Ticket } from "@/types/ticket";
 
 export interface CreateUserData {
@@ -34,7 +34,6 @@ export interface UserFilters {
   sort_order?: "asc" | "desc";
   isPaginate?: boolean;
 }
-
 
 class UserService {
   // Users
@@ -72,10 +71,12 @@ class UserService {
   }
 
   // Clients
-  async getClients(): Promise<Response<DataResponse<Client[]>>> {
+  async getClients(params: ParamsUser): Promise<Response<DataResponse<Client[]>>> {
     try {
       const response =
-        await api.get<Response<DataResponse<Client[]>>>("/clients");
+        await api.get<Response<DataResponse<Client[]>>>("/clients", {
+          params,
+        });
       return response.data;
     } catch (error) {
       throw error;

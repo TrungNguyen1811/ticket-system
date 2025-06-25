@@ -18,12 +18,21 @@ export default function SetEditTextPlugin({
       try {
         // Try to parse as JSON first (Lexical state)
         const jsonContent = JSON.parse(text);
-        if (jsonContent && typeof jsonContent === "object" && "root" in jsonContent) {
+        if (
+          jsonContent &&
+          typeof jsonContent === "object" &&
+          "root" in jsonContent
+        ) {
           try {
-            const editorState = editor.parseEditorState(JSON.stringify(jsonContent));
+            const editorState = editor.parseEditorState(
+              JSON.stringify(jsonContent),
+            );
             editor.setEditorState(editorState);
           } catch (parseError) {
-            console.warn("Failed to parse Lexical state, falling back to text:", parseError);
+            console.warn(
+              "Failed to parse Lexical state, falling back to text:",
+              parseError,
+            );
             // Fallback to text if parsing fails
             editor.update(() => {
               const root = $getRoot();
@@ -47,7 +56,7 @@ export default function SetEditTextPlugin({
           const tempDiv = document.createElement("div");
           tempDiv.innerHTML = text;
           const plainText = tempDiv.textContent || tempDiv.innerText || "";
-          
+
           editor.update(() => {
             const root = $getRoot();
             root.clear();

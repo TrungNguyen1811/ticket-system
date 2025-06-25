@@ -1,12 +1,11 @@
 import { useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
-import { useLogRealtime } from "../realtime/userLogRealtime"; 
+import { useLogRealtime } from "../realtime/userLogRealtime";
 import { useTicketLogMutations } from "./useTicketLogMutations";
 import { TicketAuditLog } from "@/types/ticket";
 import { logService } from "@/services/log.service";
-import { Response, DataResponse } from "@/types/reponse";
-
+import { Response, DataResponse } from "@/types/response";
 
 interface UseTicketLogsProps {
   ticketId: string;
@@ -107,13 +106,15 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
 
       // Perform the mutation with rollback on error
       mutations.deleteLog.mutate(logId, {
-        onSuccess: () => {
-          toast({
-            title: "Success",
-            description: "Log deleted successfully",
-          });
+        onSuccess: (response: Response<DataResponse<string>>) => {
+          if (response.success) {
+            toast({
+              title: "Success",
+              description: response.message || "Log deleted successfully",
+            });
+          }
         },
-        onError: (error: Error) => {
+        onError: (error: any) => {
           // Remove from deleted set
           deletedLogIds.current.delete(logId);
 
@@ -124,7 +125,7 @@ export const useTicketLogs = ({ ticketId }: UseTicketLogsProps) => {
 
           toast({
             title: "Error",
-            description: error.message,
+            description: error.response.data.message,
             variant: "destructive",
           });
         },

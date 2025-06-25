@@ -15,12 +15,13 @@ import {
   TimerIcon,
   RefreshCw,
   Menu,
+  Loader,
 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import attachmentService from "@/services/attachment.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 import { userService } from "@/services/user.service";
 import { useToast } from "@/components/ui/use-toast";
 import type { User, User as UserType } from "@/types/user";
@@ -52,8 +53,6 @@ import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 
-
-
 // Editor configuration
 const initialConfig = {
   namespace: "ConversationEditor",
@@ -70,6 +69,16 @@ const initialConfig = {
     },
   },
 };
+
+export function fixAttachmentImageSrc(html: string) {
+  // Giả sử API_URL là biến môi trường hoặc hằng số
+  const API_URL = import.meta.env.VITE_API_URL || "";
+  // Thay thế src="attachments/xxx" thành src="API_URL/attachments/xxx"
+  return html.replace(
+    /src=["']attachments\/([^"']+)["']/g,
+    `src="${API_URL}/attachments/$1"`
+  );
+}
 
 export default function ConversationDetail() {
   // Router and context hooks
@@ -107,7 +116,14 @@ export default function ConversationDetail() {
   const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [optimisticObjectUrls, setOptimisticObjectUrls] = useState<Set<string>>(new Set());
+  const [optimisticObjectUrls, setOptimisticObjectUrls] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isFetching, setIsFetching] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Mail[]>([]); 
+
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -123,16 +139,14 @@ export default function ConversationDetail() {
     queryFn: () => attachmentService.getAttachments(id || ""),
   });
 
-  const {
-    ticket: ticketData,
-  } = useTicket({ ticketId: id || "" });
+  const { ticket: ticketData } = useTicket({ ticketId: id || "" });
 
   const {
     mails: mailsData,
     isLoading: isLoadingMails,
     hasNewMails: hasNewMailNotification,
     setHasNewMails: setNewMailNotification,
-  } = useMailTicket({ ticketId: id || "" });
+  } = useMailTicket({ ticketId: id || "", limit: 20, cursor: undefined });
 
   // Mutations
   const downloadAttachment = useMutation({
@@ -187,7 +201,7 @@ export default function ConversationDetail() {
   useEffect(() => {
     return () => {
       // Revoke all tracked object URLs to prevent memory leaks
-      optimisticObjectUrls.forEach(url => {
+      optimisticObjectUrls.forEach((url) => {
         URL.revokeObjectURL(url);
       });
     };
@@ -197,10 +211,12 @@ export default function ConversationDetail() {
   useEffect(() => {
     if (mailsData && mailsData.length > 0) {
       // Check if there are any optimistic mails that have been replaced
-      const hasOptimisticMails = mailsData.some(mail => mail.id.startsWith('temp-'));
+      const hasOptimisticMails = mailsData.some((mail) =>
+        mail.id.startsWith("temp-"),
+      );
       if (!hasOptimisticMails && optimisticObjectUrls.size > 0) {
         // All optimistic mails have been replaced, cleanup object URLs
-        optimisticObjectUrls.forEach(url => {
+        optimisticObjectUrls.forEach((url) => {
           URL.revokeObjectURL(url);
         });
         setOptimisticObjectUrls(new Set());
@@ -208,15 +224,99 @@ export default function ConversationDetail() {
     }
   }, [mailsData, optimisticObjectUrls]);
 
-  // Handlers
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
-  }, []);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  // Initialize messages from mailsData
+  useEffect(() => {
+    if (mailsData && mailsData.length > 0) {
+      setMessages(mailsData);
+      setOldestMessageId(mailsData[mailsData.length - 1]?.id || null);
+      setHasMoreMessages(true);
+    }
+  }, [mailsData]);
 
+  // Infinite scroll: fetch older messages
+  const fetchOlderMessages = useCallback(async () => {
+    if (!id || isFetching || !hasMoreMessages || !oldestMessageId) return;
+    setIsFetching(true);
+
+    const container = scrollRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLDivElement | null;
+    const prevHeight = container?.scrollHeight ?? 0;
+
+    try {
+      const res = await mailService.getMails(id, { cursor: oldestMessageId, limit: 20 });
+      const older = res.data.data;
+      console.log("fetching older with cursor:", oldestMessageId, "result:", older);
+      if (older.length === 0) {
+        setHasMoreMessages(false);
+      } else {
+        setMessages((prev) => [...prev, ...older]);
+        setOldestMessageId(older[older.length - 1]?.id);
+        setTimeout(() => {
+          if (container) {
+            const newHeight = container.scrollHeight;
+            container.scrollTop = newHeight - prevHeight;
+          }
+        }, 0);
+      }
+    } finally {
+      setIsFetching(false);
+    }
+  }, [id, isFetching, hasMoreMessages, oldestMessageId]);
+
+  // Attach scroll event to ScrollArea viewport
+  useEffect(() => {
+    const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
+
+    const handle = (e: Event) => {
+      const target = e.target as HTMLDivElement;
+      if (target.scrollTop < 100 && !isFetching && hasMoreMessages) {
+        fetchOlderMessages();
+      }
+    };
+
+    viewport.addEventListener('scroll', handle);
+    return () => viewport.removeEventListener('scroll', handle);
+  }, [isFetching, hasMoreMessages, fetchOlderMessages]);
+
+  // Real-time: append new mail to messages
+  useEffect(() => {
+    // This effect is for real-time updates (see useMailTicket/useMailRealtime)
+    // If mailsData has a new message at the end, append it
+    if (mailsData && messages.length > 0) {
+      const lastLocal = messages[messages.length - 1];
+      const lastRemote = mailsData[mailsData.length - 1];
+      if (lastRemote && lastRemote.id !== lastLocal.id) {
+        setMessages((prev) => [...prev, lastRemote]);
+        // Optionally scroll to bottom if user is at the bottom
+        const container = scrollRef.current?.querySelector(
+          "[data-radix-scroll-area-viewport]"
+        ) as HTMLDivElement | null;
+        if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
+          setTimeout(() => {
+            container.scrollTop = container.scrollHeight;
+          }, 0);
+        }
+      }
+    }
+  }, [mailsData]);
+
+  // Scroll to bottom on initial load
+  useEffect(() => {
+    if (!isLoadingMails && messages.length > 0) {
+      const container = scrollRef.current?.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      ) as HTMLDivElement | null;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }, [isLoadingMails, messages.length]);
+
+  // Handlers
   const scrollToBottom = () => {
-    const container = containerRef.current?.querySelector(
+    const container = scrollRef.current?.querySelector(
       "[data-radix-scroll-area-viewport]",
     );
     if (container) {
@@ -229,7 +329,6 @@ export default function ConversationDetail() {
       scrollToBottom();
     }
   }, [isLoadingMails, mailsData]);
-
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,12 +343,12 @@ export default function ConversationDetail() {
   const handleReloadPublicChat = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
     setNewMailNotification(false);
+    setMessages([]); // Xóa hết messages, sẽ được set lại từ mailsData khi fetch xong
     toast({
       title: "Chat refreshed",
       description: "Public chat has been updated",
     });
   }, [queryClient, id, toast, setNewMailNotification]);
-
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -286,12 +385,12 @@ export default function ConversationDetail() {
           const tempId = `temp-${Date.now()}-${index}`;
           const isImage = isImageFileByName(file.name);
           let objectUrl = "";
-          
+
           if (isImage) {
             objectUrl = URL.createObjectURL(file);
             objectUrls.push(objectUrl);
           }
-          
+
           return {
             id: tempId,
             file_name: file.name,
@@ -321,7 +420,7 @@ export default function ConversationDetail() {
         };
 
         // Track object URLs for cleanup
-        setOptimisticObjectUrls(prev => new Set([...prev, ...objectUrls]));
+        setOptimisticObjectUrls((prev) => new Set([...prev, ...objectUrls]));
 
         // Add optimistic mail to cache
         queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
@@ -339,8 +438,12 @@ export default function ConversationDetail() {
         );
 
         if (selectedFiles.length > 0) {
-          queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] });
+          queryClient.invalidateQueries({
+            queryKey: ["ticket-attachments", id],
+          });
         }
+
+        setMessages((prev) => [...prev, optimisticMail]);
       }
 
       setEditorContent({ raw: "", html: "", text: "" });
@@ -367,12 +470,12 @@ export default function ConversationDetail() {
   }
 
   const isImageFile = (ext: string) => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+    const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
     return imageExtensions.includes(ext.toLowerCase());
   };
   const isImageFileByName = (name: string) => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    return imageExtensions.includes(name.toLowerCase().split('.').pop() || '');
+    const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
+    return imageExtensions.includes(name.toLowerCase().split(".").pop() || "");
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -387,11 +490,31 @@ export default function ConversationDetail() {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const [isHover, setIsHover] = useState(false);
+
+  useEffect(() => {
+    if (mailsData) {
+      setMessages((prev) => {
+        const filteredOptimistic = prev.filter(
+          (msg) =>
+            !msg.id.startsWith("temp-") ||
+            !mailsData.some(
+              (m) =>
+                m.body === msg.body &&
+                Math.abs(new Date(m.created_at).getTime() - new Date(msg.created_at).getTime()) < 60000
+            )
+        );
+        return [...mailsData, ...filteredOptimistic.filter((m) => m.id.startsWith("temp-"))];
+      });
+      setOldestMessageId(mailsData[0]?.id || null);
+      setHasMoreMessages(true);
+    }
+  }, [mailsData]);
+
   return (
     <div className="flex flex-col h-[89vh] bg-[#f8fafc] ticket-detail-container">
       <div className="flex flex-1 overflow-hidden w-full">
         {/* Left Sidebar */}
-
 
         {/* Main Content */}
         <main className="flex-1 min-w-0 flex flex-col bg-white relative chat-section">
@@ -444,14 +567,12 @@ export default function ConversationDetail() {
             </div>
           </div>
 
+          
           {/* Messages */}
           <div className="flex flex-col">
             <div className="flex-1 flex flex-col relative">
-              <div className="flex-1 overflow-auto">
-                <div className="flex flex-col h-[84vh]">
-                  {/* Public Chat Header with Reload Button */}
-                  {hasNewMailNotification && (
-                    <div className="px-6 py-3 bg-blue-50 border-b border-blue-200">
+                {hasNewMailNotification && (
+                    <div className="w-full px-6 py-3 bg-blue-50 border-b border-blue-200 z-50 absolute">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <MessageSquare className="h-4 w-4 text-blue-600" />
@@ -469,28 +590,37 @@ export default function ConversationDetail() {
                         </Button>
                       </div>
                     </div>
-                  )}
+          )}
 
+              <div className="flex-1 overflow-auto">
+                <div className="flex flex-col h-[84vh]">
                   <ScrollArea
-                    ref={containerRef}
+                    ref={scrollRef}
                     className="h-[calc(100vh-400px)] px-4 lg:px-6"
-                    onScroll={handleScroll}
                   >
                     <div className="space-y-4 py-6 w-full">
-                      {isLoadingMails ? (
-                        <div className="space-y-4">
-                          {[...Array(3)].map((_, i) => (
-                            <div key={i} className="flex gap-2 lg:gap-3">
-                              <Skeleton className="h-6 w-6 lg:h-8 lg:w-8 rounded-full" />
-                              <div className="flex-1 space-y-2">
-                                <Skeleton className="h-3 lg:h-4 w-24 lg:w-32" />
-                                <Skeleton className="h-16 lg:h-20 w-full" />
-                              </div>
-                            </div>
-                          ))}
+                      {isFetching && (
+                        <div className="flex justify-center py-2">
+                          <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
-                      ) : mailsData && mailsData.length > 0 ? (
-                        mailsData.map((m) => {
+                      )}
+                      {isLoadingMails ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8">
+                          <span className="text-xs lg:text-sm text-gray-500">
+                            Loading messages...
+                          </span>
+                        </div>
+                      ) : messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8">
+                          <span className="text-xs lg:text-sm text-gray-500">
+                            No public messages yet
+                          </span>
+                          <span className="text-xs text-gray-400 mt-1">
+                            Start the conversation with the client
+                          </span>
+                        </div>
+                      ) : (
+                        [...messages].reverse().map((m) => {
                           const isOwnMessage =
                             m.from_email === "phamphanbang@gmail.com";
                           return (
@@ -501,7 +631,13 @@ export default function ConversationDetail() {
                                 isOwnMessage ? "flex-row-reverse" : "flex-row",
                               )}
                             >
-                              <UserAvatar name={m.from_name} size="sm" />
+                              <UserAvatar
+                                name={
+                                  isOwnMessage
+                                    ? m.from_name
+                                    : m.from_email
+                                }
+                                size="sm" />
                               <div
                                 className={cn(
                                   "flex-1 min-w-0",
@@ -517,7 +653,7 @@ export default function ConversationDetail() {
                                   )}
                                 >
                                   <span className="text-sm font-medium text-gray-900">
-                                    {m.from_name}
+                                    {isOwnMessage ? m.from_name : m.from_email}
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     {formatDate(m.created_at)}
@@ -531,99 +667,151 @@ export default function ConversationDetail() {
                                       : "flex-row",
                                   )}
                                 >
-                                  <div className={cn(
-                                            "flex flex-col gap-2 w-full",
-                                            isOwnMessage ? "items-end" : "items-start"
-                                          )}>
                                   <div
                                     className={cn(
-                                      "break-words text-sm whitespace-pre-wrap rounded-lg p-3 border",
-                                      "max-w-[85%] sm:max-w-[75%] lg:max-w-[70%]",
+                                      "flex flex-col gap-2 w-full",
                                       isOwnMessage
-                                        ? "bg-blue-300 border-blue-100 text-blue-900"
-                                        : "bg-gray-300 border-gray-100 text-gray-900",
+                                        ? "items-end"
+                                        : "items-start",
                                     )}
                                   >
-                                    {/* <div dangerouslySetInnerHTML={{ __html: m.body }}/> */}
                                     <div
                                       className={cn(
+                                        "break-words text-sm whitespace-pre-wrap rounded-lg p-3 border",
+                                        "max-w-[85%] sm:max-w-[75%] lg:max-w-[70%]",
                                         isOwnMessage
-                                          ? "flex flex-row-reverse"
-                                          : "",
+                                          ? "bg-blue-300 border-blue-100 text-blue-900"
+                                          : "bg-gray-300 border-gray-100 text-gray-900",
                                       )}
                                     >
-                                      <ReadOnlyEditor content={m.body} />
-                                    </div>
-                                    
+                                      <div
+                                        className={cn(
+                                          isOwnMessage
+                                            ? "flex flex-row-reverse"
+                                            : "",
+                                        )}
+                                      >
+                                        <ReadOnlyEditor content={m.body} />
                                       </div>
-                                      {m.attachments &&
+                                    </div>
+                                    {m.attachments &&
                                       m.attachments.length > 0 && (
                                         <div
                                           className={cn(
                                             "flex flex-col gap-1",
-                                            isOwnMessage ? "justify-end" : "justify-start"
+                                            isOwnMessage
+                                              ? "items-end"
+                                              : "items-start",
                                           )}
                                         >
                                           {m.attachments.map((a, idx) => {
-                                            const isImg = isImageFile(a.file_extension);
-                                            const isOptimistic = a.id.startsWith('temp-');
-                                            
+                                            const isImg = isImageFile(
+                                              a.file_extension,
+                                            );
+                                            const isOptimistic =
+                                              a.id.startsWith("temp-");
+
                                             // Determine image source based on attachment type
-                                            const imageSrc = isOptimistic 
+                                            const imageSrc = isOptimistic
                                               ? a.file_path // Use object URL for optimistic attachments
                                               : `${import.meta.env.VITE_API_URL}/attachments/${a.id}`; // Use API URL for server attachments
-                                            
+
                                             return (
                                               <div
                                                 key={a.id}
                                                 className={cn(
-                                                  "group relative flex flex-row items-end justify-start border rounded-lg bg-white shadow-sm overflow-hidden cursor-pointer transition hover:shadow-md ",
-                                                  isImg ? "h-48 w-auto" : "h-14 w-auto"
+                                                  "relative flex flex-row items-end justify-start border rounded-lg bg-white shadow-sm overflow-hidden cursor-pointer transition hover:shadow-md",
+                                                  isImg
+                                                    ? "h-48 w-fit"
+                                                    : "h-14 w-fit",
                                                 )}
                                                 tabIndex={0}
                                                 role="button"
                                                 aria-label={`Preview attachment: ${a.file_name}`}
-                                                onClick={() => handlePreviewFile(a, m.attachments)}
-                                                onKeyDown={e => {
-                                                  if (e.key === 'Enter' || e.key === ' ') handlePreviewFile(a, m.attachments);
+                                                onClick={() =>
+                                                  handlePreviewFile(
+                                                    a,
+                                                    m.attachments,
+                                                  )
+                                                }
+                                                onKeyDown={(e) => {
+                                                  if (
+                                                    e.key === "Enter" ||
+                                                    e.key === " "
+                                                  )
+                                                    handlePreviewFile(
+                                                      a,
+                                                      m.attachments,
+                                                    );
                                                 }}
                                               >
                                                 {isImg ? (
-                                                  <img
-                                                    src={imageSrc}
-                                                    alt={a.file_name}
-                                                    className="object-cover w-full h-full group-hover:opacity-80 transition"
-                                                    onError={(e) => {
-                                                      // Fallback for failed image loads
-                                                      const target = e.target as HTMLImageElement;
-                                                      target.style.display = 'none';
-                                                      target.nextElementSibling?.classList.remove('hidden');
-                                                    }}
-                                                  />
-                                                ) : (
-                                                  <div className="flex items-center gap-3 w-full p-2 hover:bg-muted/50 rounded-lg transition-colors">
-                                                    <FileText className="w-5 h-5 text-primary shrink-0" />
-                                                    <div className="flex flex-col justify-center min-w-0">
-                                                      <span className="text-sm font-medium text-foreground truncate">{a.file_name}</span>
-                                                      <span className="text-xs text-muted-foreground">{formatFileSize(a.file_size)}</span>
-                                                    </div>
-                                                  </div>                                                
-                                                )}
-                                                <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                  {!isOptimistic && (
-                                                    <button
-                                                      className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
-                                                      onClick={e => {
-                                                        e.stopPropagation();
-                                                        window.open(`${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`, '_blank');
+                                                  <div className="relative group w-full h-full">
+                                                    <img
+                                                      src={imageSrc}
+                                                      alt={a.file_name}
+                                                      className="object-cover w-full h-full group-hover:opacity-80 transition"
+                                                      onError={(e) => {
+                                                        const target =
+                                                          e.target as HTMLImageElement;
+                                                        target.style.display =
+                                                          "none";
                                                       }}
-                                                      tabIndex={-1}
-                                                      aria-label={`Download ${a.file_name}`}
-                                                    >
-                                                      <Download className="w-4 h-4" />
-                                                    </button>
-                                                  )}
-                                                </div>
+                                                    />
+                                                    <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                      {!isOptimistic && (
+                                                        <button
+                                                          className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(
+                                                              `${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`,
+                                                              "_blank",
+                                                            );
+                                                          }}
+                                                          tabIndex={-1}
+                                                          aria-label={`Download ${a.file_name}`}
+                                                        >
+                                                          <Download className="w-4 h-4" />
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div className="relative group">
+                                                    <div className="flex items-center gap-3 p-2 rounded-lg transition-colors group-hover:bg-muted/50">
+                                                      <FileText className="w-5 h-5 text-primary shrink-0" />
+                                                      <div className="flex flex-col justify-center min-w-0">
+                                                        <span className="text-sm font-normal text-foreground truncate">
+                                                          {a.file_name}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                          {formatFileSize(
+                                                            a.file_size,
+                                                          )}
+                                                        </span>
+                                                      </div>
+                                                    </div>
+                                                    <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                      {!isOptimistic && (
+                                                        <button
+                                                          className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(
+                                                              `${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`,
+                                                              "_blank",
+                                                            );
+                                                          }}
+                                                          tabIndex={-1}
+                                                          aria-label={`Download ${a.file_name}`}
+                                                        >
+                                                          <Download className="w-4 h-4" />
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                )}
                                               </div>
                                             );
                                           })}
@@ -635,16 +823,6 @@ export default function ConversationDetail() {
                             </div>
                           );
                         })
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8">
-                          <MessageSquare className="h-6 w-6 lg:h-8 lg:w-8 text-gray-400 mb-2" />
-                          <p className="text-xs lg:text-sm text-gray-500">
-                            No public messages yet
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Start the conversation with the client
-                          </p>
-                        </div>
                       )}
                     </div>
                   </ScrollArea>
@@ -702,13 +880,20 @@ export default function ConversationDetail() {
                         <span className="sm:hidden">Attach</span>
                       </Button>
                     </label>
-                      {selectedFiles.length > 0 && (
+                    {selectedFiles.length > 0 && (
                       <div className="flex flex-wrap">
                         {selectedFiles.map((file, index) => (
-                          <div key={index} className="inline-flex items-center gap-1.5 rounded text-xs text-gray-700 max-w-full relative">
+                          <div
+                            key={index}
+                            className="inline-flex items-center gap-1.5 rounded text-xs text-gray-700 max-w-full relative"
+                          >
                             {isImageFileByName(file.name) ? (
                               <div className="relative">
-                                <img src={URL.createObjectURL(file)} alt={file.name} className="h-12 m-2 w-auto text-gray-500 flex-shrink-0 rounded-lg" />
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  alt={file.name}
+                                  className="h-12 m-2 w-auto text-gray-500 flex-shrink-0 rounded-lg"
+                                />
                               </div>
                             ) : (
                               <div className="bg-gray-200 rounded-sm m-2 flex items-center px-2 gap-1.5 h-12 w-auto">
@@ -718,44 +903,44 @@ export default function ConversationDetail() {
                                 </span>
                               </div>
                             )}
-                              <button
-                                  type="button"
-                                  className="text-gray-500 hover:text-gray-700 absolute top-0 right-0 bg-white rounded-full p-1 bg-gray-200  "
-                                  onClick={() => handleRemoveFile(index)}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
+                            <button
+                              type="button"
+                              className="text-gray-500 hover:text-gray-700 absolute top-0 right-0 bg-white rounded-full p-1 bg-gray-200  "
+                              onClick={() => handleRemoveFile(index)}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </div>
                         ))}
                       </div>
                     )}
                     <div className="flex-1" />
-                      <Button
-                        type="submit"
-                        size="sm"
-                        className="h-8 text-xs gap-1.5 w-full sm:w-auto"
-                        disabled={
-                          isSubmitting ||
-                          (!editorContent.raw.trim() &&
-                            selectedFiles.length === 0) ||
-                          ticketData?.status === "complete" ||
-                          ticketData?.status === "archived"
-                        }
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            <span className="hidden sm:inline">Sending...</span>
-                            <span className="sm:hidden">Send</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send className="h-3 w-3" />
-                            <span className="hidden sm:inline">Send</span>
-                            <span className="sm:hidden">Send</span>
-                          </>
-                        )}
-                      </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-8 text-xs gap-1.5 w-full sm:w-auto"
+                      disabled={
+                        isSubmitting ||
+                        (!editorContent.raw.trim() &&
+                          selectedFiles.length === 0) ||
+                        ticketData?.status === "complete" ||
+                        ticketData?.status === "archived"
+                      }
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className="hidden sm:inline">Sending...</span>
+                          <span className="sm:hidden">Send</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-3 w-3" />
+                          <span className="hidden sm:inline">Send</span>
+                          <span className="sm:hidden">Send</span>
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </form>
               </div>
@@ -773,23 +958,23 @@ export default function ConversationDetail() {
           )}
         >
           <div className="">
-             <ClientCard
-                ticketId={id || ""}
-                clientName={ticketData?.client_name || ""}
-                clientEmail={ticketData?.client_email || ""}
-              />
+            <ClientCard
+              ticketId={id || ""}
+              clientName={ticketData?.client_name || ""}
+              clientEmail={ticketData?.client_email || ""}
+            />
 
-              {/* Attachments */}
-              <div className="p-3 lg:p-4">
-                <AttachmentsPanel
-                  attachments={attachmentsData?.data || []}
-                  isLoading={isLoadingAttachments}
-                  isError={isErrorAttachments}
-                  onDownload={downloadAttachment.mutate}
-                  downloadingFiles={downloadingFiles}
-                  onPreviewFile={handlePreviewFile}
-                />
-              </div>
+            {/* Attachments */}
+            <div className="p-3 lg:p-4">
+              <AttachmentsPanel
+                attachments={attachmentsData?.data || []}
+                isLoading={isLoadingAttachments}
+                isError={isErrorAttachments}
+                onDownload={downloadAttachment.mutate}
+                downloadingFiles={downloadingFiles}
+                onPreviewFile={handlePreviewFile}
+              />
+            </div>
           </div>
         </aside>
 
@@ -802,8 +987,8 @@ export default function ConversationDetail() {
             setPreviewIndex(0);
           }}
           files={previewFiles || []}
-          initialIndex={previewIndex}     
-          />
+          initialIndex={previewIndex}
+        />
 
         {/* Upload Attachment Dialog */}
         <UploadAttachmentDialog

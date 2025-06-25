@@ -15,7 +15,7 @@ export const LoadingFallback = () => {
           <Ticket className="w-8 h-8 text-blue-500" />
         </div>
       </div>
-  
+
       {/* Loading text with animation */}
       <div className="mt-8 text-center">
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">Loading</h2>
@@ -23,7 +23,7 @@ export const LoadingFallback = () => {
           Please wait while we prepare your workspace
         </p>
       </div>
-  
+
       {/* Loading indicators */}
       <div className="flex items-center gap-2 mt-8">
         <div
@@ -39,7 +39,7 @@ export const LoadingFallback = () => {
           style={{ animationDelay: "300ms" }}
         />
       </div>
-  
+
       {/* Feature icons */}
       <div className="flex items-center gap-8 mt-12">
         <div className="flex flex-col items-center gap-2 text-gray-400">

@@ -1,7 +1,7 @@
 import api from "@/lib/axios";
 import { LoginSchema } from "@/schema/auth.schema";
 import type { User } from "@/types/user";
-import type { CallbackResponse, DataResponse, Response } from "@/types/reponse";
+import type { CallbackResponse, DataResponse, Response } from "@/types/response";
 import axios from "axios";
 
 export interface LoginResponse {
@@ -87,16 +87,18 @@ class AuthService {
 
   async initiateSlackIntegration(): Promise<void> {
     try {
-      const response = await api.get<Response<{ url: string }>>("/slack/connect-url");
+      const response =
+        await api.get<Response<{ url: string }>>("/slack/connect-url");
       window.location.href = response.data.data.url;
     } catch (error) {
       throw error;
     }
-  };
+  }
 
   async disconnectSlackIntegration(): Promise<Response<{ url: string }>> {
     try {
-      const response = await api.post<Response<{ url: string }>>("/slack/disconnect");
+      const response =
+        await api.post<Response<{ url: string }>>("/slack/disconnect");
       return response.data;
     } catch (error) {
       throw error;
@@ -105,7 +107,10 @@ class AuthService {
 
   async slackCallback(code: string, state: string): Promise<void> {
     try {
-      const response = await api.post<CallbackResponse>("/slack/callback", { code, state });
+      const response = await api.post<CallbackResponse>("/slack/callback", {
+        code,
+        state,
+      });
       if (response.data.success) {
         window.location.href = "/";
       } else {

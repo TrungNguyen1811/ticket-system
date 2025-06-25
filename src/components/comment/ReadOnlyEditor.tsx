@@ -15,9 +15,12 @@ import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { LinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
+import { fixAttachmentImageSrc } from "@/pages/conversations/ConversationDetailPage";
+import { remove } from "lodash";
 
 // Auto-link matchers
-const URL_MATCHER = /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
+const URL_MATCHER =
+  /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
 
 const MATCHERS = [
   (text: string) => {
@@ -27,7 +30,7 @@ const MATCHERS = [
         index: match.index,
         length: match[0].length,
         text: match[0],
-        url: match[0].startsWith('http') ? match[0] : `https://${match[0]}`,
+        url: match[0].startsWith("http") ? match[0] : `https://${match[0]}`,
       }
     );
   },
@@ -88,43 +91,83 @@ function isLexicalState(content: string): boolean {
 function renderHTMLContent(content: string) {
   // Clean and enhance HTML content for better rendering
   let enhancedContent = content;
-  
+
   // Ensure proper list rendering
-  enhancedContent = enhancedContent.replace(/<ul>/g, '<ul class="list-disc list-inside mb-2 space-y-1">');
-  enhancedContent = enhancedContent.replace(/<ol>/g, '<ol class="list-decimal list-inside mb-2 space-y-1">');
-  enhancedContent = enhancedContent.replace(/<li>/g, '<li class="text-sm mb-1">');
-  
+  enhancedContent = enhancedContent.replace(
+    /<ul>/g,
+    '<ul class="list-disc list-inside mb-2 space-y-1">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<ol>/g,
+    '<ol class="list-decimal list-inside mb-2 space-y-1">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<li>/g,
+    '<li class="text-sm mb-1">',
+  );
+
   // Ensure proper heading rendering
-  enhancedContent = enhancedContent.replace(/<h1>/g, '<h1 class="text-xl font-bold mb-2">');
-  enhancedContent = enhancedContent.replace(/<h2>/g, '<h2 class="text-lg font-bold mb-2">');
-  enhancedContent = enhancedContent.replace(/<h3>/g, '<h3 class="text-base font-bold mb-2">');
-  enhancedContent = enhancedContent.replace(/<h4>/g, '<h4 class="text-sm font-bold mb-2">');
-  enhancedContent = enhancedContent.replace(/<h5>/g, '<h5 class="text-xs font-bold mb-2">');
-  enhancedContent = enhancedContent.replace(/<h6>/g, '<h6 class="text-xs font-bold mb-2">');
-  
+  enhancedContent = enhancedContent.replace(
+    /<h1>/g,
+    '<h1 class="text-xl font-bold mb-2">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<h2>/g,
+    '<h2 class="text-lg font-bold mb-2">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<h3>/g,
+    '<h3 class="text-base font-bold mb-2">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<h4>/g,
+    '<h4 class="text-sm font-bold mb-2">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<h5>/g,
+    '<h5 class="text-xs font-bold mb-2">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<h6>/g,
+    '<h6 class="text-xs font-bold mb-2">',
+  );
+
   // Ensure proper paragraph rendering
   enhancedContent = enhancedContent.replace(/<p>/g, '<p class="mb-2">');
-  
+
   // Ensure proper link rendering
-  enhancedContent = enhancedContent.replace(/<a /g, '<a class="text-blue-600 underline hover:text-blue-800" ');
-  
+  enhancedContent = enhancedContent.replace(
+    /<a /g,
+    '<a class="text-blue-600 underline hover:text-blue-800" ',
+  );
+
   // Ensure proper blockquote rendering
-  enhancedContent = enhancedContent.replace(/<blockquote>/g, '<blockquote class="border-l-4 border-gray-300 pl-4 italic text-gray-600 mb-2">');
-  
+  enhancedContent = enhancedContent.replace(
+    /<blockquote>/g,
+    '<blockquote class="border-l-4 border-gray-300 pl-4 italic text-gray-600 mb-2">',
+  );
+
   // Ensure proper code rendering
-  enhancedContent = enhancedContent.replace(/<code>/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">');
-  enhancedContent = enhancedContent.replace(/<pre>/g, '<pre class="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto mb-2">');
+  enhancedContent = enhancedContent.replace(
+    /<code>/g,
+    '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">',
+  );
+  enhancedContent = enhancedContent.replace(
+    /<pre>/g,
+    '<pre class="bg-gray-100 p-2 rounded text-sm font-mono overflow-x-auto mb-2">',
+  );
 
   return (
     <div
       className="email-content text-sm text-gray-800 max-w-full"
       style={{
         // Email-specific styles
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        lineHeight: '1.6',
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        lineHeight: "1.6",
       }}
-      dangerouslySetInnerHTML={{ 
-        __html: enhancedContent 
+      dangerouslySetInnerHTML={{
+        __html: enhancedContent,
       }}
     />
   );
@@ -153,13 +196,38 @@ export function ReadOnlyEditor({ content }: { content?: string }) {
   try {
     // If content is HTML (starts with < and contains HTML tags), render as HTML
     if (content.trim().startsWith("<") && content.includes("</")) {
-      return renderHTMLContent(content);
+      // Remove all background-color from the content
+      const contentWithoutBackground = content.replace(
+        /background-color:.*?;/g,
+        ""
+      );
+      // Remove all border
+      const contentWithoutBorder = contentWithoutBackground.replace(
+        /border:.*?;/g,
+        ""
+      );
+      // Remove all padding
+      const contentWithoutPadding = contentWithoutBorder.replace(
+        /padding:.*?;/g,
+        ""
+      );
+      // Remove all margin
+      const contentWithoutMargin = contentWithoutPadding.replace(
+        /margin:.*?;/g,
+        ""
+      );
+      // Remove all background-color
+      const contentWithoutBackgroundColor = contentWithoutMargin.replace(
+        /background-color:.*?;/g,
+        ""
+      );
+      return renderHTMLContent(fixAttachmentImageSrc(contentWithoutBackgroundColor));
     }
 
     // If content is Lexical state, use enhanced Lexical editor with available plugins
     if (isLexicalState(content)) {
       const uniqueId = `ReadOnlyEmailEditor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const initialConfig = {
         editable: false,
         namespace: uniqueId,

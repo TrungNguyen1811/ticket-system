@@ -17,7 +17,7 @@ import type {
 } from "@/types/dashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { AreaChart, BarChart, Metric, Text } from "@tremor/react";
 import {
   Select,

@@ -5,7 +5,7 @@ import { UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useTicketMutations } from "./useTicketMutations";
 import { useTicketLogs } from "./useTicketLogs";
 import { Ticket, TicketAuditLog } from "@/types/ticket";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 
 interface UseTicketUpdateProps {
   ticketId: string;

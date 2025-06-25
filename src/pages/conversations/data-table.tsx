@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   ColumnDef,
@@ -7,9 +7,9 @@ import {
   useReactTable,
   getSortedRowModel,
   SortingState,
-  getPaginationRowModel,  
+  getPaginationRowModel,
   VisibilityState,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 
 import {
   Table,
@@ -18,24 +18,30 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle } from "lucide-react"
-import { useMemo, useState } from "react"
-import { Select, SelectValue, SelectTrigger, SelectItem, SelectContent } from "@/components/ui/select"
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Select,
+  SelectValue,
+  SelectTrigger,
+  SelectItem,
+  SelectContent,
+} from "@/components/ui/select";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  isLoading?: boolean
-  isError?: boolean
-  page: number
-  perPage: number
-  total: number
-  onPageChange: (page: number) => void
-  onPerPageChange: (perPage: number) => void
-  columnVisibility: VisibilityState
-  setColumnVisibility: (columnVisibility: VisibilityState) => void
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  isLoading?: boolean;
+  isError?: boolean;
+  page: number;
+  perPage: number;
+  total: number;
+  onPageChange: (page: number) => void;
+  onPerPageChange: (perPage: number) => void;
+  columnVisibility: VisibilityState;
+  setColumnVisibility: (columnVisibility: VisibilityState) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -51,8 +57,8 @@ export function DataTable<TData, TValue>({
   columnVisibility,
   setColumnVisibility,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  
+  const [sorting, setSorting] = useState<SortingState>([]);
+
   const table = useReactTable({
     data,
     columns,
@@ -60,10 +66,10 @@ export function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onColumnVisibilityChange: (updaterOrValue) => {
-      if (typeof updaterOrValue === 'function') {
-        setColumnVisibility(updaterOrValue(columnVisibility))
+      if (typeof updaterOrValue === "function") {
+        setColumnVisibility(updaterOrValue(columnVisibility));
       } else {
-        setColumnVisibility(updaterOrValue)
+        setColumnVisibility(updaterOrValue);
       }
     },
     onSortingChange: setSorting,
@@ -77,15 +83,18 @@ export function DataTable<TData, TValue>({
     },
     manualPagination: true,
     pageCount: Math.ceil(total / perPage),
-  })
+  });
 
   // Pagination logic
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / perPage)), [total, perPage]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / perPage)),
+    [total, perPage],
+  );
 
   // Helper for pagination buttons
   function renderPageButtons() {
     if (totalPages <= 1) return null;
-  
+
     const PaginationButton = ({
       label,
       active,
@@ -107,9 +116,9 @@ export function DataTable<TData, TValue>({
         {label}
       </button>
     );
-  
+
     const buttons: React.ReactNode[] = [];
-  
+
     if (totalPages <= 5) {
       for (let i = 1; i <= totalPages; i++) {
         buttons.push(
@@ -118,13 +127,13 @@ export function DataTable<TData, TValue>({
             label={i.toString()}
             active={i === page}
             onClick={() => onPageChange(i)}
-          />
+          />,
         );
       }
     } else {
       const showStartEllipsis = page > 3;
       const showEndEllipsis = page < totalPages - 2;
-  
+
       // Always show first page
       buttons.push(
         <PaginationButton
@@ -132,17 +141,20 @@ export function DataTable<TData, TValue>({
           label="1"
           active={page === 1}
           onClick={() => onPageChange(1)}
-        />
+        />,
       );
-  
+
       if (showStartEllipsis) {
         buttons.push(
-          <span key="start-ellipsis" className="px-2 text-sm text-muted-foreground">
+          <span
+            key="start-ellipsis"
+            className="px-2 text-sm text-muted-foreground"
+          >
             ...
-          </span>
+          </span>,
         );
       }
-  
+
       // Show up to 3 middle pages (ensure current page always shown)
       for (let i = page - 1; i <= page + 1; i++) {
         if (i > 1 && i < totalPages) {
@@ -152,19 +164,22 @@ export function DataTable<TData, TValue>({
               label={i.toString()}
               active={i === page}
               onClick={() => onPageChange(i)}
-            />
+            />,
           );
         }
       }
-  
+
       if (showEndEllipsis) {
         buttons.push(
-          <span key="end-ellipsis" className="px-2 text-sm text-muted-foreground">
+          <span
+            key="end-ellipsis"
+            className="px-2 text-sm text-muted-foreground"
+          >
             ...
-          </span>
+          </span>,
         );
       }
-  
+
       // Always show last page
       buttons.push(
         <PaginationButton
@@ -172,10 +187,10 @@ export function DataTable<TData, TValue>({
           label={totalPages.toString()}
           active={page === totalPages}
           onClick={() => onPageChange(totalPages)}
-        />
+        />,
       );
     }
-  
+
     return <div className="flex gap-1 flex-wrap">{buttons}</div>;
   }
 
@@ -187,12 +202,15 @@ export function DataTable<TData, TValue>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap px-6 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <TableHead
+                    key={header.id}
+                    className="whitespace-nowrap px-6 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -212,10 +230,15 @@ export function DataTable<TData, TValue>({
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   <div className="flex flex-col items-center justify-center gap-2">
                     <AlertCircle className="h-8 w-8 text-red-400" />
-                    <span className="text-sm text-red-500">Failed to load data.</span>
+                    <span className="text-sm text-red-500">
+                      Failed to load data.
+                    </span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -229,18 +252,22 @@ export function DataTable<TData, TValue>({
                   {row.getVisibleCells().map((cell, idx) => (
                     <TableCell
                       key={cell.id}
-                      className={
-                        `px-6 py-3 whitespace-nowrap ${idx === 1 ? 'truncate max-w-[200px]' : 'truncate max-w-[240px]'} `
-                      }
+                      className={`px-6 py-3 whitespace-nowrap ${idx === 1 ? "truncate max-w-[200px]" : "truncate max-w-[240px]"} `}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-sm text-muted-foreground"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -251,17 +278,23 @@ export function DataTable<TData, TValue>({
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-2 py-4">
         <div className="text-sm text-muted-foreground mb-2 sm:mb-0">
-          Showing {total === 0 ? 0 : (page - 1) * perPage + 1} to {Math.min(page * perPage, total)} of {total} results
+          Showing {total === 0 ? 0 : (page - 1) * perPage + 1} to{" "}
+          {Math.min(page * perPage, total)} of {total} results
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-muted-foreground">Rows per page</span>
-          <Select value={perPage.toString()} onValueChange={(v) => onPerPageChange(Number(v))}>
+          <Select
+            value={perPage.toString()}
+            onValueChange={(v) => onPerPageChange(Number(v))}
+          >
             <SelectTrigger className="h-8 w-[70px] rounded-md text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[10, 20, 50, 100].map(n => (
-                <SelectItem key={n} value={n.toString()} className="text-sm">{n}</SelectItem>
+              {[10, 20, 50, 100].map((n) => (
+                <SelectItem key={n} value={n.toString()} className="text-sm">
+                  {n}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -285,5 +318,5 @@ export function DataTable<TData, TValue>({
         </div>
       </div>
     </div>
-  )
+  );
 }

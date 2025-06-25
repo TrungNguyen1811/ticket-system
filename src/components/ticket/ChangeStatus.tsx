@@ -79,7 +79,9 @@ const ChangeStatus = ({
                       setSelectedStatus(status.value as Status);
                       handleStatusSelect(status.value as Status);
                     }}
-                    disabled={isTicketComplete || selectedStatus === status.value}
+                    disabled={
+                      isTicketComplete || selectedStatus === status.value
+                    }
                     className="cursor-pointer hover:bg-muted"
                   >
                     <TicketStatusDisplay

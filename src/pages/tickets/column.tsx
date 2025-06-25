@@ -1,29 +1,43 @@
-import { Ticket } from "@/types/ticket"
-import { ColumnDef } from "@tanstack/react-table"
-import { UserAvatar } from "@/components/shared/UserAvatar"
-import { Button } from "@/components/ui/button"
-import { Settings, ArrowUpDown, Eye, Building2, Edit, UserPlus, RefreshCw, Trash2, Loader2, MoreHorizontal } from "lucide-react"
-import { format } from "date-fns"
-import { Link } from "react-router-dom"
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
-import { DropdownMenu, DropdownMenuItem, DropdownMenuContent } from "@/components/ui/dropdown-menu"
-import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Ticket } from "@/types/ticket";
+import { ColumnDef } from "@tanstack/react-table";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { Button } from "@/components/ui/button";
+import {
+  Settings,
+  ArrowUpDown,
+  Eye,
+  Building2,
+  Edit,
+  UserPlus,
+  RefreshCw,
+  Loader2,
+  MoreHorizontal,
+} from "lucide-react";
+import { format } from "date-fns";
+import { Link } from "react-router-dom";
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuContent,
+} from "@/components/ui/dropdown-menu";
+import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export interface TicketTableActionProps {
-  onViewDetail: (ticket: Ticket) => void
-  onEdit: (ticket: Ticket) => void
-  onAssign: (ticket: Ticket) => void
-  onStatusChange: (ticket: Ticket) => void
-  onDelete: (ticket: Ticket) => void
+  onViewDetail: (ticket: Ticket) => void;
+  onEdit: (ticket: Ticket) => void;
+  onAssign: (ticket: Ticket) => void;
+  onStatusChange: (ticket: Ticket) => void;
   isLoadingStates: {
-    update: boolean
-    assign: boolean
-    changeStatus: boolean
-    delete: boolean
-  }
+    update: boolean;
+    assign: boolean;
+    changeStatus: boolean;
+  };
 }
 
-export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Ticket>[] {
+export function getTicketColumns(
+  actions: TicketTableActionProps,
+): ColumnDef<Ticket>[] {
   return [
     {
       id: "title",
@@ -38,10 +52,10 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Title
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        const ticket = row.original
+        const ticket = row.original;
         return (
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0">
@@ -51,14 +65,14 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             </div>
             <div className="min-w-0">
               <div className="text-sm font-medium truncate hover:text-primary transition-colors">
-                <Link to={`/tickets/${ticket.id}`}>
-                  {ticket.title}
-                </Link>
+                <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
               </div>
-              <div className="text-xs text-muted-foreground truncate">#{ticket.id}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                #{ticket.id}
+              </div>
             </div>
           </div>
-        )
+        );
       },
     },
     {
@@ -74,10 +88,10 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Client
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        const ticket = row.original
+        const ticket = row.original;
         return (
           <div className="min-w-0">
             <div className="text-sm font-medium truncate">
@@ -87,7 +101,7 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
               {ticket.client_email}
             </div>
           </div>
-        )
+        );
       },
     },
     {
@@ -103,10 +117,10 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Holder
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        const holder = row.original.holder
+        const holder = row.original.holder;
         return (
           <div className="flex items-center gap-2">
             <UserAvatar name={holder?.name || "Unassigned"} size="sm" />
@@ -114,7 +128,7 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
               {holder?.name || "Unassigned"}
             </span>
           </div>
-        )
+        );
       },
     },
     {
@@ -130,10 +144,10 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Staff
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        const staff = row.original.staff
+        const staff = row.original.staff;
         return (
           <div className="flex items-center gap-2">
             <UserAvatar name={staff?.name || "Unassigned"} size="sm" />
@@ -141,7 +155,7 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
               {staff?.name || "Unassigned"}
             </span>
           </div>
-        )
+        );
       },
     },
     {
@@ -157,10 +171,10 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Status
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        return <TicketStatusDisplay status={row.original.status} />
+        return <TicketStatusDisplay status={row.original.status} />;
       },
     },
     {
@@ -176,7 +190,7 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Created
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -197,7 +211,7 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
             Updated
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -210,11 +224,13 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
       header: () => (
         <div className="flex items-center gap-2 min-w-0">
           <Settings className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate block max-w-[180px]">Actions</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate block max-w-[180px]">
+            Actions
+          </span>
         </div>
       ),
       cell: ({ row }) => {
-        const ticket = row.original
+        const ticket = row.original;
         return (
           <div className="flex items-center gap-2">
             <Link to={`/tickets/${ticket.id}`}>
@@ -276,26 +292,13 @@ export function getTicketColumns(actions: TicketTableActionProps): ColumnDef<Tic
                   )}
                   Change Status
                 </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={() => actions.onDelete(ticket)}
-                  className="text-red-600 focus:text-red-700"
-                  disabled={actions.isLoadingStates.delete}
-                >
-                  {actions.isLoadingStates.delete ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Delete
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        )
+        );
       },
       enableSorting: false,
       enableHiding: false,
     },
-  ]
+  ];
 }

@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 import { Check } from "lucide-react";
 import { CommandItem } from "../ui/command";
 import { User } from "@/types/user";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { useState } from "react";
@@ -79,7 +79,10 @@ const AssigneeUser = ({
           ) : (
             <>
               <div className="flex items-center">
-                <UserAvatar name={selectedStaff?.name || "Unassigned"} size="sm" />
+                <UserAvatar
+                  name={selectedStaff?.name || "Unassigned"}
+                  size="sm"
+                />
                 <span className="ml-2">
                   {selectedStaff?.name || "Unassigned"}
                 </span>

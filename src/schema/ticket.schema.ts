@@ -16,10 +16,7 @@ export const updateTicketSchema = z.object({
     .trim()
     .min(5, { message: "Title must be at least 5 characters" })
     .optional(),
-  description: z
-    .string()
-    .trim()
-    .optional(),
+  description: z.string().trim().optional(),
   status: z
     .enum(["new", "in_progress", "pending", "assigned", "complete", "archived"])
     .optional(),

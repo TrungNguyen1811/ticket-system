@@ -10,9 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import {
-  Search,
-} from "lucide-react";
+import { Search } from "lucide-react";
 import type { User } from "@/types/user";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
@@ -76,16 +74,10 @@ export default function Users() {
   const [perPage, setPerPage] = useState(10);
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   // Fetch users with React Query
   const { data, isLoading, isError } = useQuery({
-    queryKey: [
-      "users",
-      page,
-      perPage,
-      debouncedSearchTerm,
-      selectedRole,
-    ],
+    queryKey: ["users", page, perPage, debouncedSearchTerm, selectedRole],
     queryFn: () =>
       userService.getUsers({
         limit: perPage,
@@ -114,10 +106,10 @@ export default function Users() {
       setSelectedUser(null);
       setNewRole("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.response.data.message,
         variant: "destructive",
       });
     },
@@ -148,10 +140,12 @@ export default function Users() {
     <div className="space-y-6 p-6">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight">User management</h1>
-        <p className="text-muted-foreground">Manage your users and their account permissions here</p>
+        <p className="text-muted-foreground">
+          Manage your users and their account permissions here
+        </p>
       </div>
       <div className="rounded-xl shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-2 py-4 bg-muted/50 rounded-t-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-2 py-4 bg-muted/50 rounded-t-xl">
           {/* Search & Filter */}
           <div className="flex flex-wrap gap-4 items-center w-full sm:w-auto">
             {/* Search input */}
@@ -186,7 +180,10 @@ export default function Users() {
             {/* Column visibility toggle */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto bg-white border border-gray-200 shadow-sm w-24 hover:bg-white hover:border-secondary-300 hover:shadow-none">
+                <Button
+                  variant="outline"
+                  className="ml-auto bg-white border border-gray-200 shadow-sm w-24 hover:bg-white hover:border-secondary-300 hover:shadow-none"
+                >
                   Hidden
                 </Button>
               </DropdownMenuTrigger>
@@ -226,7 +223,10 @@ export default function Users() {
             perPage={perPage}
             total={total}
             onPageChange={setPage}
-            onPerPageChange={(n) => { setPerPage(n); setPage(1); }}
+            onPerPageChange={(n) => {
+              setPerPage(n);
+              setPage(1);
+            }}
             columnVisibility={columnVisibility}
             setColumnVisibility={setColumnVisibility}
           />
@@ -239,7 +239,8 @@ export default function Users() {
           <DialogHeader>
             <DialogTitle>Update User Role</DialogTitle>
             <DialogDescription>
-              Change the role for {selectedUser?.name}. This will affect their system permissions.
+              Change the role for {selectedUser?.name}. This will affect their
+              system permissions.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -256,8 +257,12 @@ export default function Users() {
                   {ROLE_OPTIONS.map((role) => (
                     <SelectItem key={role.value} value={role.value}>
                       <div className="flex flex-col items-start">
-                        <span className="text-sm font-medium">{role.label}</span>
-                        <span className="text-xs text-muted-foreground">{role.description}</span>
+                        <span className="text-sm font-medium">
+                          {role.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {role.description}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -266,7 +271,10 @@ export default function Users() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsRoleDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -283,7 +291,10 @@ export default function Users() {
       </Dialog>
 
       {/* Confirmation Dialog */}
-      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+      <AlertDialog
+        open={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>

@@ -1,11 +1,11 @@
-import { Ticket } from "@/types/ticket"
-import { ColumnDef } from "@tanstack/react-table"
-import { UserAvatar } from "@/components/shared/UserAvatar"
-import { Button } from "@/components/ui/button"
-import { Settings, ArrowUpDown, Eye, Building2 } from "lucide-react"
-import { format } from "date-fns"
-import { Link } from "react-router-dom"
-import { TicketStatusDisplay } from "@/components/shared/StatusBadge"
+import { Ticket } from "@/types/ticket";
+import { ColumnDef } from "@tanstack/react-table";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { Button } from "@/components/ui/button";
+import { Settings, ArrowUpDown, Eye, Building2 } from "lucide-react";
+import { format } from "date-fns";
+import { Link } from "react-router-dom";
+import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
 
 export function getConversationColumns(): ColumnDef<Ticket>[] {
   return [
@@ -22,10 +22,10 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
             Title
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        const ticket = row.original
+        const ticket = row.original;
         return (
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0">
@@ -37,10 +37,12 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
               <div className="text-sm font-medium truncate hover:text-primary transition-colors">
                 {ticket.title}
               </div>
-              <div className="text-xs text-muted-foreground truncate">#{ticket.id}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                #{ticket.id}
+              </div>
             </div>
           </div>
-        )
+        );
       },
     },
     {
@@ -56,10 +58,10 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
             Status
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        return <TicketStatusDisplay status={row.original.status} />
+        return <TicketStatusDisplay status={row.original.status} />;
       },
     },
     {
@@ -75,10 +77,10 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
             Assignee
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => {
-        const staff = row.original.staff
+        const staff = row.original.staff;
         return (
           <div className="flex items-center gap-2">
             <UserAvatar name={staff?.name || "Unassigned"} size="sm" />
@@ -86,7 +88,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
               {staff?.name || "Unassigned"}
             </span>
           </div>
-        )
+        );
       },
     },
     {
@@ -102,7 +104,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
             Created
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -123,7 +125,7 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
             Updated
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        )
+        );
       },
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -136,24 +138,26 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
       header: () => (
         <div className="flex items-center gap-2 min-w-0">
           <Settings className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate block max-w-[180px]">Actions</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate block max-w-[180px]">
+            Actions
+          </span>
         </div>
       ),
       cell: ({ row }) => {
-        const ticket = row.original
+        const ticket = row.original;
         return (
           <div className="flex items-center gap-2">
             <Link to={`/communication/conversation/${ticket.id}`}>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors" >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <Eye className="h-4 w-4" />
                 View
               </div>
             </Link>
           </div>
-        )
+        );
       },
       enableSorting: false,
       enableHiding: false,
     },
-  ]
+  ];
 }

@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 import { Attachment } from "@/types/ticket";
 
 export type AttachmentFormData = FormData;
@@ -42,7 +42,6 @@ class AttachmentService {
       throw error;
     }
   }
-
 
   async downloadAttachment(attachmentId: string) {
     try {

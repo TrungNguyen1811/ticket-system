@@ -1,7 +1,7 @@
 export const theme = {
   colors: {
     primary: {
-      50:  "#eff6ff",
+      50: "#eff6ff",
       100: "#dbeafe",
       200: "#bfdbfe",
       300: "#93c5fd",
@@ -14,7 +14,7 @@ export const theme = {
       950: "#172554",
     },
     secondary: {
-      50:  "#f8fafc",
+      50: "#f8fafc",
       100: "#f1f5f9",
       200: "#e2e8f0",
       300: "#cbd5e1",

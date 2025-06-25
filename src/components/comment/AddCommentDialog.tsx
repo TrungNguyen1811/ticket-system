@@ -23,7 +23,7 @@ import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
 import { TRANSFORMERS } from "@lexical/markdown";
-import {LexicalErrorBoundary} from "@lexical/react/LexicalErrorBoundary";
+import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 
@@ -366,16 +366,19 @@ export function OnChangePlugin({
             const raw = JSON.stringify(editorState.toJSON());
             const root = $getRoot();
             const text = root.getTextContent();
-            
+
             // Generate HTML safely within the read callback
             let html = "";
             try {
               html = $generateHtmlFromNodes(editor, null);
             } catch (htmlError) {
-              console.warn("Failed to generate HTML, using text content:", htmlError);
+              console.warn(
+                "Failed to generate HTML, using text content:",
+                htmlError,
+              );
               html = text; // Fallback to text content
             }
-            
+
             onChange({ raw, html, text });
           } catch (error) {
             console.error("Error in OnChangePlugin:", error);

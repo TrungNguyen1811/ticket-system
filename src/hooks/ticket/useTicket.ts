@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ticket } from "@/types/ticket";
-import { Response, DataResponse } from "@/types/reponse";
+import { Response, DataResponse } from "@/types/response";
 import { useToast } from "@/components/ui/use-toast";
 import { ticketService } from "@/services/ticket.service";
 import { UpdateTicketSchema } from "@/schema/ticket.schema";
@@ -123,15 +123,17 @@ export const useTicket = ({ ticketId }: UseTicketProps) => {
       mutations.update.mutate(
         { id: ticketId, data },
         {
-          onSuccess: () => {
+          onSuccess: (response: Response<Ticket>) => {
             // Reset updating state
             setIsUpdating(false);
-            toast({
-              title: "Success",
-              description: "Ticket updated successfully",
-            });
+            if (response.success) {
+              toast({
+                title: "Success",
+                description: response.message || "Ticket updated successfully",
+              });
+            }
           },
-          onError: (error: Error) => {
+          onError: (error: any) => {
             // Reset updating state
             setIsUpdating(false);
             if (previousData) {
@@ -139,7 +141,7 @@ export const useTicket = ({ ticketId }: UseTicketProps) => {
             }
             toast({
               title: "Error",
-              description: error.message,
+              description: error.response.data.message,
               variant: "destructive",
             });
           },
@@ -203,16 +205,17 @@ export const useTicket = ({ ticketId }: UseTicketProps) => {
       mutations.assign.mutate(
         { id: ticketId, data },
         {
-          onSuccess: (response) => {
-            console.log("Assign success response:", response);
+          onSuccess: (response: Response<Ticket>) => {
             // Reset updating state
             setIsUpdating(false);
-            toast({
-              title: "Success",
-              description: "Staff assigned successfully",
-            });
+            if (response.success) {
+              toast({
+                title: "Success",
+                description: response.message || "Staff assigned successfully",
+              });
+            }
           },
-          onError: (error: Error) => {
+          onError: (error: any) => {
             console.log("Assign error:", error);
             // Reset updating state
             setIsUpdating(false);
@@ -221,7 +224,7 @@ export const useTicket = ({ ticketId }: UseTicketProps) => {
             }
             toast({
               title: "Error",
-              description: error.message,
+              description: error.response.data.message,
               variant: "destructive",
             });
           },
@@ -272,15 +275,17 @@ export const useTicket = ({ ticketId }: UseTicketProps) => {
       mutations.changeStatus.mutate(
         { id: ticketId, data },
         {
-          onSuccess: () => {
+          onSuccess: (response: Response<Ticket>) => {
             // Reset updating state
             setIsUpdating(false);
-            toast({
-              title: "Success",
-              description: "Status updated successfully",
-            });
+            if (response.success) {
+              toast({
+                title: "Success",
+                description: response.message || "Status updated successfully",
+              });
+            }
           },
-          onError: (error: Error) => {
+          onError: (error: any) => {
             // Reset updating state
             setIsUpdating(false);
             if (previousData) {
@@ -288,7 +293,7 @@ export const useTicket = ({ ticketId }: UseTicketProps) => {
             }
             toast({
               title: "Error",
-              description: error.message,
+              description: error.response.data.message,
               variant: "destructive",
             });
           },

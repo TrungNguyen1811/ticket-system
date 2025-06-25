@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { Response } from "@/types/reponse";
+import { Response } from "@/types/response";
 import { AdminStats, DashboardSummary, UserStats } from "@/types/dashboard";
 
 export interface DashboardParams {

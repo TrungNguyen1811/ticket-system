@@ -1,11 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { ticketService } from "@/services/ticket.service";
+import { CreateTicketData, ticketService } from "@/services/ticket.service";
 import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useToast } from "@/components/ui/use-toast";
 import { CommentFormData } from "@/types/comment";
 import { commentService } from "@/services/comment.services";
 import { logService } from "@/services/log.service";
+import { Ticket } from "@/types/ticket";
+import { DataResponse, Response } from "@/types/response";
 
 export const useTicketMutations = () => {
   const queryClient = useQueryClient();
@@ -29,31 +31,16 @@ export const useTicketMutations = () => {
 
   return {
     create: useMutation({
-      mutationFn: (data: CreateTicketSchema) =>
+      mutationFn: (data: CreateTicketData) =>
         ticketService.createTicket(data),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["tickets"] });
-        toast({
-          title: "Success",
-          description: "Ticket created successfully",
-        });
-      },
-      onError: (error: { response: { data: { message: string } } }) => {
-        toast({
-          title: "Error",
-          description: error.response.data.message,
-          variant: "destructive",
-        });
-      },
-    }),
-    delete: useMutation({
-      mutationFn: (id: string) => ticketService.deleteTicket(id),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["tickets"] });
-        toast({
-          title: "Success",
-          description: "Ticket deleted successfully",
-        });
+      onSuccess: (response: Response<Ticket>) => {
+        if (response.success) {
+          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          toast({
+            title: "Success",
+            description: response.message || "Ticket created successfully",
+          });
+        }
       },
       onError: (error: { response: { data: { message: string } } }) => {
         toast({

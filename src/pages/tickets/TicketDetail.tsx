@@ -7,13 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  ArrowLeft,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { Attachment, Status } from "@/types/ticket";
 import attachmentService from "@/services/attachment.service";
 import { AuditLogTable } from "@/components/ticket/AuditLogTable";
@@ -31,7 +27,7 @@ export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   // State
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -39,7 +35,9 @@ export default function TicketDetail() {
   const [editedDescription, setEditedDescription] = useState("");
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [savingTitle, setSavingTitle] = useState(false);
-  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(
+    new Set(),
+  );
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
@@ -204,7 +202,6 @@ export default function TicketDetail() {
     }
   };
 
-
   function handlePreviewFile(attachment: Attachment, scope: Attachment[]) {
     const index = scope.findIndex((f) => f.id === attachment.id);
     if (index !== -1) {
@@ -220,7 +217,9 @@ export default function TicketDetail() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">Loading ticket details...</p>
+          <p className="text-sm text-muted-foreground">
+            Loading ticket details...
+          </p>
         </div>
       </div>
     );
@@ -247,7 +246,9 @@ export default function TicketDetail() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-foreground mb-2">Ticket not found</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-2">
+          Ticket not found
+        </h2>
         <p className="text-sm text-muted-foreground mb-6">
           The ticket you're looking for doesn't exist or has been deleted.
         </p>
@@ -295,10 +296,12 @@ export default function TicketDetail() {
               onDescriptionChange={setEditedDescription}
               onSaveDescription={handleSaveDescription}
               onCancelDescription={() => {
-                setIsEditingDescription(false); 
+                setIsEditingDescription(false);
               }}
               onEditDescription={() => setIsEditingDescription(true)}
-              onToggleDescription={() => setShowFullDescription(!showFullDescription)}
+              onToggleDescription={() =>
+                setShowFullDescription(!showFullDescription)
+              }
               isDescriptionClamped={isDescriptionClamped(editedDescription)}
               onStatusChange={handleStatusChange}
               onStaffAssign={handleStaffAssign}
@@ -307,12 +310,13 @@ export default function TicketDetail() {
               isErrorUsers={isErrorUsers}
             />
 
-
             {/* Audit Logs */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-medium">Audit Logs</CardTitle>
+                  <CardTitle className="text-base font-medium">
+                    Audit Logs
+                  </CardTitle>
                   <Badge variant="outline" className="text-xs">
                     {logs?.data?.data?.length || 0} logs
                   </Badge>
@@ -331,7 +335,10 @@ export default function TicketDetail() {
                       currentStatus={ticketData?.status || ""}
                       onStatusChange={() => {}} // Disabled - only edit in main section
                       onStaffChange={() => {}} // Disabled - only edit in main section
-                      isTicketComplete={ticketData.status === "complete" || ticketData.status === "archived"}
+                      isTicketComplete={
+                        ticketData.status === "complete" ||
+                        ticketData.status === "archived"
+                      }
                     />
                   </div>
                 )}
@@ -359,7 +366,6 @@ export default function TicketDetail() {
                 onPreviewFile={handlePreviewFile}
               />
             </div>
-            
           </div>
         </div>
       </div>
@@ -373,8 +379,8 @@ export default function TicketDetail() {
           setPreviewIndex(0);
         }}
         files={previewFiles || []}
-        initialIndex={previewIndex}     
-         />
+        initialIndex={previewIndex}
+      />
 
       {/* Upload Attachment Dialog */}
       <UploadAttachmentDialog

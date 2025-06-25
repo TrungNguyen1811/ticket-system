@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useToast } from "@/components/ui/use-toast";
-import { DataResponse, Response } from "@/types/reponse";
+import { DataResponse, Response } from "@/types/response";
 import { userService } from "@/services/user.service";
 import { useQuery } from "@tanstack/react-query";
 import { User } from "@/types/user";
