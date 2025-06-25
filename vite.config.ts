@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import fs from "fs";
 
 export default defineConfig({
   plugins: [react()],
@@ -17,9 +18,11 @@ export default defineConfig({
     devSourcemap: true,
   },
   server: {
-    watch: {
-      usePolling: true,
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, "ssl/key.pem")),
+      cert: fs.readFileSync(path.resolve(__dirname, "ssl/cert.pem")),
     },
+    port: 5173,
   },
   optimizeDeps: {
     include: ["react-pdf", "pdfjs-dist"],
