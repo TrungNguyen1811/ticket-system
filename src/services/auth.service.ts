@@ -1,7 +1,11 @@
 import api from "@/lib/axios";
 import { LoginSchema } from "@/schema/auth.schema";
 import type { User } from "@/types/user";
-import type { CallbackResponse, DataResponse, Response } from "@/types/response";
+import type {
+  CallbackResponse,
+  DataResponse,
+  Response,
+} from "@/types/response";
 import axios from "axios";
 
 export interface LoginResponse {

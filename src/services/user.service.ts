@@ -71,12 +71,16 @@ class UserService {
   }
 
   // Clients
-  async getClients(params: ParamsUser): Promise<Response<DataResponse<Client[]>>> {
+  async getClients(
+    params: ParamsUser,
+  ): Promise<Response<DataResponse<Client[]>>> {
     try {
-      const response =
-        await api.get<Response<DataResponse<Client[]>>>("/clients", {
+      const response = await api.get<Response<DataResponse<Client[]>>>(
+        "/clients",
+        {
           params,
-        });
+        },
+      );
       return response.data;
     } catch (error) {
       throw error;

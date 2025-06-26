@@ -37,7 +37,7 @@ import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OnChangePlugin } from "@/components/comment/AddCommentDialog";
-import { ReadOnlyEditor } from "@/components/comment/ReadOnlyEditor";
+import { ReadOnlyEditor } from "@/components/editor/ReadOnlyEditor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { ClearEditorPlugin } from "@/components/editor/ClearEditorPlugin";
@@ -52,22 +52,52 @@ import { ClientCard } from "../tickets/ticket-detail/ClientCard";
 import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { CodeNode, CodeHighlightNode } from "@lexical/code";
 
-// Editor configuration
+
+
+
 const initialConfig = {
-  namespace: "ConversationEditor",
-  onError: (error: Error) => {
-    console.error(error);
-  },
+  namespace: "ConversationInputEditor",
+  onError: (error: Error) => { console.error(error); },
   theme: {
-    paragraph: "mb-1",
+    paragraph: "mb-2 last:mb-0",
+    heading: {
+      h1: "text-xl font-bold mb-2",
+      h2: "text-lg font-bold mb-2",
+      h3: "text-base font-bold mb-2",
+      h4: "text-sm font-bold mb-2",
+      h5: "text-xs font-bold mb-2",
+      h6: "text-xs font-bold mb-2",
+    },
+    list: {
+      ul: "list-disc list-inside mb-2 space-y-1",
+      ol: "list-decimal list-inside mb-2 space-y-1",
+      listitem: "text-sm mb-1",
+    },
+    link: "text-blue-600 underline hover:text-blue-800",
+    quote: "border-l-4 border-gray-300 pl-4 italic text-gray-600 mb-2",
+    code: "bg-gray-100 px-1 py-0.5 rounded text-sm font-mono",
     text: {
-      base: "text-sm",
       bold: "font-semibold",
       italic: "italic",
       underline: "underline",
+      strikethrough: "line-through",
+      underlineStrikethrough: "underline line-through",
     },
   },
+  nodes: [
+    HeadingNode,
+    QuoteNode,
+    ListItemNode,
+    ListNode,
+    CodeNode,
+    CodeHighlightNode,
+  ],
 };
 
 export function fixAttachmentImageSrc(html: string) {
@@ -76,7 +106,7 @@ export function fixAttachmentImageSrc(html: string) {
   // Thay thế src="attachments/xxx" thành src="API_URL/attachments/xxx"
   return html.replace(
     /src=["']attachments\/([^"']+)["']/g,
-    `src="${API_URL}/attachments/$1"`
+    `src="${API_URL}/attachments/$1"`,
   );
 }
 
@@ -122,8 +152,7 @@ export default function ConversationDetail() {
   const [isFetching, setIsFetching] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Mail[]>([]); 
-
+  const [messages, setMessages] = useState<Mail[]>([]);
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -228,45 +257,97 @@ export default function ConversationDetail() {
   useEffect(() => {
     if (mailsData && mailsData.length > 0) {
       setMessages(mailsData);
-      setOldestMessageId(mailsData[mailsData.length - 1]?.id || null);
-      setHasMoreMessages(true);
+      // Set oldest message ID to the first message (oldest) in the array
+      setOldestMessageId(mailsData[0]?.id || null);
+      // Only set hasMoreMessages to true if we have a full page of messages
+      // This indicates there might be more messages to load
+      setHasMoreMessages(mailsData.length >= 20);
+    } else if (mailsData && mailsData.length === 0) {
+      // No messages at all
+      setMessages([]);
+      setOldestMessageId(null);
+      setHasMoreMessages(false);
     }
   }, [mailsData]);
 
   // Infinite scroll: fetch older messages
   const fetchOlderMessages = useCallback(async () => {
     if (!id || isFetching || !hasMoreMessages || !oldestMessageId) return;
+
+    console.log("🔄 Attempting to fetch older messages:", {
+      id,
+      isFetching,
+      hasMoreMessages,
+      oldestMessageId,
+      currentMessagesCount: messages.length,
+    });
+
     setIsFetching(true);
 
     const container = scrollRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]"
+      "[data-radix-scroll-area-viewport]",
     ) as HTMLDivElement | null;
     const prevHeight = container?.scrollHeight ?? 0;
 
     try {
-      const res = await mailService.getMails(id, { cursor: oldestMessageId, limit: 20 });
+      const res = await mailService.getMails(id, {
+        cursor: oldestMessageId,
+        limit: 20,
+      });
       const older = res.data.data;
-      console.log("fetching older with cursor:", oldestMessageId, "result:", older);
+      console.log("📨 Fetched older messages:", {
+        cursor: oldestMessageId,
+        resultCount: older.length,
+        result: older.map((m) => ({
+          id: m.id,
+          from: m.from_email,
+          created: m.created_at,
+        })),
+      });
+
       if (older.length === 0) {
+        console.log(
+          "✅ No more messages to load, setting hasMoreMessages to false",
+        );
         setHasMoreMessages(false);
       } else {
-        setMessages((prev) => [...prev, ...older]);
-        setOldestMessageId(older[older.length - 1]?.id);
-        setTimeout(() => {
-          if (container) {
-            const newHeight = container.scrollHeight;
-            container.scrollTop = newHeight - prevHeight;
-          }
-        }, 0);
+        // Check for duplicates before adding
+        const existingIds = new Set(messages.map((m) => m.id));
+        const newMessages = older.filter((m) => !existingIds.has(m.id));
+
+        if (newMessages.length > 0) {
+          console.log("➕ Adding new messages:", newMessages.length);
+          setMessages((prev) => [...prev, ...newMessages]);
+          setOldestMessageId(newMessages[newMessages.length - 1]?.id);
+
+          // Maintain scroll position
+          setTimeout(() => {
+            if (container) {
+              const newHeight = container.scrollHeight;
+              container.scrollTop = newHeight - prevHeight;
+            }
+          }, 0);
+        } else {
+          console.log(
+            "⚠️ All fetched messages are duplicates, setting hasMoreMessages to false",
+          );
+          setHasMoreMessages(false);
+        }
       }
+    } catch (error) {
+      console.error("❌ Error fetching older messages:", error);
+      // On error, don't set hasMoreMessages to false immediately
+      // Let user retry by scrolling again
     } finally {
       setIsFetching(false);
     }
-  }, [id, isFetching, hasMoreMessages, oldestMessageId]);
+  }, [id, isFetching, hasMoreMessages, oldestMessageId, messages]);
 
   // Attach scroll event to ScrollArea viewport
   useEffect(() => {
-    const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const viewport = scrollRef.current?.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
     if (!viewport) return;
 
     const handle = (e: Event) => {
@@ -276,8 +357,8 @@ export default function ConversationDetail() {
       }
     };
 
-    viewport.addEventListener('scroll', handle);
-    return () => viewport.removeEventListener('scroll', handle);
+    viewport.addEventListener("scroll", handle);
+    return () => viewport.removeEventListener("scroll", handle);
   }, [isFetching, hasMoreMessages, fetchOlderMessages]);
 
   // Real-time: append new mail to messages
@@ -291,9 +372,15 @@ export default function ConversationDetail() {
         setMessages((prev) => [...prev, lastRemote]);
         // Optionally scroll to bottom if user is at the bottom
         const container = scrollRef.current?.querySelector(
-          "[data-radix-scroll-area-viewport]"
+          "[data-radix-scroll-area-viewport]",
         ) as HTMLDivElement | null;
-        if (container && container.scrollHeight - container.scrollTop - container.clientHeight < 100) {
+        if (
+          container &&
+          container.scrollHeight -
+            container.scrollTop -
+            container.clientHeight <
+            100
+        ) {
           setTimeout(() => {
             container.scrollTop = container.scrollHeight;
           }, 0);
@@ -306,7 +393,7 @@ export default function ConversationDetail() {
   useEffect(() => {
     if (!isLoadingMails && messages.length > 0) {
       const container = scrollRef.current?.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       ) as HTMLDivElement | null;
       if (container) {
         container.scrollTop = container.scrollHeight;
@@ -344,6 +431,9 @@ export default function ConversationDetail() {
     queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
     setNewMailNotification(false);
     setMessages([]); // Xóa hết messages, sẽ được set lại từ mailsData khi fetch xong
+    setHasMoreMessages(true); // Reset to allow new loading
+    setOldestMessageId(null); // Reset cursor
+    setIsFetching(false); // Reset fetching state
     toast({
       title: "Chat refreshed",
       description: "Public chat has been updated",
@@ -398,12 +488,7 @@ export default function ConversationDetail() {
             file_type: file.type,
             file_size: file.size,
             file_extension: file.name.split(".").pop() || "",
-            content_type: file.type,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            ticket_id: id,
-            comment_id: "",
-            email_id: "",
           };
         });
 
@@ -443,7 +528,7 @@ export default function ConversationDetail() {
           });
         }
 
-        setMessages((prev) => [...prev, optimisticMail]);
+        setMessages((prev) => [optimisticMail, ...prev]);
       }
 
       setEditorContent({ raw: "", html: "", text: "" });
@@ -492,24 +577,39 @@ export default function ConversationDetail() {
 
   const [isHover, setIsHover] = useState(false);
 
+  // Handle optimistic updates when mailsData changes
   useEffect(() => {
-    if (mailsData) {
-      setMessages((prev) => {
-        const filteredOptimistic = prev.filter(
-          (msg) =>
-            !msg.id.startsWith("temp-") ||
-            !mailsData.some(
-              (m) =>
-                m.body === msg.body &&
-                Math.abs(new Date(m.created_at).getTime() - new Date(msg.created_at).getTime()) < 60000
-            )
-        );
-        return [...mailsData, ...filteredOptimistic.filter((m) => m.id.startsWith("temp-"))];
-      });
-      setOldestMessageId(mailsData[0]?.id || null);
-      setHasMoreMessages(true);
+    if (mailsData && messages.length > 0) {
+      // Check if there are any optimistic messages that should be replaced
+      const hasOptimisticMessages = messages.some((m) =>
+        m.id.startsWith("temp-"),
+      );
+
+      if (hasOptimisticMessages) {
+        setMessages((prev) => {
+          // Remove optimistic messages that have been replaced by real ones
+          const filteredOptimistic = prev.filter(
+            (msg) =>
+              !msg.id.startsWith("temp-") ||
+              !mailsData.some(
+                (m) =>
+                  m.body === msg.body &&
+                  Math.abs(
+                    new Date(m.created_at).getTime() -
+                      new Date(msg.created_at).getTime(),
+                  ) < 60000,
+              ),
+          );
+
+          // Combine real messages with remaining optimistic ones
+          return [
+            ...mailsData,
+            ...filteredOptimistic.filter((m) => m.id.startsWith("temp-")),
+          ];
+        });
+      }
     }
-  }, [mailsData]);
+  }, [mailsData, messages.length]);
 
   return (
     <div className="flex flex-col h-[89vh] bg-[#f8fafc] ticket-detail-container">
@@ -567,46 +667,47 @@ export default function ConversationDetail() {
             </div>
           </div>
 
-          
           {/* Messages */}
           <div className="flex flex-col">
             <div className="flex-1 flex flex-col relative">
-                {hasNewMailNotification && (
-                    <div className="w-full px-6 py-3 bg-blue-50 border-b border-blue-200 z-50 absolute">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <MessageSquare className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm text-blue-700">
-                            New messages available
-                          </span>
-                        </div>
-                        <Button
-                          onClick={handleReloadPublicChat}
-                          size="sm"
-                          className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Reload Chat
-                        </Button>
-                      </div>
+              {hasNewMailNotification && (
+                <div className="w-full px-6 py-3 bg-blue-50 border-b border-blue-200 z-50 absolute">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm text-blue-700">
+                        New messages available
+                      </span>
                     </div>
-          )}
+                    <Button
+                      onClick={handleReloadPublicChat}
+                      size="sm"
+                      className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Reload Chat
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex-1 overflow-auto">
                 <div className="flex flex-col h-[84vh]">
                   <ScrollArea
                     ref={scrollRef}
-                    className="h-[calc(100vh-400px)] px-4 lg:px-6"
+                    className="h-[calc(100vh-400px)] px-4 lg:px-6 overflow-x-hidden"
                   >
-                    <div className="space-y-4 py-6 w-full">
+                    <div className="space-y-4 py-6 w-full min-w-0">
                       {isFetching && (
                         <div className="flex justify-center py-2">
                           <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       )}
                       {isLoadingMails ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8">
-                          <span className="text-xs lg:text-sm text-gray-500">
+                        <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8 animate-pulse">
+                          <div className="w-6 h-6 mb-2 rounded-full bg-muted" />
+                          <Loader2 className="animate-spin" />
+                          <span className="text-sm text-muted-foreground">
                             Loading messages...
                           </span>
                         </div>
@@ -632,12 +733,9 @@ export default function ConversationDetail() {
                               )}
                             >
                               <UserAvatar
-                                name={
-                                  isOwnMessage
-                                    ? m.from_name
-                                    : m.from_email
-                                }
-                                size="sm" />
+                                name={isOwnMessage ? m.from_name : m.from_email}
+                                size="sm"
+                              />
                               <div
                                 className={cn(
                                   "flex-1 min-w-0",
@@ -689,6 +787,7 @@ export default function ConversationDetail() {
                                           isOwnMessage
                                             ? "flex flex-row-reverse"
                                             : "",
+                                          "break-words whitespace-pre-wrap w-full overflow-hidden",
                                         )}
                                       >
                                         <ReadOnlyEditor content={m.body} />
@@ -953,7 +1052,7 @@ export default function ConversationDetail() {
           className={cn(
             "shrink-0 bg-white border-l border-gray-200 transition-all duration-300 attachments-section",
             showRightSidebar
-              ? "w-[400px] lg:w-[460px] xl:w-[500px]"
+              ? "w-[30vw]"
               : "w-0 overflow-hidden",
           )}
         >

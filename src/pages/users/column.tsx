@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Settings, Pencil, Trash, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
+import { useState } from "react";
 
 export interface UserTableActionProps {
   onUpdateRole: (user: User) => void;
@@ -149,23 +150,66 @@ export function getUserColumns(
       ),
       cell: ({ row }) => {
         const user = row.original;
+        const [hovered, setHovered] = useState(false);
+        const [hoveredDelete, setHoveredDelete] = useState(false);
         return (
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 border rounded-md p-1 cursor-pointer px-2 transition-colors duration-200">
-              <div onClick={() => actions.onUpdateRole(user)}>
-                <Pencil className="h-4 w-4" />
+            {/* EDIT BUTTON */}
+
+            {/* Icon xanh khi hover */}
+            <div
+              className={`action-button ${hovered ? "hovered" : ""}`}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <div
+                className="flex flex-row items-center border rounded-md px-2 cursor-pointer hover:bg-slate-200"
+                onClick={() => actions.onUpdateRole(user)}
+              >
+                <div className="icon-container">
+                  <div className="hover-icon text-blue-500">
+                    <Pencil className="h-4 w-4" />
+                  </div>
+                  <div className="default-icon">
+                    <Pencil className="h-4 w-4" />
+                  </div>
+                </div>
+                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
+                  Edit
+                </span>
               </div>
-              <span className="text-muted-foreground truncate block max-w-[180px]">
-                Edit
-              </span>
             </div>
-            <div className="flex items-center gap-1 border rounded-md p-1 cursor-pointer px-2 transition-colors duration-200">
+
+            {/* DELETE BUTTON */}
+            {/* <div className="flex items-center gap-1 border rounded-md p-1 cursor-pointer px-2 transition-colors duration-200">
               <div onClick={() => actions.onDeactivate(user)}>
                 <Trash className="h-4 w-4" />
               </div>
               <span className="text-muted-foreground truncate block max-w-[180px]">
                 Delete
               </span>
+            </div> */}
+            <div
+              className={`action-button ${hoveredDelete ? "hovered" : ""}`}
+              onMouseEnter={() => setHoveredDelete(true)}
+              onMouseLeave={() => setHoveredDelete(false)}
+            >
+              <div
+                className="flex flex-row items-center border rounded-md px-2 cursor-pointer hover:bg-slate-200"
+                onClick={() => actions.onDeactivate(user)}
+              >
+                <div className="icon-container">
+                  <div className="hover-icon text-red-500">
+                    <Trash className="h-4 w-4" />
+                  </div>
+                  <div className="default-icon">
+                    <Trash className="h-4 w-4" />
+                  </div>
+                </div>
+                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
+                  Delete
+                </span>
+              </div>
             </div>
           </div>
         );

@@ -28,7 +28,7 @@ export default function Clients() {
     isError,
   } = useQuery({
     queryKey: ["clients"],
-    queryFn: () => userService.getClients(),
+    queryFn: () => userService.getClients({}),
   });
 
   const filteredClients = clients?.data?.data?.filter(

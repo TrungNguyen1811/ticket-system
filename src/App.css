@@ -57,3 +57,50 @@
     @apply bg-background text-foreground;
   }
 }
+
+.action-button .icon-container {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+}
+
+.action-button .hover-icon,
+.action-button .default-icon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition-property: opacity, transform;
+  transition-duration: 0.4s;
+}
+
+/* Mặc định */
+.hover-icon {
+  opacity: 0;
+  transform: translateY(-100%);
+  transition-delay: 0.4s;
+}
+.default-icon {
+  opacity: 1;
+  transform: translateY(0%);
+  transition-delay: 0s;
+}
+/* Khi hover vào */
+.action-button.hovered .hover-icon {
+  opacity: 1;
+  transform: translateY(0%);
+  transition-delay: 0s;
+}
+.action-button.hovered .default-icon {
+  opacity: 0;
+  transform: translateY(100%);
+  transition-delay: 0s;
+}
+
+/* Khi hover OUT: dùng lại class cũ nhưng delay đảo ngược */
+.action-button:not(.hovered) .hover-icon {
+  transition-delay: 0s;
+}
+.action-button:not(.hovered) .default-icon {
+  transition-delay: 0s;
+}

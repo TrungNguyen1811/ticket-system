@@ -6,6 +6,7 @@ import { Settings, ArrowUpDown, Eye, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { TicketStatusDisplay } from "@/components/shared/StatusBadge";
+import { useState } from "react";
 
 export function getConversationColumns(): ColumnDef<Ticket>[] {
   return [
@@ -145,14 +146,31 @@ export function getConversationColumns(): ColumnDef<Ticket>[] {
       ),
       cell: ({ row }) => {
         const ticket = row.original;
+        const [hovered, setHovered] = useState(false);
         return (
-          <div className="flex items-center gap-2">
-            <Link to={`/communication/conversation/${ticket.id}`}>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <Eye className="h-4 w-4" />
-                View
-              </div>
-            </Link>
+          <div className="flex items-center gap-4">
+            <div
+              className={`action-button ${hovered ? "hovered" : ""}`}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <Link
+                to={`/communication/conversation/${ticket.id}`}
+                className="flex items-center gap-1 rounded-md cursor-pointer px-2 hover:bg-slate-200"
+              >
+                <div className="icon-container">
+                  <div className="hover-icon text-blue-500">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <div className="default-icon">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                </div>
+                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
+                  View
+                </span>
+              </Link>
+            </div>
           </div>
         );
       },

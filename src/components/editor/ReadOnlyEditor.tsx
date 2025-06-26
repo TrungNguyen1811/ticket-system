@@ -196,32 +196,34 @@ export function ReadOnlyEditor({ content }: { content?: string }) {
   try {
     // If content is HTML (starts with < and contains HTML tags), render as HTML
     if (content.trim().startsWith("<") && content.includes("</")) {
-      // Remove all background-color from the content
-      const contentWithoutBackground = content.replace(
-        /background-color:.*?;/g,
-        ""
+      // 1. Xoá toàn bộ border, padding, margin
+      const removedBorderPaddingMargin = content
+        .replace(/border:.*?;/g, "")
+        .replace(/padding:.*?;/g, "")
+        .replace(/margin:.*?;/g, "");
+
+      // 2. Dùng DOMParser để chỉnh background-color trong thẻ <span>
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(
+        removedBorderPaddingMargin,
+        "text/html",
       );
-      // Remove all border
-      const contentWithoutBorder = contentWithoutBackground.replace(
-        /border:.*?;/g,
-        ""
-      );
-      // Remove all padding
-      const contentWithoutPadding = contentWithoutBorder.replace(
-        /padding:.*?;/g,
-        ""
-      );
-      // Remove all margin
-      const contentWithoutMargin = contentWithoutPadding.replace(
-        /margin:.*?;/g,
-        ""
-      );
-      // Remove all background-color
-      const contentWithoutBackgroundColor = contentWithoutMargin.replace(
-        /background-color:.*?;/g,
-        ""
-      );
-      return renderHTMLContent(fixAttachmentImageSrc(contentWithoutBackgroundColor));
+
+      const spans = doc.querySelectorAll("span");
+      spans.forEach((span) => {
+        const style = span.getAttribute("style");
+        if (style && style.includes("background-color")) {
+          const newStyle = style.replace(
+            /background-color:.*?;/,
+            "background-color: bg-gray-300;",
+          );
+          span.setAttribute("style", newStyle);
+        }
+      });
+
+      const cleanedContent = doc.body.innerHTML;
+
+      return renderHTMLContent(fixAttachmentImageSrc(cleanedContent));
     }
 
     // If content is Lexical state, use enhanced Lexical editor with available plugins

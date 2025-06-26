@@ -22,6 +22,7 @@ import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 import { TicketHeaderSection } from "@/pages/tickets/ticket-detail/TicketHeaderSection";
 import { ClientCard } from "./ticket-detail/ClientCard";
 import { Separator } from "@/components/ui/separator";
+import LoadingFallback from "@/components/shared/LoadingFallback";
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
@@ -213,16 +214,7 @@ export default function TicketDetail() {
 
   // Loading states
   if (isLoadingTicket) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">
-            Loading ticket details...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   if (isErrorTicket) {

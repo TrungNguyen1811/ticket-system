@@ -37,8 +37,7 @@ export default function ConversationTabsLayout({
     dataQuery = useQuery({
       queryKey: ["client", id],
       queryFn: () =>
-        userService.getClients().then((res) => {
-          console.log("getClients response", res);
+        userService.getClients({}).then((res) => {
           const list = res.data?.data ?? res.data; // handle both structures
           return list.find((client: Client) => client.id === id);
         }),

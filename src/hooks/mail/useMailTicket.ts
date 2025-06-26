@@ -12,7 +12,11 @@ interface UseMailTicketProps {
   cursor?: string;
 }
 
-export const useMailTicket = ({ ticketId, limit, cursor }: UseMailTicketProps) => {
+export const useMailTicket = ({
+  ticketId,
+  limit,
+  cursor,
+}: UseMailTicketProps) => {
   const [hasNewMails, setHasNewMails] = useState(false);
 
   const { data: mailsData, isLoading } = useQuery<

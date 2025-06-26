@@ -49,7 +49,7 @@ import { CommentFormData, Comment as CommentType } from "@/types/comment";
 import AttachmentService from "@/services/attachment.service";
 import { useCommentRealtime } from "@/hooks/realtime/useCommentRealtime";
 import EditCommentEditor from "../comment/EditCommentEditor";
-import { ReadOnlyEditor } from "../comment/ReadOnlyEditor";
+import { ReadOnlyEditor } from "../editor/ReadOnlyEditor";
 
 interface CommentListProps {
   ticketId: string;

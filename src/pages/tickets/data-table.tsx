@@ -29,6 +29,7 @@ import {
   SelectItem,
   SelectContent,
 } from "@/components/ui/select";
+import { renderSkeletonRow } from "@/components/loading-table/renderSkeletonRow";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -198,7 +199,7 @@ export function DataTable<TData, TValue>({
     <div className="overflow-x-auto rounded-b-xl">
       <div className="rounded-xl border bg-white shadow-sm overflow-x-auto">
         <Table className="min-w-full">
-          <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
+          <TableHeader className="sticky top-0 z-10 rounded-xl bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -219,15 +220,7 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              [...Array(perPage)].map((_, i) => (
-                <TableRow key={i}>
-                  {columns.map((_, j) => (
-                    <TableCell key={j} className="px-6 py-3">
-                      <Skeleton className="h-6 w-full rounded" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              [...Array(perPage)].map((_, i) => renderSkeletonRow(columns, i))
             ) : isError ? (
               <TableRow>
                 <TableCell

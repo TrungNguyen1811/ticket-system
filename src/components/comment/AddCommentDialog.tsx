@@ -367,22 +367,16 @@ export function OnChangePlugin({
             const root = $getRoot();
             const text = root.getTextContent();
 
-            // Generate HTML safely within the read callback
+            // ✅ Correct usage: pass editorState as the third argument
             let html = "";
             try {
               html = $generateHtmlFromNodes(editor, null);
             } catch (htmlError) {
-              console.warn(
-                "Failed to generate HTML, using text content:",
-                htmlError,
-              );
-              html = text; // Fallback to text content
+              html = text;
             }
 
             onChange({ raw, html, text });
           } catch (error) {
-            console.error("Error in OnChangePlugin:", error);
-            // Provide fallback values
             onChange({ raw: "", html: "", text: "" });
           }
         });

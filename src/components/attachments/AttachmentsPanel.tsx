@@ -135,6 +135,7 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
           >
             Media ({mediaAttachments.length})
           </button>
+          
         </div>
 
         {/* Content */}

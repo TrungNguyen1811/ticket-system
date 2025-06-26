@@ -87,7 +87,7 @@ export default function Conversation() {
       </div>
 
       <div className="rounded-xl shadow-sm">
-        <div className="bg-muted/50 rounded-t-x py-4 flex flex-wrap gap-4 items-center justify-between">
+        <div className="bg-muted/50 rounded-t-x py-4 flex flex-wrap gap-4 items-center justify-between px-2">
           <div className="flex justify-between w-full">
             <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
               {/* Search input */}
@@ -204,7 +204,7 @@ export default function Conversation() {
               className="rounded-md text-sm"
             >
               {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}

@@ -31,8 +31,7 @@ export const useTicketMutations = () => {
 
   return {
     create: useMutation({
-      mutationFn: (data: CreateTicketData) =>
-        ticketService.createTicket(data),
+      mutationFn: (data: CreateTicketData) => ticketService.createTicket(data),
       onSuccess: (response: Response<Ticket>) => {
         if (response.success) {
           queryClient.invalidateQueries({ queryKey: ["tickets"] });

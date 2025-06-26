@@ -36,7 +36,7 @@ export default function ClientDetail() {
   const { id } = useParams();
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
-    queryFn: () => userService.getClients(),
+    queryFn: () => userService.getClients({}),
   });
 
   const client = clients?.data?.data?.find((client) => client.id === id);

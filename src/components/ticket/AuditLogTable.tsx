@@ -436,13 +436,15 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             <Button
               disabled={!selectedStatus || mutations.changeStatus.isPending}
               onClick={() => {
-                handleStatusChange(selectedStatus as
-                  | "new"
-                  | "in_progress"
-                  | "pending"
-                  | "assigned"
-                  | "complete"
-                  | "archived");
+                handleStatusChange(
+                  selectedStatus as
+                    | "new"
+                    | "in_progress"
+                    | "pending"
+                    | "assigned"
+                    | "complete"
+                    | "archived",
+                );
                 setEditingType(null);
                 setSelectedStatus("");
               }}
@@ -581,7 +583,10 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             undone.
           </AlertDialogDescription>
           <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
               Cancel
             </Button>
             <Button

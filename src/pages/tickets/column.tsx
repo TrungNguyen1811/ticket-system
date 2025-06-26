@@ -22,6 +22,7 @@ import {
   DropdownMenuContent,
 } from "@/components/ui/dropdown-menu";
 import { DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useState } from "react";
 
 export interface TicketTableActionProps {
   onViewDetail: (ticket: Ticket) => void;
@@ -231,14 +232,31 @@ export function getTicketColumns(
       ),
       cell: ({ row }) => {
         const ticket = row.original;
+        const [hovered, setHovered] = useState(false);
         return (
           <div className="flex items-center gap-2">
-            <Link to={`/tickets/${ticket.id}`}>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <Eye className="h-4 w-4" />
-                View
-              </div>
-            </Link>
+            <div
+              className={`action-button ${hovered ? "hovered" : ""}`}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <Link
+                to={`/tickets/${ticket.id}`}
+                className="flex items-center gap-1 rounded-md cursor-pointer px-2 hover:bg-slate-200"
+              >
+                <div className="icon-container">
+                  <div className="hover-icon text-blue-500">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <div className="default-icon">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                </div>
+                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
+                  View
+                </span>
+              </Link>
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -284,11 +302,12 @@ export function getTicketColumns(
                     actions.isLoadingStates.changeStatus ||
                     ticket.status === "archived"
                   }
+                  className="group"
                 >
                   {actions.isLoadingStates.changeStatus ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <RefreshCw className="h-4 w-4 mr-2 group-hover:animate-spin group-hover:text-blue-500" />
                   )}
                   Change Status
                 </DropdownMenuItem>

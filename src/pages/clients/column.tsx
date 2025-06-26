@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Settings, ArrowUpDown, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 export function getUserColumns(): ColumnDef<Client>[] {
   return [
@@ -128,14 +129,29 @@ export function getUserColumns(): ColumnDef<Client>[] {
       ),
       cell: ({ row }) => {
         const user = row.original;
+        const [hovered, setHovered] = useState(false);
         return (
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 border rounded-md p-1 cursor-pointer px-2 transition-colors duration-200">
-              <Link to={`/communication/clients/${user.id}`}>
-                <div className="flex items-center gap-1">
-                  <Eye className="h-4 w-4" />
-                  View all Tickets
+            <div
+              className={`action-button ${hovered ? "hovered" : ""}`}
+              onMouseEnter={() => setHovered(true)}
+              onMouseLeave={() => setHovered(false)}
+            >
+              <Link
+                to={`/communication/clients/${user.id}`}
+                className="flex items-center gap-1 rounded-md cursor-pointer px-2 hover:bg-slate-200"
+              >
+                <div className="icon-container">
+                  <div className="hover-icon text-blue-500">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <div className="default-icon">
+                    <Eye className="h-4 w-4" />
+                  </div>
                 </div>
+                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
+                  View
+                </span>
               </Link>
             </div>
           </div>

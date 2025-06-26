@@ -170,54 +170,33 @@ export default function ToolbarPlugin() {
   function toggleHeading(tag: "h1" | "h2") {
     editor.update(() => {
       const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;
-      const nodes = selection.getNodes();
-      nodes.forEach((node) => {
-        const parent = node.getParent();
-        if ($isHeadingNode(parent)) {
-          parent.replace($createHeadingNode(tag));
-        }
-      });
+      if ($isRangeSelection(selection)) {
+        selection.getNodes().forEach((node) => {
+          node.replace($createHeadingNode(tag));
+        });
+      }
     });
   }
 
   function toggleQuote() {
     editor.update(() => {
       const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;
-      const nodes = selection.getNodes();
-      nodes.forEach((node) => {
-        const parent = node.getParent();
-        if (parent && $isQuoteNode(parent)) {
-          // Convert quote back to paragraph
-          parent.replace($createParagraphNode());
-        } else if (parent) {
-          // Convert to quote
-          const quoteNode = $createQuoteNode();
-          parent.insertBefore(quoteNode);
-          quoteNode.append(parent);
-        }
-      });
+      if ($isRangeSelection(selection)) {
+        selection.getNodes().forEach((node) => {
+          node.replace($createQuoteNode());
+        });
+      }
     });
   }
 
   function toggleCode() {
     editor.update(() => {
       const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;
-      const nodes = selection.getNodes();
-      nodes.forEach((node) => {
-        const parent = node.getParent();
-        if (parent && $isCodeNode(parent)) {
-          // Convert code back to paragraph
-          parent.replace($createParagraphNode());
-        } else if (parent) {
-          // Convert to code
-          const codeNode = $createCodeNode("javascript");
-          parent.insertBefore(codeNode);
-          codeNode.append(parent);
-        }
-      });
+      if ($isRangeSelection(selection)) {
+        selection.getNodes().forEach((node) => {
+          node.replace($createCodeNode());
+        });
+      }
     });
   }
 
