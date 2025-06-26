@@ -28,10 +28,10 @@ const toastVariants = cva(
       variant: {
         default: "bg-white border-secondary-200 text-secondary-900",
         destructive:
-          "destructive group border-accent-error/50 text-accent-error",
-        success: "success group border-accent-success/50 text-accent-success",
-        warning: "warning group border-accent-warning/50 text-accent-warning",
-        info: "info group border-accent-info/50 text-accent-info",
+          "destructive group bg-white border-accent-error/50 text-accent-error",
+        success: "success bg-white group border-accent-success/50 text-accent-success",
+        warning: "warning bg-white group border-accent-warning/50 text-accent-warning",
+        info: "info group bg-white border-accent-info/50 text-accent-info",
       },
     },
     defaultVariants: {

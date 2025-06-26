@@ -38,13 +38,10 @@ import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { OnChangePlugin } from "@/components/comment/AddCommentDialog";
 import { ReadOnlyEditor } from "@/components/editor/ReadOnlyEditor";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { ClearEditorPlugin } from "@/components/editor/ClearEditorPlugin";
 import { mailService } from "@/services/mail.service";
 import { Mail, MailFormData } from "@/types/mail";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { useTicket } from "@/hooks/ticket/useTicket";
 import { useMailTicket } from "@/hooks/mail/useMailTicket";
 import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
@@ -52,11 +49,10 @@ import { ClientCard } from "../tickets/ticket-detail/ClientCard";
 import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
+import { LinkNode } from "@lexical/link";
 
 
 
@@ -95,6 +91,7 @@ const initialConfig = {
     QuoteNode,
     ListItemNode,
     ListNode,
+    LinkNode,
     CodeNode,
     CodeHighlightNode,
   ],
