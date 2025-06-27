@@ -32,7 +32,7 @@ import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
 import { usePusher } from "@/contexts/PusherContext";
 import { useTicketRealtime } from "@/hooks/realtime/useTicketRealtime";
 import { SHOW_STATUS_OPTIONS } from "@/lib/constants";
-import { useDebounce } from "@/hooks/utils/useDebouce";
+import { useDebounce } from "@/utils/useDebouce";
 import { getTicketColumns } from "./column";
 import { DataTable } from "./data-table";
 import { VisibilityState } from "@tanstack/react-table";

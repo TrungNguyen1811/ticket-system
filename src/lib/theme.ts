@@ -148,7 +148,7 @@ export const inputStyles = {
 };
 
 export const tableStyles = {
-  base: "w-full border-collapse",
+  base: "w-full border border-collapse border-spacing-0",
   header: "bg-secondary-50/50 border-b border-secondary-200",
   row: "border-b border-secondary-100 hover:bg-secondary-50/50 transition-colors duration-200",
   cell: "px-4 py-3 text-sm text-secondary-700",

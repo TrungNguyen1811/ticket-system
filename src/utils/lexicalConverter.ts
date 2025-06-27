@@ -1,16 +1,14 @@
-import { cleanHtmlForEmail, EmailHtmlOptions } from "./emailHtmlCleaner";
-
 /**
  * Convert Lexical editor state to email-friendly HTML
  */
 export function convertLexicalToEmailHtml(
   lexicalState: string,
-  options: EmailHtmlOptions = {}
+  options: any = {}
 ): string {
   try {
-    // If it's already HTML, clean it
+    // If it's already HTML, return it directly
     if (lexicalState.trim().startsWith("<")) {
-      return cleanHtmlForEmail(lexicalState, options);
+      return lexicalState;
     }
 
     // If it's Lexical state JSON, we need to convert it to HTML first
@@ -20,7 +18,7 @@ export function convertLexicalToEmailHtml(
     if (parsed && parsed.root && parsed.root.children) {
       // Convert Lexical state to HTML (simplified)
       const html = convertLexicalStateToHtml(parsed);
-      return cleanHtmlForEmail(html, options);
+      return html;
     }
 
     // Fallback: treat as plain text
@@ -79,14 +77,31 @@ function convertLexicalStateToHtml(lexicalState: any): string {
           return text;
         
         case "table":
-          return `<table>${node.children?.map(processNode).join("") || ""}</table>`;
+          const tableElement = document.createElement("table");
+          tableElement.style.border = "1px solid #000000";
+          tableElement.style.width = "100%";
+          tableElement.style.borderCollapse = "collapse";
+          tableElement.style.borderSpacing = "0";
+          tableElement.style.fontFamily = "Arial, sans-serif";
+          tableElement.style.fontSize = "14px";
+          tableElement.style.lineHeight = "1.6";
+          tableElement.setAttribute("cellpadding", "8");
+          tableElement.setAttribute("cellspacing", "0");
+          tableElement.setAttribute("border", "1");
+          tableElement.setAttribute("width", "100%");
+          
+          const rows = node.children?.map(processNode).join("");
+          tableElement.innerHTML = rows;
+          
+          return tableElement.outerHTML;
         
         case "tablerow":
-          return `<tr>${node.children?.map(processNode).join("") || ""}</tr>`;
+          return `<tr style="margin: 0; padding: 0; border-collapse: collapse; border-spacing: 0;">${node.children?.map(processNode).join("") || ""}</tr>`;
         
         case "tablecell":
           const cellTag = node.headerState === 1 ? "th" : "td";
-          return `<${cellTag}>${node.children?.map(processNode).join("") || ""}</${cellTag}>`;
+          const cellStyle = `border: 1px solid #000000; padding: 8px; text-align: left; vertical-align: top; background-color: #ffffff; margin: 0; border-collapse: collapse; border-spacing: 0; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;`;
+          return `<${cellTag} style="${cellStyle}" valign="top" align="left">${node.children?.map(processNode).join("") || ""}</${cellTag}>`;
         
         default:
           if (node.children) {

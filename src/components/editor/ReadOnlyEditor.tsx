@@ -22,7 +22,7 @@ import ListMaxIndentLevelPlugin from "./ListMaxIndentLevelPlugin";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { cleanHtmlForEmail } from "@/hooks/utils/emailHtmlCleaner";
+import { cleanHtmlForEmail } from "@/utils/emailHtmlCleaner";
 
 // Auto-link matchers
 const URL_MATCHER =

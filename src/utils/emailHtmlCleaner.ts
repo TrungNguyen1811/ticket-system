@@ -84,30 +84,59 @@ export function cleanHtmlForEmail(
     }
   });
 
-  // Handle tables specifically
+  // Handle tables specifically for Gmail compatibility
   if (preserveTables) {
     const tables = body.querySelectorAll("table");
     tables.forEach(table => {
       const tableElement = table as HTMLTableElement;
       
-      // Add email-friendly table styles
+      // Gmail-friendly table attributes and styles
+      tableElement.setAttribute("cellpadding", "8");
+      tableElement.setAttribute("cellspacing", "0");
+      tableElement.setAttribute("border", "1");
+      tableElement.setAttribute("width", "100%");
+      
+      // Add email-friendly table styles (inline for Gmail)
       tableElement.style.width = "100%";
       tableElement.style.borderCollapse = "collapse";
       tableElement.style.borderSpacing = "0";
+      tableElement.style.border = "1px solid #000000";
       tableElement.style.maxWidth = maxWidth;
+      tableElement.style.fontFamily = fontFamily;
+      tableElement.style.fontSize = fontSize;
+      tableElement.style.lineHeight = lineHeight;
       
-      // Style table cells
+      // Style table cells for Gmail
       const cells = tableElement.querySelectorAll("td, th");
       cells.forEach(cell => {
         const cellElement = cell as HTMLTableCellElement;
-        cellElement.style.border = "1px solid #ddd";
+        
+        // Set cell attributes for Gmail
+        cellElement.setAttribute("valign", "top");
+        cellElement.setAttribute("align", "left");
+        
+        // Inline styles for Gmail compatibility
+        cellElement.style.border = "1px solid #000000";
         cellElement.style.padding = "8px";
         cellElement.style.textAlign = "left";
         cellElement.style.verticalAlign = "top";
         cellElement.style.fontFamily = fontFamily;
         cellElement.style.fontSize = fontSize;
         cellElement.style.lineHeight = lineHeight;
-
+        cellElement.style.backgroundColor = "#ffffff";
+        cellElement.style.margin = "0";
+        cellElement.style.borderCollapse = "collapse";
+        cellElement.style.borderSpacing = "0";
+      });
+      
+      // Style table rows for Gmail
+      const rows = tableElement.querySelectorAll("tr");
+      rows.forEach(row => {
+        const rowElement = row as HTMLTableRowElement;
+        rowElement.style.margin = "0";
+        rowElement.style.padding = "0";
+        rowElement.style.borderCollapse = "collapse";
+        rowElement.style.borderSpacing = "0";
       });
     });
   }
@@ -129,6 +158,7 @@ export function cleanHtmlForEmail(
       const imgElement = img as HTMLImageElement;
       imgElement.style.maxWidth = "100%";
       imgElement.style.height = "auto";
+      imgElement.style.display = "block";
       imgElement.style.border = "none";
     });
   }
@@ -399,17 +429,34 @@ export function createEmailDocument(
             text-align: left;
         }
         table {
-            border-collapse: collapse;
             width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            border: 1px solid #000000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
         }
         td, th {
-            border: 1px solid #ddd;
+            border: 1px solid #000000;
             padding: 8px;
             text-align: left;
+            vertical-align: top;
+            background-color: #ffffff;
+            margin: 0;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+        tr {
+            margin: 0;
+            padding: 0;
+            border-collapse: collapse;
+            border-spacing: 0;
         }
         img {
             max-width: 100%;
             height: auto;
+            display: block;
         }
         a {
             color: #0066cc;

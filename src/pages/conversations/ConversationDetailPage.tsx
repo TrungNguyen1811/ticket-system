@@ -61,7 +61,7 @@ import { OnChangePlugin } from "@/components/editor/OnChangePlugin";
 import { ParagraphNode } from "lexical";
 import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { convertLexicalToEmailHtml } from "@/hooks/utils/lexicalConverter";
+import { convertLexicalToEmailHtml } from "@/utils/lexicalConverter";
 import { 
   isImageFile, 
   isImageFileByName, 
@@ -70,6 +70,8 @@ import {
 } from "@/hooks/conversation/useConversationUtils";
 import { useFileHandling } from "@/hooks/conversation/useFileHandling";
 import { useOptimisticUpdates } from "@/hooks/conversation/useOptimisticUpdates";
+import InlineImagePlugin from "@/components/editor/InlineImagePlugin";
+import { ImageNode } from "@/components/editor/InlineImageNodes";
 
 const initialConfig = {
   namespace: "ConversationInputEditor",
@@ -85,6 +87,7 @@ const initialConfig = {
     LinkNode,
     ParagraphNode,
     TableNode, TableCellNode, TableRowNode,
+    ImageNode,
   ],
 };
 
@@ -881,7 +884,7 @@ export default function ConversationDetail() {
                     <LexicalComposer initialConfig={initialConfig}>
                       <div className="relative">
                         <div className="toolbar">
-                          <ToolbarPlugin />
+                          {ticketData?.id && <ToolbarPlugin ticketId={ticketData.id} />}                        
                         </div>
                         <div className="editor-scroll-container">
                           <RichTextPlugin
@@ -900,6 +903,7 @@ export default function ConversationDetail() {
                         <AutoFocusPlugin />
                         <TablePlugin />
                         <OnChangePlugin onChange={setEditorContent} />
+                        <InlineImagePlugin />
                         <ClearEditorPlugin
                           triggerClear={shouldClearEditor}
                           onClearFinished={() => setShouldClearEditor(false)}
@@ -1003,7 +1007,7 @@ export default function ConversationDetail() {
           className={cn(
             "shrink-0 bg-white border-l border-gray-200 transition-all duration-300 attachments-section",
             showRightSidebar
-              ? "w-[30vw]"
+              ? "w-[30vw] border"
               : "w-0 overflow-hidden",
           )}
         >

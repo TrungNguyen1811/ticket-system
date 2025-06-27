@@ -21,7 +21,7 @@ import { DataResponse, Response } from "@/types/response";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { useState } from "react";
-import { useDebounce } from "@/hooks/utils/useDebouce";
+import { useDebounce } from "@/utils/useDebouce";
 
 const AssigneeUser = ({
   isStaffOpen,

@@ -325,11 +325,13 @@ li[style*="display: block"] {
 
 /* Enhanced image styling */
 .editor-image {
-  border-radius: 0.75rem;
-  max-width: 100%;
-  margin: 1rem 0;
+  max-width: 80%;
+  width: auto;
+  height: auto;
+  margin: 1rem auto;
   display: block;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
   transition: transform 0.2s ease-in-out;
 }
 
@@ -493,12 +495,11 @@ li[style*="display: block"] {
 
 
 .ExampleEditorTheme__table {
-  border-collapse: collapse;
-  border-spacing: 0;
+  border: 1px solid #1b1b1b;
   overflow-y: scroll;
   overflow-x: scroll;
   table-layout: fixed;
-  width: max-content;
+  width: 100%;
   margin: 0px 25px 30px 0px;
 }
 .ExampleEditorTheme__tableSelection *::selection {
@@ -508,8 +509,8 @@ li[style*="display: block"] {
   outline: 2px solid rgb(60, 132, 244);
 }
 .ExampleEditorTheme__tableCell {
-  border: 1px solid #bbb;
-  width: 75px;
+  border: 1px solid #1b1b1b;
+  width: 100%;
   min-width: 75px;
   vertical-align: top;
   text-align: start;
@@ -529,6 +530,8 @@ li[style*="display: block"] {
 .ExampleEditorTheme__tableCellHeader {
   background-color: #f2f3f5;
   text-align: start;
+  width: 100%;
+  min-width: 75px;
 }
 .ExampleEditorTheme__tableCellSelected {
   caret-color: transparent;
@@ -635,7 +638,7 @@ li[style*="display: block"] {
 .toolbar {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 40;
   background: white;
   border-bottom: 1px solid #e5e7eb;
   backdrop-filter: blur(8px);
@@ -694,4 +697,24 @@ li[style*="display: block"] {
     padding: 8px;
     font-size: 16px; /* Better for mobile */
   }
+}
+
+
+/* Ensure all table elements follow the same rules */
+.ExampleEditorTheme__table,
+table.ExampleEditorTheme__table,
+.editor-table,
+table.editor-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+  box-sizing: border-box;
+}
+
+.ExampleEditorTheme__table {
+  border: 1px solid #1b1b1b;
+  overflow-y: scroll;
+  overflow-x: scroll;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0px 25px 30px 0px;
 }

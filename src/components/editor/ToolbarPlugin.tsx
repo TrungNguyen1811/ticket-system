@@ -16,6 +16,7 @@ import {
   $getNodeByKey,
   ElementFormatType,
   $isElementNode,
+  LexicalEditor,
 } from "lexical";
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import {
@@ -61,16 +62,21 @@ import {
   Heading3,
   Heading4,
   Heading5,
-  Heading6,
-  Quote,
   Code,
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignJustify,
   Pencil,
+  Table2,
+  Image,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { INSERT_TABLE_COMMAND } from "@lexical/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { INSERT_IMAGE_COMMAND } from './InlineImagePlugin';
+import attachmentService from "@/services/attachment.service";
+import { useParams } from "react-router-dom";
 
 const headingTags: { tag: HeadingTagType; icon: any; label: string }[] = [
   { tag: "h1", icon: Heading1, label: "Heading 1" },
@@ -119,6 +125,7 @@ function FloatingLinkEditor({ editor }: any) {
   const [linkUrl, setLinkUrl] = useState("");
   const [isEditMode, setEditMode] = useState(false);
   const [lastSelection, setLastSelection] = useState(null);
+  const [activeEditor, setActiveEditor] = useState(editor)
 
   const updateLinkEditor = useCallback(() => {
     const selection = $getSelection();
@@ -164,6 +171,7 @@ function FloatingLinkEditor({ editor }: any) {
         positionEditorElement(editorElem, rect);
       }
       setLastSelection(selection as any);
+      setActiveEditor(selection)
     } else if (!activeElement || activeElement.className !== "link-input") {
       positionEditorElement(editorElem, null);
       setLastSelection(null);
@@ -251,7 +259,7 @@ function FloatingLinkEditor({ editor }: any) {
   );
 }
 
-export default function ToolbarPlugin() {
+export default function ToolbarPlugin({ ticketId }: {ticketId: string}) {
   const [editor] = useLexicalComposerContext();
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
@@ -263,7 +271,12 @@ export default function ToolbarPlugin() {
   const [activeHeading, setActiveHeading] = useState<HeadingTagType | null>(null);
   const [isCode, setIsCode] = useState(false);
   const [textAlign, setTextAlign] = useState<ElementFormatType>("left");
+  const [isTable, setIsTable] = useState(false);
   const [blockType, setBlockType] = useState<string>("paragraph");
+  const [showTableModal, setShowTableModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  
   // Link input modal state
 
   const updateToolbar = useCallback(() => {
@@ -591,6 +604,60 @@ export default function ToolbarPlugin() {
         <AlignJustify className="h-4 w-4" />
       </Button>
 
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn("h-8 w-8 p-0", isTable && "bg-muted")}
+        onClick={() => {
+          setShowTableModal(true);
+        }}
+        title="Insert Table"
+      >
+        <Table2 className="h-4 w-4" />
+      </Button>
+
+      {showTableModal && (
+        <InsertTableDialog
+          activeEditor={editor}
+          onClose={() => setShowTableModal(false)}
+        />
+      )}
+
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={async e => {
+          const file = e.target.files?.[0];
+          if (file && ticketId) {
+            const formData = new FormData();
+            formData.append('file', file);
+            // Gọi API upload, lấy URL public
+            const res = await attachmentService.uploadAttachment(ticketId, formData);
+            let url = "";
+            if (res.success) {
+              url = `${import.meta.env.VITE_API_URL}/attachments/${res.data[0].id}`
+            }
+            if (url) {
+              editor.dispatchCommand(INSERT_IMAGE_COMMAND, url);
+            }
+          }
+          e.target.value = '';
+        }}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0"
+        onClick={() => fileInputRef.current?.click()}
+        title="Insert Image"
+      >
+        <Image className="h-4 w-4" />
+      </Button>
+
       <div className="flex-1" />
 
       {/* Undo/Redo */}
@@ -616,4 +683,77 @@ export default function ToolbarPlugin() {
       </Button>
     </div>
   );
+}
+
+export function InsertTableDialog({
+  activeEditor,
+  onClose,
+}: {
+  activeEditor: LexicalEditor;
+  onClose: () => void;
+}): JSX.Element {
+  const [rows, setRows] = useState('5')
+  const [columns, setColumns] = useState('5')
+  const [isDisabled, setIsDisabled] = useState(true)
+
+  useEffect(() => {
+    const row = Number(rows)
+    const column = Number(columns)
+    if (row && row > 0 && row <= 500 && column && column > 0 && column <= 50) {
+      setIsDisabled(false)
+    } else {
+      setIsDisabled(true)
+    }
+  }, [rows, columns])
+
+  const onClick = () => {
+    activeEditor.dispatchCommand(INSERT_TABLE_COMMAND, {
+      columns,
+      rows,
+    })
+
+    onClose()
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Insert Table</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Rows</label>
+            <input
+              type="number"
+              value={rows}
+              onChange={(e) => setRows(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="1"
+              max="500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Columns</label>
+            <input
+              type="number"
+              value={columns}
+              onChange={(e) => setColumns(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="1"
+              max="50"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button disabled={isDisabled} onClick={onClick}>
+              Insert Table
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }

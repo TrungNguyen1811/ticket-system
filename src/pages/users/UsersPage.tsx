@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { useDebounce } from "@/hooks/utils/useDebouce";
+import { useDebounce } from "@/utils/useDebouce";
 import { getUserColumns } from "./column";
 import { DataTable } from "./data-table";
 import { VisibilityState } from "@tanstack/react-table";

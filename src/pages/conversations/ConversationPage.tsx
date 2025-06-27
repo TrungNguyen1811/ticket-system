@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDebounce } from "@/hooks/utils/useDebouce";
+import { useDebounce } from "@/utils/useDebouce";
 import { getConversationColumns } from "./column";
 import { DataTable } from "./data-table";
 import { VisibilityState } from "@tanstack/react-table";
