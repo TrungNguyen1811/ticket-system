@@ -1,32 +1,50 @@
 "use client";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  $getSelection,
-  $isRangeSelection,
+  CAN_REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  REDO_COMMAND,
+  UNDO_COMMAND,
+  SELECTION_CHANGE_COMMAND,
   FORMAT_TEXT_COMMAND,
   FORMAT_ELEMENT_COMMAND,
-  UNDO_COMMAND,
-  REDO_COMMAND,
+  $getSelection,
+  $isRangeSelection,
+  $createParagraphNode,
+  $getNodeByKey,
   ElementFormatType,
-  COMMAND_PRIORITY_LOW,
-  INSERT_TAB_COMMAND,
-  createCommand,
+  $isElementNode,
 } from "lexical";
-import { HeadingTagType } from "@lexical/rich-text";
-
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
+import {
+  $isParentElementRTL,
+  $isAtNodeEnd,
+  $wrapNodes,
+} from "@lexical/selection";
+import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import {
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
+  REMOVE_LIST_COMMAND,
+  $isListNode,
   ListNode,
 } from "@lexical/list";
-import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
-import { $isHeadingNode, $createHeadingNode } from "@lexical/rich-text";
-import { $isQuoteNode, $createQuoteNode } from "@lexical/rich-text";
-import { $isCodeNode, $createCodeNode } from "@lexical/code";
-import { $createParagraphNode } from "lexical";
+import { createPortal } from "react-dom";
+import {
+  $createHeadingNode,
+  $createQuoteNode,
+  $isHeadingNode,
+  $isQuoteNode,
+  HeadingTagType,
+} from "@lexical/rich-text";
+import {
+  $createCodeNode,
+  $isCodeNode,
+  getDefaultCodeLanguage,
+  getCodeLanguages,
+} from "@lexical/code";
 import { Button } from "@/components/ui/button";
 import {
   Bold,
@@ -35,23 +53,206 @@ import {
   Strikethrough,
   List,
   ListOrdered,
-  Link,
+  Link as LinkIcon,
   Undo,
   Redo,
   Heading1,
   Heading2,
+  Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
   Quote,
   Code,
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignJustify,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const headingTags: { tag: HeadingTagType; icon: any; label: string }[] = [
+  { tag: "h1", icon: Heading1, label: "Heading 1" },
+  { tag: "h2", icon: Heading2, label: "Heading 2" },
+  { tag: "h3", icon: Heading3, label: "Heading 3" },
+  { tag: "h4", icon: Heading4, label: "Heading 4" },
+  { tag: "h5", icon: Heading5, label: "Heading 5" }
+];
+
+const LowPriority = 1;
+
+function positionEditorElement(editor: any, rect: any) {
+  if (rect === null) {
+    editor.style.opacity = "0";
+    editor.style.top = "-1000px";
+    editor.style.left = "-1000px";
+  } else {
+    editor.style.opacity = "1";
+    editor.style.top = `${rect.top + rect.height + window.pageYOffset + 10}px`;
+    editor.style.left = `${
+      rect.left + window.pageXOffset - editor.offsetWidth / 2 + rect.width / 2
+    }px`;
+  }
+}
+
+function getSelectedNode(selection: any) {
+  const anchor = selection.anchor;
+  const focus = selection.focus;
+  const anchorNode = selection.anchor.getNode();
+  const focusNode = selection.focus.getNode();
+  if (anchorNode === focusNode) {
+    return anchorNode;
+  }
+  const isBackward = selection.isBackward();
+  if (isBackward) {
+    return $isAtNodeEnd(focus) ? anchorNode : focusNode;
+  } else {
+    return $isAtNodeEnd(anchor) ? focusNode : anchorNode;
+  }
+}
+
+function FloatingLinkEditor({ editor }: any) {
+  const editorRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const mouseDownRef = useRef(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [isEditMode, setEditMode] = useState(false);
+  const [lastSelection, setLastSelection] = useState(null);
+
+  const updateLinkEditor = useCallback(() => {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      const node = getSelectedNode(selection);
+      const parent = node.getParent();
+      if ($isLinkNode(parent)) {
+        setLinkUrl(parent.getURL());
+      } else if ($isLinkNode(node)) {
+        setLinkUrl(node.getURL());
+      } else {
+        setLinkUrl("");
+      }
+    }
+    const editorElem = editorRef.current;
+    const nativeSelection = window.getSelection();
+    const activeElement = document.activeElement;
+
+    if (editorElem === null) {
+      return;
+    }
+
+    const rootElement = editor.getRootElement();
+    if (
+      selection !== null &&
+      !nativeSelection?.isCollapsed &&
+      rootElement !== null &&
+      rootElement.contains(nativeSelection?.anchorNode)
+    ) {
+      const domRange = nativeSelection?.getRangeAt(0);
+      let rect;
+      if (nativeSelection?.anchorNode === rootElement) {
+        let inner = rootElement;
+        while (inner.firstElementChild != null) {
+          inner = inner.firstElementChild;
+        }
+        rect = inner.getBoundingClientRect();
+      } else {
+        rect = domRange?.getBoundingClientRect();
+      }
+
+      if (!mouseDownRef.current) {
+        positionEditorElement(editorElem, rect);
+      }
+      setLastSelection(selection as any);
+    } else if (!activeElement || activeElement.className !== "link-input") {
+      positionEditorElement(editorElem, null);
+      setLastSelection(null);
+      setEditMode(false);
+      setLinkUrl("");
+    }
+
+    return true;
+  }, [editor]);
+
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }: any) => {
+        editorState.read(() => {
+          updateLinkEditor();
+        });
+      }),
+
+      editor.registerCommand(
+        SELECTION_CHANGE_COMMAND,
+        () => {
+          updateLinkEditor();
+          return true;
+        },
+        LowPriority 
+      )
+    );
+  }, [editor, updateLinkEditor]);
+
+  useEffect(() => {
+    editor.getEditorState().read(() => {
+      updateLinkEditor();
+    });
+  }, [editor, updateLinkEditor]);
+
+  useEffect(() => {
+    if (isEditMode && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditMode]);
+
+  return (
+    <div ref={editorRef} className="link-editor">
+      {isEditMode ? (
+        <input
+          ref={inputRef}
+          className="link-input"
+          value={linkUrl}
+          onChange={(event) => {
+            setLinkUrl(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              if (lastSelection !== null) {
+                if (linkUrl !== "") {
+                  editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl);
+                }
+                setEditMode(false);
+              }
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              setEditMode(false);
+            }
+          }}
+        />
+      ) : (
+        <>
+          <div className="flex flex-row justify-between items-center p-2">
+            <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-[#216fdb] no-underline block whitespace-nowrap overflow-hidden mr-[30px] text-ellipsis hover:underline">
+              {linkUrl}
+            </a>
+            <Pencil className="link-edit h-4 w-4"
+              role="button"
+              tabIndex={0}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setEditMode(true);
+              }}
+              />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
-
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
@@ -59,81 +260,51 @@ export default function ToolbarPlugin() {
   const [isLink, setIsLink] = useState(false);
   const [isBulletList, setIsBulletList] = useState(false);
   const [isNumberList, setIsNumberList] = useState(false);
-  const [isH1, setIsH1] = useState(false);
-  const [isH2, setIsH2] = useState(false);
-  const [isQuote, setIsQuote] = useState(false);
+  const [activeHeading, setActiveHeading] = useState<HeadingTagType | null>(null);
   const [isCode, setIsCode] = useState(false);
   const [textAlign, setTextAlign] = useState<ElementFormatType>("left");
-
-  const SET_HEADING_LEVEL_COMMAND = createCommand<HeadingTagType>(
-    "SET_HEADING_LEVEL_COMMAND",
-  );
+  const [blockType, setBlockType] = useState<string>("paragraph");
+  // Link input modal state
 
   const updateToolbar = useCallback(() => {
-    try {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        setIsBold(selection.hasFormat("bold"));
-        setIsItalic(selection.hasFormat("italic"));
-        setIsUnderline(selection.hasFormat("underline"));
-        setIsStrikethrough(selection.hasFormat("strikethrough"));
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      setIsBold(selection.hasFormat("bold"));
+      setIsItalic(selection.hasFormat("italic"));
+      setIsUnderline(selection.hasFormat("underline"));
+      setIsStrikethrough(selection.hasFormat("strikethrough"));
 
-        const nodes = selection.getNodes();
-        const node = nodes.length > 0 ? nodes[0] : null;
-        if (!node) {
-          // Reset states if no node
-          setIsLink(false);
-          setIsBulletList(false);
-          setIsNumberList(false);
-          setIsH1(false);
-          setIsH2(false);
-          setIsQuote(false);
-          setIsCode(false);
-          setTextAlign("left");
-          return;
-        }
+      const node = getSelectedNode(selection);
+      if (!node) return;
 
-        const parent = node.getParent();
-
-        // Check for link node
-        setIsLink($isLinkNode(parent) || $isLinkNode(node));
-
-        // Check for lists
-        const listNode = $getNearestNodeOfType(node, ListNode);
-        const listType = listNode?.getListType();
-        setIsBulletList(listType === "bullet");
-        setIsNumberList(listType === "number");
-
-        // Check for headings
-        setIsH1($isHeadingNode(node) && node.getTag() === "h1");
-        setIsH2($isHeadingNode(node) && node.getTag() === "h2");
-
-        // Check for quote
-        setIsQuote($isQuoteNode(parent) || $isQuoteNode(node));
-
-        // Check for code
-        setIsCode($isCodeNode(parent) || $isCodeNode(node));
-
-        // Check text alignment
-        setTextAlign(selection.format as unknown as ElementFormatType);
-      } else {
-        // No selection or non-range selection — reset toolbar states
-        setIsBold(false);
-        setIsItalic(false);
-        setIsUnderline(false);
-        setIsStrikethrough(false);
-        setIsLink(false);
-        setIsBulletList(false);
-        setIsNumberList(false);
-        setIsH1(false);
-        setIsH2(false);
-        setIsQuote(false);
-        setIsCode(false);
-        setTextAlign("left");
-      }
-    } catch (error) {
-      console.error("Error updating toolbar:", error);
-      // Reset all states on error
+      const parent = node.getParent();
+      setIsLink($isLinkNode(parent) || $isLinkNode(node));
+      const listNode = $getNearestNodeOfType(node, ListNode);
+      const listType = listNode?.getListType();
+      setIsBulletList(listType === "bullet");
+      setIsNumberList(listType === "number");
+      // Heading
+      let foundHeading: HeadingTagType | null = null;
+      headingTags.forEach(({ tag }) => {
+        if ($isHeadingNode(node) && node.getTag() === tag) foundHeading = tag;
+      });
+      setActiveHeading(foundHeading);
+      setIsCode($isCodeNode(parent) || $isCodeNode(node));
+      // Fix: Only set textAlign if valid
+      const validAligns: ElementFormatType[] = ["left", "center", "right", "justify"];
+      const align = (selection.format as unknown) as ElementFormatType;
+      setTextAlign(validAligns.includes(align) ? align : "left");
+      // Block type
+      if ($isListNode(node)) {
+        setBlockType(node.getListType() === "bullet" ? "ul" : node.getListType() === "number" ? "ol" : "list");
+      } else if ($isHeadingNode(node)) {
+        setBlockType(node.getTag());
+      } else if ($isQuoteNode(node)) {
+        setBlockType("quote");
+      } else if ($isCodeNode(node)) {
+        setBlockType("code");
+      } 
+    } else {
       setIsBold(false);
       setIsItalic(false);
       setIsUnderline(false);
@@ -141,11 +312,10 @@ export default function ToolbarPlugin() {
       setIsLink(false);
       setIsBulletList(false);
       setIsNumberList(false);
-      setIsH1(false);
-      setIsH2(false);
-      setIsQuote(false);
+      setActiveHeading(null);
       setIsCode(false);
       setTextAlign("left");
+      setBlockType("paragraph");
     }
   }, []);
 
@@ -155,39 +325,46 @@ export default function ToolbarPlugin() {
         editorState.read(() => {
           updateToolbar();
         });
-      }),
+      })
     );
   }, [editor, updateToolbar]);
 
-  const insertLink = useCallback(() => {
-    if (!isLink) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://");
-    } else {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-    }
-  }, [editor, isLink]);
-
-  function toggleHeading(tag: "h1" | "h2") {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        selection.getNodes().forEach((node) => {
-          node.replace($createHeadingNode(tag));
-        });
-      }
-    });
+  function getTopLevelNodes(selection: any) {
+    return selection.getNodes().map((node: any) => node.getTopLevelElementOrThrow());
   }
 
-  function toggleQuote() {
+  function toggleHeading(editor: any) {
     editor.update(() => {
       const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        selection.getNodes().forEach((node) => {
-          node.replace($createQuoteNode());
-        });
+      if (!$isRangeSelection(selection)) return;
+
+      const anchorNode = selection.anchor.getNode();
+      let node = anchorNode.getTopLevelElementOrThrow();
+
+      // Nếu không phải paragraph hoặc heading thì chuyển về paragraph trước
+      if (
+        node.getType() !== "paragraph" &&
+        !$isHeadingNode(node) &&
+        $isElementNode(node)
+      ) {
+        const para = $createParagraphNode();
+        const children = node.getChildren();
+        children.forEach((child) => para.append(child));
+        node.replace(para);
+        node = para;
       }
+
+      // Chuyển thành heading h1
+      const newHeading = $createHeadingNode("h1");
+      if ($isElementNode(node)) {
+        const children = node.getChildren();
+        children.forEach((child) => newHeading.append(child));
+      }
+      node.replace(newHeading);
     });
   }
+  
+  
 
   function toggleCode() {
     editor.update(() => {
@@ -204,8 +381,57 @@ export default function ToolbarPlugin() {
     editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment);
   }
 
+  // --- Link UX improvement ---
+  const insertLink = useCallback(() => {
+    if (!isLink) {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://");
+    } else {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+    }
+  }, [editor, isLink]);
+
+
+
+  // --- Numbered List ---
+  const formatNumberList = () => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const nodes = getTopLevelNodes(selection);
+        const allAreOrdered = nodes.every(
+          (node: any) => $isListNode(node) && node.getListType() === "number"
+        );
+        if (allAreOrdered) {
+          editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+        } else {
+          editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+        }
+      }
+    });
+  };
+
+  const formatBulletList = () => {
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const nodes = getTopLevelNodes(selection);
+        const allAreBullets = nodes.every(
+          (node: any) => $isListNode(node) && node.getListType() === "bullet"
+        );
+  
+        if (allAreBullets) {
+          editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+        } else {
+          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+        }
+      }
+    });
+  };
+
+
+
   return (
-    <div className="border border-input rounded-t-md bg-muted/50 p-1 flex flex-wrap gap-1 items-center">
+    <div className="toolbar border border-input rounded-t-md bg-muted/50 p-1 flex flex-wrap gap-1 items-center">
       {/* Text Formatting */}
       <Button
         type="button"
@@ -242,9 +468,7 @@ export default function ToolbarPlugin() {
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isStrikethrough && "bg-muted")}
-        onClick={() =>
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")
-        }
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
         title="Strikethrough"
       >
         <Strikethrough className="h-4 w-4" />
@@ -260,9 +484,12 @@ export default function ToolbarPlugin() {
         className={cn("h-8 w-8 p-0", isLink && "bg-muted")}
         onClick={insertLink}
         title="Link"
+        aria-label="Insert Link"
       >
-        <Link className="h-4 w-4" />
+        <LinkIcon className="h-4 w-4" />
       </Button>
+      {isLink &&
+            createPortal(<FloatingLinkEditor editor={editor} />, document.body)}
 
       <div className="w-px h-6 bg-border mx-1" />
 
@@ -272,22 +499,17 @@ export default function ToolbarPlugin() {
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isBulletList && "bg-muted")}
-        onClick={() =>
-          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined)
-        }
+        onClick={formatBulletList}
         title="Bullet List"
       >
         <List className="h-4 w-4" />
       </Button>
-
       <Button
         type="button"
         variant="ghost"
         size="sm"
         className={cn("h-8 w-8 p-0", isNumberList && "bg-muted")}
-        onClick={() =>
-          editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined)
-        }
+        onClick={formatNumberList}
         title="Numbered List"
       >
         <ListOrdered className="h-4 w-4" />
@@ -296,41 +518,23 @@ export default function ToolbarPlugin() {
       <div className="w-px h-6 bg-border mx-1" />
 
       {/* Headings */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={cn("h-8 w-8 p-0", isH1 && "bg-muted")}
-        onClick={() => toggleHeading("h1")}
-        title="Heading 1"
-      >
-        <Heading1 className="h-4 w-4" />
-      </Button>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={cn("h-8 w-8 p-0", isH2 && "bg-muted")}
-        onClick={() => toggleHeading("h2")}
-        title="Heading 2"
-      >
-        <Heading2 className="h-4 w-4" />
-      </Button>
+      {headingTags.map(({ tag, icon: Icon, label }) => (
+        <Button
+          key={tag}
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn("h-8 w-8 p-0", activeHeading === tag && "bg-muted")}
+          onClick={() => toggleHeading(editor)}
+          title={label}
+          aria-pressed={activeHeading === tag}
+        >
+          <Icon className="h-4 w-4" />
+        </Button>
+      ))}
+      
 
       <div className="w-px h-6 bg-border mx-1" />
-
-      {/* Quote and Code */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className={cn("h-8 w-8 p-0", isQuote && "bg-muted")}
-        onClick={toggleQuote}
-        title="Quote"
-      >
-        <Quote className="h-4 w-4" />
-      </Button>
 
       <Button
         type="button"
@@ -356,7 +560,6 @@ export default function ToolbarPlugin() {
       >
         <AlignLeft className="h-4 w-4" />
       </Button>
-
       <Button
         type="button"
         variant="ghost"
@@ -367,7 +570,6 @@ export default function ToolbarPlugin() {
       >
         <AlignCenter className="h-4 w-4" />
       </Button>
-
       <Button
         type="button"
         variant="ghost"
@@ -378,7 +580,6 @@ export default function ToolbarPlugin() {
       >
         <AlignRight className="h-4 w-4" />
       </Button>
-
       <Button
         type="button"
         variant="ghost"
@@ -403,7 +604,6 @@ export default function ToolbarPlugin() {
       >
         <Undo className="h-4 w-4" />
       </Button>
-
       <Button
         type="button"
         variant="ghost"

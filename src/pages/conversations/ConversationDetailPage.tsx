@@ -36,7 +36,6 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { OnChangePlugin } from "@/components/comment/AddCommentDialog";
 import { ReadOnlyEditor } from "@/components/editor/ReadOnlyEditor";
 import { useAuth } from "@/contexts/AuthContext";
 import { ClearEditorPlugin } from "@/components/editor/ClearEditorPlugin";
@@ -49,53 +48,77 @@ import { ClientCard } from "../tickets/ticket-detail/ClientCard";
 import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
 import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { HeadingNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
-import { LinkNode } from "@lexical/link";
-
+import { AutoLinkNode, LinkNode } from "@lexical/link";
+import configTheme from "@/components/theme/configTheme";
+import ListMaxIndentLevelPlugin from "@/components/editor/ListMaxIndentLevelPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
+import PlaygroundAutoLinkPlugin from "@/components/editor/AutoLinkPlugin";
+import { OnChangePlugin } from "@/components/editor/OnChangePlugin";
+import { ParagraphNode } from "lexical";
+import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+import { convertLexicalToEmailHtml } from "@/utils/emailHtmlCleaner";
 
 
 
 const initialConfig = {
   namespace: "ConversationInputEditor",
   onError: (error: Error) => { console.error(error); },
-  theme: {
-    paragraph: "mb-2 last:mb-0",
-    heading: {
-      h1: "text-xl font-bold mb-2",
-      h2: "text-lg font-bold mb-2",
-      h3: "text-base font-bold mb-2",
-      h4: "text-sm font-bold mb-2",
-      h5: "text-xs font-bold mb-2",
-      h6: "text-xs font-bold mb-2",
-    },
-    list: {
-      ul: "list-disc list-inside mb-2 space-y-1",
-      ol: "list-decimal list-inside mb-2 space-y-1",
-      listitem: "text-sm mb-1",
-    },
-    link: "text-blue-600 underline hover:text-blue-800",
-    quote: "border-l-4 border-gray-300 pl-4 italic text-gray-600 mb-2",
-    code: "bg-gray-100 px-1 py-0.5 rounded text-sm font-mono",
-    text: {
-      bold: "font-semibold",
-      italic: "italic",
-      underline: "underline",
-      strikethrough: "line-through",
-      underlineStrikethrough: "underline line-through",
-    },
-  },
+  theme: configTheme,
   nodes: [
     HeadingNode,
-    QuoteNode,
-    ListItemNode,
     ListNode,
-    LinkNode,
+    ListItemNode,
     CodeNode,
     CodeHighlightNode,
+    AutoLinkNode,
+    LinkNode,
+    ParagraphNode,
+    TableNode, TableCellNode, TableRowNode
   ],
 };
+// function ExportButton() {
+//   const [editor] = useLexicalComposerContext();
+
+//   const handleClick = () => {
+//     editor.update(() => {
+//       const editorState = editor.getEditorState();
+//       const htmlString = $generateHtmlFromNodes(editor, null);
+//       console.log('htmlString', htmlString);
+//     });
+//   };
+
+//   return (
+//     <button
+//       type="button"
+//       className="px-3 py-1 bg-blue-500 text-white rounded mt-2"
+//       onClick={handleClick}
+//     >
+//       Export JSON & HTML
+//     </button>
+//   );
+// }
+
+// export function LexicalTestEditor() {
+//   return (
+//     <div>
+//       <LexicalComposer initialConfig={initialConfig}>
+//         <ToolbarPlugin />
+//         <RichTextPlugin
+//           contentEditable={<ContentEditable className="border p-2 min-h-[100px]" />}
+//           placeholder={<div>Nhập nội dung...</div>}
+//           ErrorBoundary={LexicalErrorBoundary}
+//         />
+//         <HistoryPlugin />
+//         <ExportButton />
+//       </LexicalComposer>
+//     </div>
+//   );
+// }
 
 export function fixAttachmentImageSrc(html: string) {
   // Giả sử API_URL là biến môi trường hoặc hằng số
@@ -178,10 +201,10 @@ export default function ConversationDetail() {
   const downloadAttachment = useMutation({
     mutationFn: (attachmentId: string) =>
       attachmentService.downloadAttachment(attachmentId),
-    onMutate: (attachmentId) => {
+    onMutate: (attachmentId: any) => {
       setDownloadingFiles((prev) => new Set(prev).add(attachmentId));
     },
-    onSuccess: (data, attachmentId) => {
+    onSuccess: (data: any, attachmentId:any) => {
       const url = window.URL.createObjectURL(data);
       const a = document.createElement("a");
       a.href = url;
@@ -196,7 +219,7 @@ export default function ConversationDetail() {
         return next;
       });
     },
-    onError: (_, attachmentId) => {
+    onError: (_, attachmentId: any) => {
       setDownloadingFiles((prev) => {
         const next = new Set(prev);
         next.delete(attachmentId);
@@ -237,7 +260,7 @@ export default function ConversationDetail() {
   useEffect(() => {
     if (mailsData && mailsData.length > 0) {
       // Check if there are any optimistic mails that have been replaced
-      const hasOptimisticMails = mailsData.some((mail) =>
+      const hasOptimisticMails = mailsData.some((mail:any) =>
         mail.id.startsWith("temp-"),
       );
       if (!hasOptimisticMails && optimisticObjectUrls.size > 0) {
@@ -440,9 +463,11 @@ export default function ConversationDetail() {
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🔄 handleSubmit called", {
-      selectedFilesLength: selectedFiles.length,
-    });
+    // Log giá trị editorContent để kiểm tra HTML
+    console.log("[handleSubmit] editorContent:", editorContent);
+    console.log("[handleSubmit] HTML:", editorContent.html);
+    console.log("[handleSubmit] RAW:", editorContent.raw);
+    console.log("[handleSubmit] TEXT:", editorContent.text);
 
     if (!editorContent.raw.trim() && selectedFiles.length === 0) {
       toast({
@@ -457,8 +482,21 @@ export default function ConversationDetail() {
 
     setIsSubmitting(true);
     try {
+      // Convert Lexical content to email-friendly HTML
+      const emailHtml = convertLexicalToEmailHtml(editorContent.html, {
+        preserveTables: true,
+        preserveLinks: true,
+        preserveImages: true,
+        maxWidth: "600px",
+        fontFamily: "Arial, sans-serif",
+        fontSize: "14px",
+        lineHeight: "1.6"
+      });
+
+      console.log("[handleSubmit] Email HTML:", emailHtml);
+
       const formData = new FormData();
-      formData.append("body", editorContent.text);
+      formData.append("content", emailHtml);
 
       selectedFiles.forEach((file) => {
         formData.append("attachments[]", file);
@@ -495,7 +533,7 @@ export default function ConversationDetail() {
           from_name: user?.name || "",
           from_email: "phamphanbang@gmail.com",
           subject: `Re: ${ticketData?.title || ""}`,
-          body: editorContent.text,
+          body: emailHtml, // Use the cleaned email HTML
           attachments: optimisticAttachments,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -507,7 +545,7 @@ export default function ConversationDetail() {
         // Add optimistic mail to cache
         queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
           ["ticket-mails", id],
-          (oldData) => {
+          (oldData: any) => {
             if (!oldData?.data) return oldData;
             return {
               ...oldData,
@@ -589,7 +627,7 @@ export default function ConversationDetail() {
             (msg) =>
               !msg.id.startsWith("temp-") ||
               !mailsData.some(
-                (m) =>
+                (m: any) =>
                   m.body === msg.body &&
                   Math.abs(
                     new Date(m.created_at).getTime() -
@@ -607,6 +645,10 @@ export default function ConversationDetail() {
       }
     }
   }, [mailsData, messages.length]);
+
+  function Placeholder() {
+    return <div className="editor-placeholder">Send to your client...</div>;
+  }
 
   return (
     <div className="flex flex-col h-[89vh] bg-[#f8fafc] ticket-detail-container">
@@ -718,7 +760,7 @@ export default function ConversationDetail() {
                           </span>
                         </div>
                       ) : (
-                        [...messages].reverse().map((m) => {
+                        messages.map((m) => {
                           const isOwnMessage =
                             m.from_email === "phamphanbang@gmail.com";
                           return (
@@ -936,15 +978,16 @@ export default function ConversationDetail() {
                           contentEditable={
                             <ContentEditable className="min-h-[80px] lg:min-h-[100px] p-3 text-sm outline-none" />
                           }
-                          placeholder={
-                            <div className="absolute lg:top-14 left-3 md:top-20 left-3 text-sm text-gray-400 pointer-events-none">
-                              Write a reply...
-                            </div>
-                          }
+                          placeholder={Placeholder}
                           ErrorBoundary={LexicalErrorBoundary}
                         />
+                        <ListPlugin />
+                        <LinkPlugin />
+                        <PlaygroundAutoLinkPlugin />
+                        <ListMaxIndentLevelPlugin maxDepth={7} />
                         <HistoryPlugin />
                         <AutoFocusPlugin />
+                        <TablePlugin />
                         <OnChangePlugin onChange={setEditorContent} />
                         <ClearEditorPlugin
                           triggerClear={shouldClearEditor}
@@ -952,7 +995,8 @@ export default function ConversationDetail() {
                         />
                       </div>
                     </LexicalComposer>
-                  </div>
+                  </div> 
+
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                     <input

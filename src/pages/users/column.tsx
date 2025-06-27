@@ -4,7 +4,7 @@ import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Settings, Pencil, Trash, ArrowUpDown } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useState } from "react";
 
 export interface UserTableActionProps {
@@ -111,11 +111,23 @@ export function getUserColumns(
           </Button>
         );
       },
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
-          {format(row.original.created_at, "MMM dd, yyyy, hh:mm a")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const dateString = row.original.created_at;
+        if (!dateString) {
+          return <span className="text-muted-foreground text-xs">N/A</span>;
+        }
+        
+        try {
+          const date = parseISO(dateString);
+          return (
+            <span className="text-muted-foreground text-xs">
+              {format(date, "MMM dd, yyyy, hh:mm a")}
+            </span>
+          );
+        } catch (error) {
+          return <span className="text-muted-foreground text-xs">Invalid date</span>;
+        }
+      },
     },
     {
       id: "updated_at",
@@ -131,11 +143,23 @@ export function getUserColumns(
           </Button>
         );
       },
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
-          {format(row.original.updated_at, "MMM dd, yyyy, hh:mm a")}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const dateString = row.original.updated_at;
+        if (!dateString) {
+          return <span className="text-muted-foreground text-xs">N/A</span>;
+        }
+        
+        try {
+          const date = parseISO(dateString);
+          return (
+            <span className="text-muted-foreground text-xs">
+              {format(date, "MMM dd, yyyy, hh:mm a")}
+            </span>
+          );
+        } catch (error) {
+          return <span className="text-muted-foreground text-xs">Invalid date</span>;
+        }
+      },
     },
 
     {
