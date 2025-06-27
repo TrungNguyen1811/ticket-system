@@ -5,7 +5,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
+import { UploadAttachmentDialog } from "@/components/attachments/UploadAttachmentDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";

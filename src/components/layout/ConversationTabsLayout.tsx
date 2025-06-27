@@ -6,7 +6,7 @@ import { Separator } from "../ui/separator";
 import {
   ConversationTab,
   useConversationTabsStore,
-} from "@/hooks/store/useConversationTabsStore";
+} from "@/hooks/utils/useConversationTabsStore";
 import { ticketService } from "@/services/ticket.service";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";

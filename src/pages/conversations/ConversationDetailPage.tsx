@@ -46,7 +46,7 @@ import { useMailTicket } from "@/hooks/mail/useMailTicket";
 import { AttachmentsPanel } from "@/components/attachments/AttachmentsPanel";
 import { ClientCard } from "../tickets/ticket-detail/ClientCard";
 import { FilePreviewModal } from "@/components/attachments/FilePreviewModal";
-import { UploadAttachmentDialog } from "@/dialogs/UploadAttachmentDialog";
+import { UploadAttachmentDialog } from "@/components/attachments/UploadAttachmentDialog";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HeadingNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
@@ -61,9 +61,15 @@ import { OnChangePlugin } from "@/components/editor/OnChangePlugin";
 import { ParagraphNode } from "lexical";
 import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { convertLexicalToEmailHtml } from "@/utils/emailHtmlCleaner";
-
-
+import { convertLexicalToEmailHtml } from "@/hooks/utils/lexicalConverter";
+import { 
+  isImageFile, 
+  isImageFileByName, 
+  formatFileSize, 
+  useScrollToBottom 
+} from "@/hooks/conversation/useConversationUtils";
+import { useFileHandling } from "@/hooks/conversation/useFileHandling";
+import { useOptimisticUpdates } from "@/hooks/conversation/useOptimisticUpdates";
 
 const initialConfig = {
   namespace: "ConversationInputEditor",
@@ -81,44 +87,6 @@ const initialConfig = {
     TableNode, TableCellNode, TableRowNode,
   ],
 };
-// function ExportButton() {
-//   const [editor] = useLexicalComposerContext();
-
-//   const handleClick = () => {
-//     editor.update(() => {
-//       const editorState = editor.getEditorState();
-//       const htmlString = $generateHtmlFromNodes(editor, null);
-//       console.log('htmlString', htmlString);
-//     });
-//   };
-
-//   return (
-//     <button
-//       type="button"
-//       className="px-3 py-1 bg-blue-500 text-white rounded mt-2"
-//       onClick={handleClick}
-//     >
-//       Export JSON & HTML
-//     </button>
-//   );
-// }
-
-// export function LexicalTestEditor() {
-//   return (
-//     <div>
-//       <LexicalComposer initialConfig={initialConfig}>
-//         <ToolbarPlugin />
-//         <RichTextPlugin
-//           contentEditable={<ContentEditable className="border p-2 min-h-[100px]" />}
-//           placeholder={<div>Nhập nội dung...</div>}
-//           ErrorBoundary={LexicalErrorBoundary}
-//         />
-//         <HistoryPlugin />
-//         <ExportButton />
-//       </LexicalComposer>
-//     </div>
-//   );
-// }
 
 export function fixAttachmentImageSrc(html: string) {
   // Giả sử API_URL là biến môi trường hoặc hằng số
@@ -133,15 +101,11 @@ export function fixAttachmentImageSrc(html: string) {
 export default function ConversationDetail() {
   // Router and context hooks
   const { id } = useParams();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   // State management
-  const [isStaffOpen, setIsStaffOpen] = useState(false);
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
   const [editorContent, setEditorContent] = useState<{
     raw: string;
     html: string;
@@ -152,23 +116,17 @@ export default function ConversationDetail() {
     text: "",
   });
   const [shouldClearEditor, setShouldClearEditor] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedStaff, setSelectedStaff] = useState<User | null>(null);
+  
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(
     new Set(),
   );
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [optimisticObjectUrls, setOptimisticObjectUrls] = useState<Set<string>>(
-    new Set(),
-  );
   const [isFetching, setIsFetching] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
@@ -178,6 +136,20 @@ export default function ConversationDetail() {
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Custom hooks
+  const { scrollToBottomWithDelay, scrollToBottomImmediate } = useScrollToBottom(scrollRef);
+  const { 
+    selectedFiles, 
+    handleFileSelect, 
+    handleRemoveFile, 
+    clearFiles 
+  } = useFileHandling();
+  const { 
+    optimisticObjectUrls, 
+    createOptimisticMail, 
+    cleanupOptimisticUrls 
+  } = useOptimisticUpdates();
 
   // Data fetching
   const {
@@ -234,12 +206,6 @@ export default function ConversationDetail() {
     },
   });
 
-  // Effects
-  useEffect(() => {
-    if (ticketData?.staff?.id) {
-      setSelectedStaff(ticketData.staff);
-    }
-  }, [ticketData]);
 
   useEffect(() => {
     if (shouldAutoScroll && scrollRef.current) {
@@ -259,20 +225,8 @@ export default function ConversationDetail() {
 
   // Cleanup optimistic object URLs when mails data updates (optimistic updates replaced)
   useEffect(() => {
-    if (mailsData && mailsData.length > 0) {
-      // Check if there are any optimistic mails that have been replaced
-      const hasOptimisticMails = mailsData.some((mail:any) =>
-        mail.id.startsWith("temp-"),
-      );
-      if (!hasOptimisticMails && optimisticObjectUrls.size > 0) {
-        // All optimistic mails have been replaced, cleanup object URLs
-        optimisticObjectUrls.forEach((url) => {
-          URL.revokeObjectURL(url);
-        });
-        setOptimisticObjectUrls(new Set());
-      }
-    }
-  }, [mailsData, optimisticObjectUrls]);
+    cleanupOptimisticUrls(mailsData || []);
+  }, [mailsData, cleanupOptimisticUrls]);
 
   // Initialize messages from mailsData
   useEffect(() => {
@@ -291,21 +245,14 @@ export default function ConversationDetail() {
       setHasMoreMessages(mailsData.length >= 20);
       
       // Auto scroll to bottom on initial load
-      setTimeout(() => {
-        const container = scrollRef.current?.querySelector(
-          "[data-radix-scroll-area-viewport]",
-        ) as HTMLDivElement | null;
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-        }
-      }, 100);
+      scrollToBottomWithDelay(100);
     } else if (mailsData && mailsData.length === 0 && !isLoadingMails && !isReloading) {
       // No messages at all - only set empty when not loading
       setMessages([]);
       setOldestMessageId(null);
       setHasMoreMessages(false);
     }
-  }, [mailsData, isLoadingMails, isReloading]);
+  }, [mailsData, isLoadingMails, isReloading, scrollToBottomWithDelay]);
 
   // Infinite scroll: fetch older messages
   const fetchOlderMessages = useCallback(async () => {
@@ -447,70 +394,36 @@ export default function ConversationDetail() {
       
       if (lastRemoteMessage && lastRemoteMessage.id !== lastLocalMessage.id) {
         // New message arrived, scroll to bottom
-        setTimeout(() => {
-          const container = scrollRef.current?.querySelector(
-            "[data-radix-scroll-area-viewport]",
-          ) as HTMLDivElement | null;
-          if (container) {
-            container.scrollTop = container.scrollHeight;
-          }
-        }, 100);
+        scrollToBottomWithDelay(100);
       }
     }
-  }, [mailsData, messages]);
+  }, [mailsData, messages, scrollToBottomWithDelay]);
 
   // Handlers
-  const scrollToBottom = () => {
-    const container = scrollRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]",
-    );
-    if (container) {
-      container.scrollTop = container.scrollHeight;
+  const handleReloadPublicChat = useCallback(async () => {
+    setIsReloading(true);
+    try {
+      // Reset states first
+      setMessages([]);
+      setHasMoreMessages(true);
+      setOldestMessageId(null);
+      setIsFetching(false);
+      setNewMailNotification(false);
+      
+      // Invalidate queries to fetch fresh data
+      await queryClient.invalidateQueries({ 
+        queryKey: ["ticket-mails", id],
+        exact: false 
+      });
+      
+      toast({
+        title: "Chat refreshed",
+        description: "Public chat has been updated",
+      });
+    } finally {
+      setIsReloading(false);
     }
-  };
-
-  useEffect(() => {
-    if (!isLoadingMails && mailsData?.length > 0) {
-      scrollToBottom();
-    }
-  }, [isLoadingMails, mailsData]);
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) {
-        const newFiles = Array.from(e.target.files);
-        setSelectedFiles((prev) => [...prev, ...newFiles]);
-      }
-    },
-    [],
-  );
-
-const handleReloadPublicChat = useCallback(async () => {
-  setIsReloading(true);
-  try {
-    // Reset states first
-    setMessages([]);
-    setHasMoreMessages(true);
-    setOldestMessageId(null);
-    setIsFetching(false);
-    setNewMailNotification(false);
-    
-    // Invalidate queries to fetch fresh data
-    await queryClient.invalidateQueries({ 
-      queryKey: ["ticket-mails", id],
-      exact: false 
-    });
-    
-    toast({
-      title: "Chat refreshed",
-      description: "Public chat has been updated",
-    });
-  } finally {
-    setIsReloading(false);
-  }
-}, [queryClient, id, toast, setNewMailNotification]);
-
-  
+  }, [queryClient, id, toast, setNewMailNotification]);
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -556,43 +469,8 @@ const handleReloadPublicChat = useCallback(async () => {
 
       const mail = await mailService.createMail(id, formData as MailFormData);
       if (mail.success) {
-        // Create object URLs for images and track them
-        const objectUrls: string[] = [];
-        const optimisticAttachments = selectedFiles.map((file, index) => {
-          const tempId = `temp-${Date.now()}-${index}`;
-          const isImage = isImageFileByName(file.name);
-          let objectUrl = "";
-
-          if (isImage) {
-            objectUrl = URL.createObjectURL(file);
-            objectUrls.push(objectUrl);
-          }
-
-          return {
-            id: tempId,
-            file_name: file.name,
-            file_path: objectUrl,
-            file_type: file.type,
-            file_size: file.size,
-            file_extension: file.name.split(".").pop() || "",
-            created_at: new Date().toISOString(),
-          };
-        });
-
-        // Optimistic update for mail
-        const optimisticMail: Mail = {
-          id: `temp-${Date.now()}`,
-          from_name: user?.name || "",
-          from_email: "phamphanbang@gmail.com",
-          subject: `Re: ${ticketData?.title || ""}`,
-          body: emailHtml, // Use the cleaned email HTML
-          attachments: optimisticAttachments,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        // Track object URLs for cleanup
-        setOptimisticObjectUrls((prev) => new Set([...prev, ...objectUrls]));
+        // Create optimistic mail using custom hook
+        const optimisticMail = createOptimisticMail(user, ticketData, emailHtml, selectedFiles);
 
         // Add optimistic mail to cache
         queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
@@ -613,14 +491,7 @@ const handleReloadPublicChat = useCallback(async () => {
         setMessages((prev) => [optimisticMail, ...prev]);
 
         // Auto scroll to bottom for new message
-        setTimeout(() => {
-          const container = scrollRef.current?.querySelector(
-            "[data-radix-scroll-area-viewport]",
-          ) as HTMLDivElement | null;
-          if (container) {
-            container.scrollTop = container.scrollHeight;
-          }
-        }, 100);
+        scrollToBottomWithDelay(100);
 
         // Invalidate queries to fetch fresh data
         await queryClient.invalidateQueries({ 
@@ -641,7 +512,7 @@ const handleReloadPublicChat = useCallback(async () => {
       }
 
       setEditorContent({ raw: "", html: "", text: "" });
-      setSelectedFiles([]);
+      clearFiles();
       setShouldClearEditor(true);
     } catch (error) {
       console.error("Error sending message:", error);
@@ -663,29 +534,6 @@ const handleReloadPublicChat = useCallback(async () => {
       setIsPreviewOpen(true);
     }
   }
-
-  const isImageFile = (ext: string) => {
-    const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
-    return imageExtensions.includes(ext.toLowerCase());
-  };
-  const isImageFileByName = (name: string) => {
-    const imageExtensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp"];
-    return imageExtensions.includes(name.toLowerCase().split(".").pop() || "");
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const [isHover, setIsHover] = useState(false);
 
   // Handle optimistic updates when mailsData changes
   useEffect(() => {
@@ -712,10 +560,15 @@ const handleReloadPublicChat = useCallback(async () => {
           );
 
           // Combine real messages with remaining optimistic ones
-          return [
+          const newMessages = [
             ...mailsData,
             ...filteredOptimistic.filter((m) => m.id.startsWith("temp-")),
           ];
+
+          // Auto scroll to bottom if we have new messages
+          scrollToBottomWithDelay(100);
+
+          return newMessages;
         });
       }
     }
@@ -755,28 +608,7 @@ const handleReloadPublicChat = useCallback(async () => {
                       </h1>
                     </Link>
                   </div>
-                  {/* <div className="flex items-center gap-2">
-                    <Button
-                      onClick={handleReloadPublicChat}
-                      size="sm"
-                      className="h-7 text-xs bg-blue-600 hover:bg-blue-700"
-                    >
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      Reload Chat
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="lg:hidden h-8 w-8 p-0"
-                      onClick={() => setShowRightSidebar(!showRightSidebar)}
-                    >
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                  </div> */}
                 </div>
-                {/* <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
-                  <span>#{id}</span>
-                </div> */}
               </div>
             </div>
           </div>
