@@ -78,7 +78,7 @@ const initialConfig = {
     AutoLinkNode,
     LinkNode,
     ParagraphNode,
-    TableNode, TableCellNode, TableRowNode
+    TableNode, TableCellNode, TableRowNode,
   ],
 };
 // function ExportButton() {
@@ -173,6 +173,7 @@ export default function ConversationDetail() {
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Mail[]>([]);
+  const [isReloading, setIsReloading] = useState(false);
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -275,6 +276,12 @@ export default function ConversationDetail() {
 
   // Initialize messages from mailsData
   useEffect(() => {
+    console.log("🔄 Initializing messages from mailsData:", {
+      mailsDataLength: mailsData?.length || 0,
+      isLoadingMails,
+      isReloading
+    });
+    
     if (mailsData && mailsData.length > 0) {
       setMessages(mailsData);
       // Set oldest message ID to the first message (oldest) in the array
@@ -282,13 +289,23 @@ export default function ConversationDetail() {
       // Only set hasMoreMessages to true if we have a full page of messages
       // This indicates there might be more messages to load
       setHasMoreMessages(mailsData.length >= 20);
-    } else if (mailsData && mailsData.length === 0) {
-      // No messages at all
+      
+      // Auto scroll to bottom on initial load
+      setTimeout(() => {
+        const container = scrollRef.current?.querySelector(
+          "[data-radix-scroll-area-viewport]",
+        ) as HTMLDivElement | null;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }, 100);
+    } else if (mailsData && mailsData.length === 0 && !isLoadingMails && !isReloading) {
+      // No messages at all - only set empty when not loading
       setMessages([]);
       setOldestMessageId(null);
       setHasMoreMessages(false);
     }
-  }, [mailsData]);
+  }, [mailsData, isLoadingMails, isReloading]);
 
   // Infinite scroll: fetch older messages
   const fetchOlderMessages = useCallback(async () => {
@@ -337,7 +354,7 @@ export default function ConversationDetail() {
 
         if (newMessages.length > 0) {
           console.log("➕ Adding new messages:", newMessages.length);
-          setMessages((prev) => [...prev, ...newMessages]);
+          setMessages((prev) => [...newMessages, ...prev]);
           setOldestMessageId(newMessages[newMessages.length - 1]?.id);
 
           // Maintain scroll position
@@ -421,6 +438,27 @@ export default function ConversationDetail() {
     }
   }, [isLoadingMails, messages.length]);
 
+  // Auto scroll when new messages arrive from realtime
+  useEffect(() => {
+    if (mailsData && mailsData.length > 0 && messages.length > 0) {
+      // Check if there's a new message at the end
+      const lastLocalMessage = messages[messages.length - 1];
+      const lastRemoteMessage = mailsData[mailsData.length - 1];
+      
+      if (lastRemoteMessage && lastRemoteMessage.id !== lastLocalMessage.id) {
+        // New message arrived, scroll to bottom
+        setTimeout(() => {
+          const container = scrollRef.current?.querySelector(
+            "[data-radix-scroll-area-viewport]",
+          ) as HTMLDivElement | null;
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }, 100);
+      }
+    }
+  }, [mailsData, messages]);
+
   // Handlers
   const scrollToBottom = () => {
     const container = scrollRef.current?.querySelector(
@@ -447,18 +485,32 @@ export default function ConversationDetail() {
     [],
   );
 
-  const handleReloadPublicChat = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["ticket-mails", id] });
+const handleReloadPublicChat = useCallback(async () => {
+  setIsReloading(true);
+  try {
+    // Reset states first
+    setMessages([]);
+    setHasMoreMessages(true);
+    setOldestMessageId(null);
+    setIsFetching(false);
     setNewMailNotification(false);
-    setMessages([]); // Xóa hết messages, sẽ được set lại từ mailsData khi fetch xong
-    setHasMoreMessages(true); // Reset to allow new loading
-    setOldestMessageId(null); // Reset cursor
-    setIsFetching(false); // Reset fetching state
+    
+    // Invalidate queries to fetch fresh data
+    await queryClient.invalidateQueries({ 
+      queryKey: ["ticket-mails", id],
+      exact: false 
+    });
+    
     toast({
       title: "Chat refreshed",
       description: "Public chat has been updated",
     });
-  }, [queryClient, id, toast, setNewMailNotification]);
+  } finally {
+    setIsReloading(false);
+  }
+}, [queryClient, id, toast, setNewMailNotification]);
+
+  
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -544,32 +596,55 @@ export default function ConversationDetail() {
 
         // Add optimistic mail to cache
         queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
-          ["ticket-mails", id],
+          ["ticket-mails", id, 20, undefined],
           (oldData: any) => {
             if (!oldData?.data) return oldData;
             return {
               ...oldData,
               data: {
                 ...oldData.data,
-                data: [...oldData.data.data, optimisticMail],
+                data: [optimisticMail, ...oldData.data.data],
               },
             };
           },
         );
 
+        // Add optimistic mail to local state
+        setMessages((prev) => [optimisticMail, ...prev]);
+
+        // Auto scroll to bottom for new message
+        setTimeout(() => {
+          const container = scrollRef.current?.querySelector(
+            "[data-radix-scroll-area-viewport]",
+          ) as HTMLDivElement | null;
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }, 100);
+
+        // Invalidate queries to fetch fresh data
+        await queryClient.invalidateQueries({ 
+          queryKey: ["ticket-mails", id],
+          exact: false 
+        });
+        
         if (selectedFiles.length > 0) {
-          queryClient.invalidateQueries({
+          await queryClient.invalidateQueries({
             queryKey: ["ticket-attachments", id],
           });
         }
 
-        setMessages((prev) => [optimisticMail, ...prev]);
+        toast({
+          title: "Success",
+          description: "Message sent successfully",
+        });
       }
 
       setEditorContent({ raw: "", html: "", text: "" });
       setSelectedFiles([]);
       setShouldClearEditor(true);
     } catch (error) {
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -742,7 +817,7 @@ export default function ConversationDetail() {
                           <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       )}
-                      {isLoadingMails ? (
+                      {isLoadingMails || isReloading ? (
                         <div className="flex flex-col items-center justify-center h-full text-center p-4 lg:p-8 animate-pulse">
                           <div className="w-6 h-6 mb-2 rounded-full bg-muted" />
                           <Loader2 className="animate-spin" />
@@ -970,17 +1045,21 @@ export default function ConversationDetail() {
               {/* Reply Form */}
               <div className="border-t border-gray-200 p-3 lg:p-4 bg-white absolute bottom-0 left-0 right-0">
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
                     <LexicalComposer initialConfig={initialConfig}>
                       <div className="relative">
-                        <ToolbarPlugin />
-                        <RichTextPlugin
-                          contentEditable={
-                            <ContentEditable className="min-h-[80px] lg:min-h-[100px] p-3 text-sm outline-none" />
-                          }
-                          placeholder={Placeholder}
-                          ErrorBoundary={LexicalErrorBoundary}
-                        />
+                        <div className="toolbar">
+                          <ToolbarPlugin />
+                        </div>
+                        <div className="editor-scroll-container">
+                          <RichTextPlugin
+                            contentEditable={
+                              <ContentEditable className="lexical-content-editable" />
+                            }
+                            placeholder={Placeholder}
+                            ErrorBoundary={LexicalErrorBoundary}
+                          />
+                        </div>
                         <ListPlugin />
                         <LinkPlugin />
                         <PlaygroundAutoLinkPlugin />
@@ -995,8 +1074,7 @@ export default function ConversationDetail() {
                         />
                       </div>
                     </LexicalComposer>
-                  </div> 
-
+                  </div>
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                     <input

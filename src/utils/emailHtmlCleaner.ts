@@ -140,8 +140,9 @@ export function cleanHtmlForEmail(
     element.style.fontFamily = fontFamily;
     element.style.fontSize = fontSize;
     element.style.lineHeight = lineHeight;
-    element.style.margin = "0 0 10px 0";
+    element.style.margin = "0 0 0px 0";
     element.style.padding = "0";
+    element.style.textAlign = "left";
   });
 
   // Handle headings specifically
@@ -155,6 +156,7 @@ export function cleanHtmlForEmail(
     headingElement.style.fontWeight = weights[index] || "bold";
     headingElement.style.margin = "0 0 10px 0";
     headingElement.style.color = "#333";
+    headingElement.style.textAlign = "left";
   });
 
   // Handle lists with better structure normalization
@@ -177,6 +179,7 @@ export function cleanHtmlForEmail(
       liElement.style.padding = "0 0 0 0.5rem !important";
       liElement.style.display = "list-item !important";
       liElement.style.listStyleType = "inherit";
+      liElement.style.textAlign = "left";
       
       // Handle nested paragraphs and spans inside list items
       const paragraphs = liElement.querySelectorAll("p");
@@ -213,6 +216,7 @@ export function cleanHtmlForEmail(
     quoteElement.style.padding = "10px 10px";
     quoteElement.style.backgroundColor = "#f9f9f9";
     quoteElement.style.fontStyle = "italic";
+    quoteElement.style.textAlign = "left";
   });
 
   // Handle code blocks
@@ -226,6 +230,7 @@ export function cleanHtmlForEmail(
     codeElement.style.fontFamily = "monospace";
     codeElement.style.fontSize = "12px";
     codeElement.style.overflow = "auto";
+    codeElement.style.textAlign = "left";
   });
 
   // Create email wrapper
@@ -235,8 +240,9 @@ export function cleanHtmlForEmail(
   emailWrapper.style.lineHeight = lineHeight;
   emailWrapper.style.color = "#333";
   emailWrapper.style.maxWidth = maxWidth;
-  emailWrapper.style.margin = "0 auto";
+  emailWrapper.style.margin = "0";
   emailWrapper.style.padding = "0px";
+  emailWrapper.style.textAlign = "left";
   
   // Move all content to the wrapper
   while (body.firstChild) {
@@ -271,11 +277,11 @@ export function convertLexicalToEmailHtml(
     }
 
     // Fallback: treat as plain text
-    return `<p style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; margin: 0 0 0px 0;">${lexicalState}</p>`;
+    return `<p style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; margin: 0 0 0px 0; text-align: left;">${lexicalState}</p>`;
   } catch (error) {
     console.error("Error converting Lexical state to email HTML:", error);
     // Fallback: treat as plain text
-    return `<p style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;">${lexicalState}</p>`;
+    return `<p style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0; text-align: left;">${lexicalState}</p>`;
   }
 }
 
@@ -384,11 +390,13 @@ export function createEmailDocument(
             color: #333;
             margin: 0;
             background-color: #ffffff;
+            text-align: left;
         }
         .email-container {
             max-width: 600px;
-            margin: 0 auto;
+            margin: 0;
             background-color: #ffffff;
+            text-align: left;
         }
         table {
             border-collapse: collapse;
@@ -453,6 +461,10 @@ export function createEmailDocument(
         }
         ol li {
             list-style-type: decimal;
+        }
+        /* Ensure all text elements are left-aligned */
+        p, div, h1, h2, h3, h4, h5, h6, li, td, th, blockquote {
+            text-align: left;
         }
     </style>
 </head>
