@@ -47,7 +47,7 @@ export default function Clients() {
           Manage your client organizations
         </p>
       </div>
-      <div className="rounded-xl shadow-sm">
+      <div className="">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-2 py-4 bg-muted/50 rounded-t-xl">
           {/* Search & Filter */}
           <div className="flex flex-wrap gap-4 items-center w-full sm:w-auto">

@@ -76,7 +76,6 @@ import { INSERT_TABLE_COMMAND } from "@lexical/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { INSERT_IMAGE_COMMAND } from './InlineImagePlugin';
 import attachmentService from "@/services/attachment.service";
-import { useParams } from "react-router-dom";
 
 const headingTags: { tag: HeadingTagType; icon: any; label: string }[] = [
   { tag: "h1", icon: Heading1, label: "Heading 1" },
@@ -259,7 +258,13 @@ function FloatingLinkEditor({ editor }: any) {
   );
 }
 
-export default function ToolbarPlugin({ ticketId }: {ticketId: string}) {
+export default function ToolbarPlugin({
+  ticketId,
+  onAddInlineImage,
+}: {
+  ticketId: string,
+  onAddInlineImage: (editor: any, files: FileList) => void
+}) {
   const [editor] = useLexicalComposerContext();
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
@@ -440,8 +445,6 @@ export default function ToolbarPlugin({ ticketId }: {ticketId: string}) {
       }
     });
   };
-
-
 
   return (
     <div className="toolbar border border-input rounded-t-md bg-muted/50 p-1 flex flex-wrap gap-1 items-center">
@@ -629,22 +632,12 @@ export default function ToolbarPlugin({ ticketId }: {ticketId: string}) {
         accept="image/*"
         ref={fileInputRef}
         style={{ display: 'none' }}
-        onChange={async e => {
-          const file = e.target.files?.[0];
-          if (file && ticketId) {
-            const formData = new FormData();
-            formData.append('file', file);
-            // Gọi API upload, lấy URL public
-            const res = await attachmentService.uploadAttachment(ticketId, formData);
-            let url = "";
-            if (res.success) {
-              url = `${import.meta.env.VITE_API_URL}/attachments/${res.data[0].id}`
-            }
-            if (url) {
-              editor.dispatchCommand(INSERT_IMAGE_COMMAND, url);
-            }
+        multiple
+        onChange={e => {
+          if (e.target.files && e.target.files.length > 0) {
+            onAddInlineImage(editor, e.target.files);
+            e.target.value = '';
           }
-          e.target.value = '';
         }}
       />
       <Button

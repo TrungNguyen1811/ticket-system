@@ -68,9 +68,8 @@ import {
   formatFileSize, 
   useScrollToBottom 
 } from "@/hooks/conversation/useConversationUtils";
-import { useFileHandling } from "@/hooks/conversation/useFileHandling";
 import { useOptimisticUpdates } from "@/hooks/conversation/useOptimisticUpdates";
-import InlineImagePlugin from "@/components/editor/InlineImagePlugin";
+import InlineImagePlugin, { INSERT_IMAGE_COMMAND } from "@/components/editor/InlineImagePlugin";
 import { ImageNode } from "@/components/editor/InlineImageNodes";
 
 const initialConfig = {
@@ -98,6 +97,112 @@ export function fixAttachmentImageSrc(html: string) {
   return html.replace(
     /src=["']attachments\/([^"']+)["']/g,
     `src="${API_URL}/attachments/$1"`,
+  );
+}
+
+type AttachmentItem = {
+  file: File;
+  url: string; // objectURL
+  isInline: boolean;
+};
+
+type InlineImageItem = {
+  file: File;
+  url: string; // objectURL
+  uploadedUrl?: string; // URL public sau khi upload
+  attachmentId?: string; // id trả về từ API
+};
+
+function AttachmentItem({ attachment, isOptimistic, onPreview, isImg }: {
+  attachment: any,
+  isOptimistic: boolean,
+  onPreview: () => void,
+  isImg: boolean
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  if (isImg && imgError) return null;
+
+  const imageSrc = isOptimistic
+    ? attachment.file_path
+    : `${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`;
+
+  return (
+    <div
+      key={attachment.id}
+      className={cn(
+        "relative flex flex-row items-end justify-start border rounded-lg bg-white shadow-sm overflow-hidden cursor-pointer transition hover:shadow-md",
+        isImg ? "h-48 w-fit" : "h-14 w-fit",
+      )}
+      tabIndex={0}
+      role="button"
+      aria-label={`Preview attachment: ${attachment.file_name}`}
+      onClick={onPreview}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onPreview();
+      }}
+    >
+      {isImg ? (
+        <div className="relative group w-full h-full">
+          <img
+            src={imageSrc}
+            alt={attachment.file_name}
+            className="object-cover w-full h-full group-hover:opacity-80 transition"
+            onError={() => setImgError(true)}
+          />
+          <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isOptimistic && (
+              <button
+                className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(
+                    `${import.meta.env.VITE_API_URL}/attachments/${attachment.id}/download`,
+                    "_blank",
+                  );
+                }}
+                tabIndex={-1}
+                aria-label={`Download ${attachment.file_name}`}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="relative group">
+          <div className="flex items-center gap-3 p-2 rounded-lg transition-colors group-hover:bg-muted/50">
+            <FileText className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex flex-col justify-center min-w-0">
+              <span className="text-sm font-normal text-foreground truncate">
+                {attachment.file_name}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatFileSize(attachment.file_size)}
+              </span>
+            </div>
+          </div>
+          <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isOptimistic && (
+              <button
+                className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(
+                    `${import.meta.env.VITE_API_URL}/attachments/${attachment.id}/download`,
+                    "_blank",
+                  );
+                }}
+                tabIndex={-1}
+                aria-label={`Download ${attachment.file_name}`}
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -135,6 +240,8 @@ export default function ConversationDetail() {
   const [oldestMessageId, setOldestMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Mail[]>([]);
   const [isReloading, setIsReloading] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [inlineImages, setInlineImages] = useState<InlineImageItem[]>([]);
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -142,12 +249,7 @@ export default function ConversationDetail() {
 
   // Custom hooks
   const { scrollToBottomWithDelay, scrollToBottomImmediate } = useScrollToBottom(scrollRef);
-  const { 
-    selectedFiles, 
-    handleFileSelect, 
-    handleRemoveFile, 
-    clearFiles 
-  } = useFileHandling();
+  
   const { 
     optimisticObjectUrls, 
     createOptimisticMail, 
@@ -209,7 +311,6 @@ export default function ConversationDetail() {
     },
   });
 
-
   useEffect(() => {
     if (shouldAutoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -233,29 +334,24 @@ export default function ConversationDetail() {
 
   // Initialize messages from mailsData
   useEffect(() => {
-    console.log("🔄 Initializing messages from mailsData:", {
-      mailsDataLength: mailsData?.length || 0,
-      isLoadingMails,
-      isReloading
-    });
-    
-    if (mailsData && mailsData.length > 0) {
-      setMessages(mailsData);
-      // Set oldest message ID to the first message (oldest) in the array
+    if (mailsData) {
+      setMessages(prev => {
+        // Lấy các optimistic messages chưa được thay thế
+        const optimistic = prev.filter(
+          m => m.id.startsWith("temp-") &&
+            !mailsData.some(real =>
+              real.body === m.body &&
+              Math.abs(new Date(real.created_at).getTime() - new Date(m.created_at).getTime()) < 60000
+            )
+        );
+        // Gộp mailsData (real) với optimistic còn lại
+        return [...mailsData, ...optimistic];
+      });
       setOldestMessageId(mailsData[0]?.id || null);
-      // Only set hasMoreMessages to true if we have a full page of messages
-      // This indicates there might be more messages to load
       setHasMoreMessages(mailsData.length >= 20);
-      
-      // Auto scroll to bottom on initial load
       scrollToBottomWithDelay(100);
-    } else if (mailsData && mailsData.length === 0 && !isLoadingMails && !isReloading) {
-      // No messages at all - only set empty when not loading
-      setMessages([]);
-      setOldestMessageId(null);
-      setHasMoreMessages(false);
     }
-  }, [mailsData, isLoadingMails, isReloading, scrollToBottomWithDelay]);
+  }, [mailsData, scrollToBottomWithDelay]);
 
   // Infinite scroll: fetch older messages
   const fetchOlderMessages = useCallback(async () => {
@@ -418,6 +514,9 @@ export default function ConversationDetail() {
         queryKey: ["ticket-mails", id],
         exact: false 
       });
+      await queryClient.invalidateQueries({ 
+        queryKey: ["ticket-attachments", id],
+      });
       
       toast({
         title: "Chat refreshed",
@@ -431,99 +530,74 @@ export default function ConversationDetail() {
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Log giá trị editorContent để kiểm tra HTML
-    console.log("[handleSubmit] editorContent:", editorContent);
-    console.log("[handleSubmit] HTML:", editorContent.html);
-    console.log("[handleSubmit] RAW:", editorContent.raw);
-    console.log("[handleSubmit] TEXT:", editorContent.text);
-
-    if (!editorContent.raw.trim() && selectedFiles.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please enter a message or attach files.",
-        variant: "destructive",
-      });
+    if (!editorContent.raw.trim() && inlineImages.length === 0) {
+      toast({ title: "Validation Error", description: "Please enter a message or attach files.", variant: "destructive" });
       return;
     }
-
-    if (!id) return;
-
     setIsSubmitting(true);
+
+    // 1. Tạo optimistic mail và cập nhật UI ngay
+    const optimisticMail = createOptimisticMail(
+      user,
+      ticketData,
+      editorContent.html,
+      [
+        ...inlineImages.map(img => img.file),
+        ...attachments.filter(att => !att.isInline).map(att => att.file)
+      ]
+    );
+    setMessages(prev => [...prev, optimisticMail]);
+
     try {
-      // Convert Lexical content to email-friendly HTML
-      const emailHtml = convertLexicalToEmailHtml(editorContent.html, {
-        preserveTables: true,
-        preserveLinks: true,
-        preserveImages: true,
-        maxWidth: "600px",
-        fontFamily: "Arial, sans-serif",
-        fontSize: "14px",
-        lineHeight: "1.6"
+      // 2. Upload tất cả file inlineImages
+      const uploadResults = await Promise.all(
+        inlineImages.map(async ({ file }) => {
+          const formData = new FormData();
+          formData.append('attachments[]', file);
+          formData.append('file_status', "temporary");
+          const res = await attachmentService.uploadAttachment(id!, formData);
+          return {
+            uploadedUrl: `${import.meta.env.VITE_API_URL}/attachments/${res.data[0].id}`,
+            attachmentId: res.data[0].id
+          };
+        })
+      );
+      // 2. Mapping objectURL <-> uploadedUrl, attachmentId
+      const urlMap: Record<string, string> = {};
+      const attachmentIds: string[] = [];
+      inlineImages.forEach((img, idx) => {
+        urlMap[img.url] = uploadResults[idx].uploadedUrl;
+        attachmentIds.push(uploadResults[idx].attachmentId);
       });
-
-      console.log("[handleSubmit] Email HTML:", emailHtml);
-
+      // 3. Replace src trong HTML
+      let html = editorContent.html;
+      Object.entries(urlMap).forEach(([objectUrl, uploadedUrl]) => {
+        html = html.replace(new RegExp(`src=["']${objectUrl}["']`, 'g'), `src="${uploadedUrl}"`);
+      });
       const formData = new FormData();
-      formData.append("content", emailHtml);
+      formData.append("content", html);
 
-      selectedFiles.forEach((file) => {
-        formData.append("attachments[]", file);
+      attachmentIds.forEach(id => {
+        formData.append("attachment_ids[]", id);
       });
 
-      const mail = await mailService.createMail(id, formData as MailFormData);
-      if (mail.success) {
-        // Create optimistic mail using custom hook
-        const optimisticMail = createOptimisticMail(user, ticketData, emailHtml, selectedFiles);
-
-        // Add optimistic mail to cache
-        queryClient.setQueryData<Response<DataResponse<Mail[]>>>(
-          ["ticket-mails", id, 20, undefined],
-          (oldData: any) => {
-            if (!oldData?.data) return oldData;
-            return {
-              ...oldData,
-              data: {
-                ...oldData.data,
-                data: [optimisticMail, ...oldData.data.data],
-              },
-            };
-          },
-        );
-
-        // Add optimistic mail to local state
-        setMessages((prev) => [optimisticMail, ...prev]);
-
-        // Auto scroll to bottom for new message
-        scrollToBottomWithDelay(100);
-
-        // Invalidate queries to fetch fresh data
-        await queryClient.invalidateQueries({ 
-          queryKey: ["ticket-mails", id],
-          exact: false 
-        });
-        
-        if (selectedFiles.length > 0) {
-          await queryClient.invalidateQueries({
-            queryKey: ["ticket-attachments", id],
-          });
+      attachments.forEach(att => {
+        if (!att.isInline) {
+          formData.append("attachments[]", att.file);
         }
+      });
 
-        toast({
-          title: "Success",
-          description: "Message sent successfully",
-        });
-      }
-
+      await mailService.createMail(id!, formData as MailFormData);
+      // 5. Reset state
+      inlineImages.forEach(img => {
+        URL.revokeObjectURL(img.url);
+      });
+      setInlineImages([]);
+      setAttachments([]);
       setEditorContent({ raw: "", html: "", text: "" });
-      clearFiles();
       setShouldClearEditor(true);
     } catch (error) {
-      console.error("Error sending message:", error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -580,6 +654,46 @@ export default function ConversationDetail() {
   function Placeholder() {
     return <div className="editor-placeholder">Send to your client...</div>;
   }
+
+  // Add inline image
+  const handleAddInlineImages = (editor: any, files: FileList) => {
+    const newItems: InlineImageItem[] = [];
+    Array.from(files).forEach(file => {
+      if (!inlineImages.some(img => img.file.name === file.name && img.file.size === file.size)) {
+        const url = URL.createObjectURL(file);
+        editor.dispatchCommand(INSERT_IMAGE_COMMAND, url);
+        newItems.push({ file, url });
+      }
+    });
+    if (newItems.length) setInlineImages(prev => [...prev, ...newItems]);
+  };
+
+  // Add attachment file
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newItems: AttachmentItem[] = [];
+      Array.from(e.target.files).forEach(file => {
+        if (!attachments.some(a => a.file.name === file.name && a.file.size === file.size)) {
+          const url = URL.createObjectURL(file);
+          newItems.push({ file, url, isInline: false });
+        }
+      });
+      if (newItems.length) setAttachments(prev => [...prev, ...newItems]);
+    }
+  }, [attachments]);
+
+  // Remove attachment
+  const handleRemoveAttachment = useCallback((index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleRemoveInlineImage = (editor: any, url: string) => {
+    setInlineImages(prev => prev.filter(img => img.url !== url));
+    editor.update(() => {
+      const imgs = document.querySelectorAll(`img[src="${url}"]`);
+      imgs.forEach(img => img.remove());
+    });
+  };
 
   return (
     <div className="flex flex-col h-[89vh] bg-[#f8fafc] ticket-detail-container">
@@ -742,129 +856,26 @@ export default function ConversationDetail() {
                                         <ReadOnlyEditor content={m.body} />
                                       </div>
                                     </div>
-                                    {m.attachments &&
-                                      m.attachments.length > 0 && (
-                                        <div
-                                          className={cn(
-                                            "flex flex-col gap-1",
-                                            isOwnMessage
-                                              ? "items-end"
-                                              : "items-start",
-                                          )}
-                                        >
-                                          {m.attachments.map((a, idx) => {
-                                            const isImg = isImageFile(
-                                              a.file_extension,
-                                            );
-                                            const isOptimistic =
-                                              a.id.startsWith("temp-");
-
-                                            // Determine image source based on attachment type
-                                            const imageSrc = isOptimistic
-                                              ? a.file_path // Use object URL for optimistic attachments
-                                              : `${import.meta.env.VITE_API_URL}/attachments/${a.id}`; // Use API URL for server attachments
-
-                                            return (
-                                              <div
-                                                key={a.id}
-                                                className={cn(
-                                                  "relative flex flex-row items-end justify-start border rounded-lg bg-white shadow-sm overflow-hidden cursor-pointer transition hover:shadow-md",
-                                                  isImg
-                                                    ? "h-48 w-fit"
-                                                    : "h-14 w-fit",
-                                                )}
-                                                tabIndex={0}
-                                                role="button"
-                                                aria-label={`Preview attachment: ${a.file_name}`}
-                                                onClick={() =>
-                                                  handlePreviewFile(
-                                                    a,
-                                                    m.attachments,
-                                                  )
-                                                }
-                                                onKeyDown={(e) => {
-                                                  if (
-                                                    e.key === "Enter" ||
-                                                    e.key === " "
-                                                  )
-                                                    handlePreviewFile(
-                                                      a,
-                                                      m.attachments,
-                                                    );
-                                                }}
-                                              >
-                                                {isImg ? (
-                                                  <div className="relative group w-full h-full">
-                                                    <img
-                                                      src={imageSrc}
-                                                      alt={a.file_name}
-                                                      className="object-cover w-full h-full group-hover:opacity-80 transition"
-                                                      onError={(e) => {
-                                                        const target =
-                                                          e.target as HTMLImageElement;
-                                                        target.style.display =
-                                                          "none";
-                                                      }}
-                                                    />
-                                                    <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                      {!isOptimistic && (
-                                                        <button
-                                                          className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            window.open(
-                                                              `${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`,
-                                                              "_blank",
-                                                            );
-                                                          }}
-                                                          tabIndex={-1}
-                                                          aria-label={`Download ${a.file_name}`}
-                                                        >
-                                                          <Download className="w-4 h-4" />
-                                                        </button>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                ) : (
-                                                  <div className="relative group">
-                                                    <div className="flex items-center gap-3 p-2 rounded-lg transition-colors group-hover:bg-muted/50">
-                                                      <FileText className="w-5 h-5 text-primary shrink-0" />
-                                                      <div className="flex flex-col justify-center min-w-0">
-                                                        <span className="text-sm font-normal text-foreground truncate">
-                                                          {a.file_name}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                          {formatFileSize(
-                                                            a.file_size,
-                                                          )}
-                                                        </span>
-                                                      </div>
-                                                    </div>
-                                                    <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                      {!isOptimistic && (
-                                                        <button
-                                                          className="bg-black/60 text-white rounded-full p-1 hover:bg-black/80"
-                                                          onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            window.open(
-                                                              `${import.meta.env.VITE_API_URL}/attachments/${a.id}/download`,
-                                                              "_blank",
-                                                            );
-                                                          }}
-                                                          tabIndex={-1}
-                                                          aria-label={`Download ${a.file_name}`}
-                                                        >
-                                                          <Download className="w-4 h-4" />
-                                                        </button>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
+                                    {m.attachments && m.attachments.length > 0 && (
+                                      <div className={cn(
+                                        "flex flex-col gap-1",
+                                        isOwnMessage ? "items-end" : "items-start",
+                                      )}>
+                                        {m.attachments.map((a, idx) => {
+                                          const isImg = isImageFile(a.file_extension);
+                                          const isOptimistic = a.id.startsWith("temp-");
+                                          return (
+                                            <AttachmentItem
+                                              key={a.id}
+                                              attachment={a}
+                                              isOptimistic={isOptimistic}
+                                              isImg={isImg}
+                                              onPreview={() => handlePreviewFile(a, m.attachments)}
+                                            />
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -884,7 +895,9 @@ export default function ConversationDetail() {
                     <LexicalComposer initialConfig={initialConfig}>
                       <div className="relative">
                         <div className="toolbar">
-                          {ticketData?.id && <ToolbarPlugin ticketId={ticketData.id} />}                        
+                          {id &&       
+                          < ToolbarPlugin ticketId={id} onAddInlineImage={(editor, files) => handleAddInlineImages(editor, files)} />
+                        }                        
                         </div>
                         <div className="editor-scroll-container">
                           <RichTextPlugin
@@ -934,36 +947,25 @@ export default function ConversationDetail() {
                         <span className="sm:hidden">Attach</span>
                       </Button>
                     </label>
-                    {selectedFiles.length > 0 && (
+                    {attachments.length > 0 && (
                       <div className="flex flex-wrap">
-                        {selectedFiles.map((file, index) => (
-                          <div
-                            key={index}
-                            className="inline-flex items-center gap-1.5 rounded text-xs text-gray-700 max-w-full relative"
-                          >
-                            {isImageFileByName(file.name) ? (
-                              <div className="relative">
-                                <img
-                                  src={URL.createObjectURL(file)}
-                                  alt={file.name}
-                                  className="h-12 m-2 w-auto text-gray-500 flex-shrink-0 rounded-lg"
-                                />
-                              </div>
+                        {attachments.map((att, index) => (
+                          <div key={index} className="inline-flex items-center gap-1.5 rounded text-xs text-gray-700 max-w-full relative">
+                            {isImageFileByName(att.file.name) ? (
+                              <img src={att.url} alt={att.file.name} className="h-12 m-2 w-auto text-gray-500 flex-shrink-0 rounded-lg" />
                             ) : (
                               <div className="bg-gray-200 rounded-sm m-2 flex items-center px-2 gap-1.5 h-12 w-auto">
-                                <Paperclip className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                                <span className="truncate inline-block max-w-[150px] sm:max-w-[100px]">
-                                  {file.name}
-                                </span>
+                                <span className="truncate inline-block max-w-[150px] sm:max-w-[100px]">{att.file.name}</span>
                               </div>
                             )}
                             <button
                               type="button"
-                              className="text-gray-500 hover:text-gray-700 absolute top-0 right-0 bg-white rounded-full p-1 bg-gray-200  "
-                              onClick={() => handleRemoveFile(index)}
+                              className="text-gray-500 hover:text-gray-700 absolute top-0 right-0 bg-white rounded-full p-1 bg-gray-200"
+                              onClick={() => handleRemoveAttachment(index)}
                             >
                               <X className="h-3 w-3" />
                             </button>
+                            {att.isInline && <span className="text-[10px] text-blue-500 ml-1">inline</span>}
                           </div>
                         ))}
                       </div>
@@ -976,7 +978,7 @@ export default function ConversationDetail() {
                       disabled={
                         isSubmitting ||
                         (!editorContent.raw.trim() &&
-                          selectedFiles.length === 0) ||
+                          attachments.length === 0) ||
                         ticketData?.status === "complete" ||
                         ticketData?.status === "archived"
                       }

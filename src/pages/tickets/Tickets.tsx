@@ -293,7 +293,7 @@ export default function Tickets() {
         </p>
       </div>
 
-      <div className="rounded-xl shadow-sm">
+      <div className="">
         <div className="bg-muted/50 rounded-t-xl px-6 py-4 flex flex-wrap gap-4 items-center justify-between">
           <div className="flex justify-between w-full">
             <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">

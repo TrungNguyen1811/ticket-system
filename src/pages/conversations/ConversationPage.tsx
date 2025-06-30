@@ -86,7 +86,7 @@ export default function Conversation() {
         </p>
       </div>
 
-      <div className="rounded-xl shadow-sm">
+      <div className="">
         <div className="bg-muted/50 rounded-t-x py-4 flex flex-wrap gap-4 items-center justify-between px-2">
           <div className="flex justify-between w-full">
             <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
