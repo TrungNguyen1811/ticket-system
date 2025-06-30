@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 import { AlertCircle, Ticket } from "lucide-react";
 import { useAuth0 } from "@auth0/auth0-react";
+import slack from "@/assets/Slack_icon.svg"
 
 export default function Login() {
   const [error, setError] = useState("");
@@ -106,7 +107,7 @@ export default function Login() {
               >
                 <div className="flex items-center space-x-3">
                   <img
-                    src="src/assets/Slack_icon.svg"
+                    src={slack}
                     alt="Slack Logo"
                     className="h-6 w-6"
                   />

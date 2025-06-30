@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authService } from "@/services/auth.service";
 import { toast } from "../ui/use-toast";
+import slack from "@/assets/Slack_icon.svg"
 
 
 const adminNavigation = [
@@ -182,7 +183,7 @@ export default function Layout({ children }: LayoutProps) {
                     <div className="flex items-center space-x-1">
                       {user.slack_connected ? (
                         <img
-                          src="src/assets/Slack_icon.svg"
+                          src={slack}
                           alt="Slack Logo"
                           className="h-4 w-4 mr-2"
                         />
@@ -207,7 +208,7 @@ export default function Layout({ children }: LayoutProps) {
                       className="hover:text-green-500"
                     >
                       <img
-                        src="src/assets/Slack_icon.svg"
+                        src={slack}
                         alt="Slack Logo"
                         className="h-4 w-4 mr-2"
                       />
