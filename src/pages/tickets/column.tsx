@@ -59,11 +59,6 @@ export function getTicketColumns(
         const ticket = row.original;
         return (
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex-shrink-0">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-4 w-4 text-primary" />
-              </div>
-            </div>
             <div className="min-w-0">
               <div className="text-sm font-medium truncate hover:text-primary transition-colors">
                 <Link to={`/tickets/${ticket.id}`}>{ticket.title}</Link>
@@ -232,31 +227,9 @@ export function getTicketColumns(
       ),
       cell: ({ row }) => {
         const ticket = row.original;
-        const [hovered, setHovered] = useState(false);
+        const [hoveredItem, setHoveredItem] = useState<string | null>(null);
         return (
-          <div className="flex items-center gap-2">
-            <div
-              className={`action-button ${hovered ? "hovered" : ""}`}
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              <Link
-                to={`/tickets/${ticket.id}`}
-                className="flex items-center gap-1 rounded-md cursor-pointer px-2 hover:bg-slate-200"
-              >
-                <div className="icon-container">
-                  <div className="hover-icon text-blue-500">
-                    <Eye className="h-4 w-4" />
-                  </div>
-                  <div className="default-icon">
-                    <Eye className="h-4 w-4" />
-                  </div>
-                </div>
-                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
-                  View
-                </span>
-              </Link>
-            </div>
+          <div className="flex items-center justify-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -264,6 +237,26 @@ export function getTicketColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem className={`action-button ${hoveredItem === "view" ? "hovered" : ""}`}
+                    onMouseEnter={() => setHoveredItem("view")}
+                    onMouseLeave={() => setHoveredItem(null)}>
+                    <Link
+                      to={`/tickets/${ticket.id}`}
+                      className="flex items-center gap-1 rounded-md cursor-pointer hover:bg-slate-200"
+                    >
+                      <div className="icon-container">
+                        <div className="hover-icon text-blue-500">
+                          <Eye className="h-4 w-4" />
+                        </div>
+                        <div className="default-icon">
+                          <Eye className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <span className="ml-1">
+                        View
+                      </span>
+                    </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => actions.onEdit(ticket)}
                   disabled={
@@ -271,13 +264,25 @@ export function getTicketColumns(
                     ticket.status === "complete" ||
                     ticket.status === "archived"
                   }
+                  className={`action-button ${hoveredItem === "edit" ? "hovered" : ""}`}
+                  onMouseEnter={() => setHoveredItem("edit")}
+                  onMouseLeave={() => setHoveredItem(null)}
                 >
                   {actions.isLoadingStates.update ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <Edit className="h-4 w-4 mr-2" />
+                    <div className="icon-container mr-2">
+                      <div className="hover-icon text-blue-500">
+                        <Edit className="h-4 w-4" />
+                      </div>
+                      <div className="default-icon">
+                        <Edit className="h-4 w-4" />
+                      </div>
+                    </div>
                   )}
-                  Edit
+                  <span className="">
+                    Edit
+                  </span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -287,27 +292,45 @@ export function getTicketColumns(
                     ticket.status === "complete" ||
                     ticket.status === "archived"
                   }
+                  className={`action-button ${hoveredItem === "assign" ? "hovered" : ""}`}
+                  onMouseEnter={() => setHoveredItem("assign")}
+                  onMouseLeave={() => setHoveredItem(null)}
                 >
                   {actions.isLoadingStates.assign ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <UserPlus className="h-4 w-4 mr-2" />
+                    <div className="icon-container mr-2">
+                      <div className="hover-icon text-blue-500">
+                        <UserPlus className="h-4 w-4" />
+                      </div>
+                      <div className="default-icon">
+                        <UserPlus className="h-4 w-4" />
+                      </div>
+                    </div>
                   )}
-                  Assign
+                  <span className="">
+                    Assign
+                  </span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={() => actions.onStatusChange(ticket)}
-                  disabled={
-                    actions.isLoadingStates.changeStatus ||
-                    ticket.status === "archived"
-                  }
-                  className="group"
+                  disabled={actions.isLoadingStates.changeStatus || ticket.status === "archived"}
+                  className={`action-button ${hoveredItem === "status" ? "hovered" : ""}`}
+                  onMouseEnter={() => setHoveredItem("status")}
+                  onMouseLeave={() => setHoveredItem(null)}
                 >
                   {actions.isLoadingStates.changeStatus ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
-                    <RefreshCw className="h-4 w-4 mr-2 group-hover:animate-spin group-hover:text-blue-500" />
+                    <div className="icon-container mr-2">
+                      <div className="hover-icon text-blue-500">
+                        <RefreshCw className="h-4 w-4" />
+                      </div>
+                      <div className="default-icon">
+                        <RefreshCw className="h-4 w-4" />
+                      </div>
+                    </div>
                   )}
                   Change Status
                 </DropdownMenuItem>
