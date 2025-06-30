@@ -222,7 +222,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
   return (
     <div className="space-y-4">
       <Table className="bg-white">
-        <TableHeader className="bg-white">
+        <TableHeader className="bg-slate-200">
           <TableRow>
             <TableHead className="w-[120px]">By</TableHead>
             <TableHead className="w-[120px]">Staff</TableHead>

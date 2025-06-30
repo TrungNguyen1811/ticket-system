@@ -59,11 +59,13 @@ interface CommentListProps {
     setPage: (page: number) => void;
     setPerPage: (perPage: number) => void;
   };
+  onPreviewFile?: (file: any, files: any[]) => void;
 }
 
 export const CommentList: React.FC<CommentListProps> = ({
   ticketId,
   pagination,
+  onPreviewFile,
 }) => {
   const { page, perPage, setPage, setPerPage } = pagination;
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -82,6 +84,11 @@ export const CommentList: React.FC<CommentListProps> = ({
 
   // Add new state to track if menu should be visible
   const [visibleMenuId, setVisibleMenuId] = useState<string | null>(null);
+
+  // Add to state
+  const [previewFiles, setPreviewFiles] = useState<any[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number>(0);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const {
     data: commentsData,
@@ -409,6 +416,14 @@ export const CommentList: React.FC<CommentListProps> = ({
     }
   }, [page, isLoadingMore, setPage]);
 
+  // Handler to open preview
+  const handlePreviewFile = (file: any, files: any[]) => {
+    const index = files.findIndex(f => f.id === file.id);
+    setPreviewFiles(files);
+    setPreviewIndex(index);
+    setIsPreviewOpen(true);
+  };
+
   // Empty state
   if (!isLoading && comments.length === 0) {
     return (
@@ -529,6 +544,7 @@ export const CommentList: React.FC<CommentListProps> = ({
                   {editingCommentId === comment.id ? (
                     <div className="space-y-2 mt-2">
                       <EditCommentEditor
+                        ticketId={ticketId}
                         initialState={comment.content}
                         onChange={(val) => setEditContent(val.raw)}
                       />
@@ -570,21 +586,54 @@ export const CommentList: React.FC<CommentListProps> = ({
                       </div>
                       {comment.attachments &&
                         comment.attachments.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {comment.attachments.map((attachment) => (
-                              <Button
-                                key={attachment.id}
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleDownloadAttachment(attachment.id)
-                                }
-                                className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
-                              >
-                                <FileIcon className="h-3 w-3" />
-                                {attachment.file_name}
-                              </Button>
-                            ))}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {comment.attachments.map((attachment) => {
+                              const isImage = attachment.file_extension?.match(/(jpg|jpeg|png|gif|webp|bmp|svg)/i);
+                              const fileUrl = `${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`;
+                              return (
+                                <div
+                                  key={attachment.id}
+                                  className="group relative flex flex-col items-center justify-center w-24 h-24 bg-gray-50 rounded-lg border border-gray-200 transition-all cursor-pointertransform hover:scale-105 focus-within:scale-105"
+                                  onClick={() =>
+                                    onPreviewFile
+                                      ? onPreviewFile(attachment, comment.attachments!)
+                                      : handleDownloadAttachment(attachment.id)
+                                  }
+                                  title={attachment.file_name}
+                                  tabIndex={0}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      onPreviewFile
+                                        ? onPreviewFile(attachment, comment.attachments!)
+                                        : handleDownloadAttachment(attachment.id);
+                                    }
+                                  }}
+                                  role="button"
+                                >
+                                  {isImage ? (
+                                    <img
+                                      src={fileUrl}
+                                      alt={attachment.file_name}
+                                      className="object-cover w-24 h-24"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <>
+                                      <FileIcon className="h-10 w-10 text-blue-400 mt-4 mb-2" />
+                                      <div className="w-full px-1 text-center">
+                                        <div className="truncate text-xs font-medium text-gray-700" title={attachment.file_name}>
+                                          {attachment.file_name}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 truncate">
+                                          {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : ""}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                     </>

@@ -2,7 +2,7 @@ import { Info, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,12 +65,16 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() =>
-                    navigate(`/communication/conversation/${ticketId}`)
-                  }
                   className="rounded-full bg-secondary-200 h-10 w-10 hover:bg-secondary-300 hover:text-blue-600 hover:cursor-pointer group"
                 >
-                  <MessageSquare className="h-6 w-6 group-hover:scale-110" />
+                  <Link
+                    to={`/communication/conversation/${ticketId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={-1}
+                    >
+                    <MessageSquare className="h-4 w-4 group-hover:scale-110" />
+                  </Link>
                 </Button>
                 <p className="text-xs">Conversation</p>
               </div>
@@ -79,10 +83,17 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => navigate(`/tickets/${ticketId}`)}
+                  asChild
                   className="rounded-full bg-secondary-200 h-10 w-10 hover:bg-secondary-300 hover:text-blue-600 hover:cursor-pointer group"
                 >
-                  <MessageSquare className="h-6 w-6 group-hover:scale-110" />
+                  <Link
+                    to={`/tickets/${ticketId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={-1}
+                    >
+                      <MessageSquare className="h-4 w-4 group-hover:scale-110" />
+                    </Link>
                 </Button>
                 <p className="text-xs">Ticket Detail</p>
               </div>
@@ -92,10 +103,17 @@ export const ClientCard: React.FC<ClientCardProps> = ({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => navigate(`/communication/clients/${clientId}`)}
+                asChild
                 className="rounded-full bg-secondary-200 h-10 w-10 hover:bg-secondary-300 hover:text-blue-600 hover:cursor-pointer group"
               >
-                <Info className="h-6 w-6 group-hover:scale-110" />
+                <Link
+                  to={`/communication/clients/${clientId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  tabIndex={-1}
+                >
+                  <Info className="h-6 w-6 group-hover:scale-110" />
+                </Link>
               </Button>
               <p className="text-xs">Client Profile</p>
             </div>

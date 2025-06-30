@@ -760,7 +760,7 @@ export default function ConversationDetail() {
                     ref={scrollRef}
                     className="h-[calc(100vh-400px)] px-4 lg:px-6 overflow-x-hidden"
                   >
-                    <div className="space-y-4 py-6 w-full min-w-0">
+                    <div className="space-y-4 pt-6 w-full min-w-0">
                       {isFetching && (
                         <div className="flex justify-center py-2">
                           <Loader className="h-6 w-6 animate-spin text-muted-foreground" />

@@ -400,9 +400,9 @@ li[style*="display: block"] {
 }
 
 .editor-paragraph {
-  margin-bottom: 1rem;
   line-height: 1.7;
   color: #374151;
+  height: 100%;
 }
 
 /* Enhanced text formatting */

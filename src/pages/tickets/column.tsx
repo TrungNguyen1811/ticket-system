@@ -237,25 +237,25 @@ export function getTicketColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem className={`action-button ${hoveredItem === "view" ? "hovered" : ""}`}
-                    onMouseEnter={() => setHoveredItem("view")}
-                    onMouseLeave={() => setHoveredItem(null)}>
-                    <Link
-                      to={`/tickets/${ticket.id}`}
-                      className="flex items-center gap-1 rounded-md cursor-pointer hover:bg-slate-200"
-                    >
-                      <div className="icon-container">
-                        <div className="hover-icon text-blue-500">
-                          <Eye className="h-4 w-4" />
-                        </div>
-                        <div className="default-icon">
-                          <Eye className="h-4 w-4" />
-                        </div>
+                <DropdownMenuItem
+                  className={`action-button ${hoveredItem === "view" ? "hovered" : ""} p-0`}
+                  onMouseEnter={() => setHoveredItem("view")}
+                  onMouseLeave={() => setHoveredItem(null)}
+                >
+                  <Link
+                    to={`/tickets/${ticket.id}`}
+                    className="flex items-center gap-1 rounded-md cursor-pointer hover:bg-slate-200 w-full h-full px-2 py-1"
+                  >
+                    <div className="icon-container">
+                      <div className="hover-icon text-blue-500">
+                        <Eye className="h-4 w-4" />
                       </div>
-                      <span className="ml-1">
-                        View
-                      </span>
-                    </Link>
+                      <div className="default-icon">
+                        <Eye className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <span className="ml-1">View</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => actions.onEdit(ticket)}
@@ -264,25 +264,27 @@ export function getTicketColumns(
                     ticket.status === "complete" ||
                     ticket.status === "archived"
                   }
-                  className={`action-button ${hoveredItem === "edit" ? "hovered" : ""}`}
+                  className={`action-button ${hoveredItem === "edit" ? "hovered" : ""} p-0`}
                   onMouseEnter={() => setHoveredItem("edit")}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
-                  {actions.isLoadingStates.update ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <div className="icon-container mr-2">
-                      <div className="hover-icon text-blue-500">
-                        <Edit className="h-4 w-4" />
+                  <div className="flex items-center gap-1 rounded-md cursor-pointer hover:bg-slate-200 w-full h-full px-2 py-1"> 
+                    {actions.isLoadingStates.update ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <div className="icon-container mr-2">
+                        <div className="hover-icon text-blue-500">
+                          <Edit className="h-4 w-4" />
+                        </div>
+                        <div className="default-icon">
+                          <Edit className="h-4 w-4" />
+                        </div>
                       </div>
-                      <div className="default-icon">
-                        <Edit className="h-4 w-4" />
-                      </div>
-                    </div>
-                  )}
-                  <span className="">
-                    Edit
-                  </span>
+                    )}
+                    <span className="">
+                      Edit
+                    </span>
+                  </div>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -292,10 +294,11 @@ export function getTicketColumns(
                     ticket.status === "complete" ||
                     ticket.status === "archived"
                   }
-                  className={`action-button ${hoveredItem === "assign" ? "hovered" : ""}`}
+                  className={`action-button ${hoveredItem === "assign" ? "hovered" : ""} p-0`}
                   onMouseEnter={() => setHoveredItem("assign")}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
+                  <div className="flex items-center gap-1 rounded-md cursor-pointer hover:bg-slate-200 w-full h-full px-2 py-1"> 
                   {actions.isLoadingStates.assign ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
@@ -311,28 +314,31 @@ export function getTicketColumns(
                   <span className="">
                     Assign
                   </span>
+                  </div>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                   onClick={() => actions.onStatusChange(ticket)}
                   disabled={actions.isLoadingStates.changeStatus || ticket.status === "archived"}
-                  className={`action-button ${hoveredItem === "status" ? "hovered" : ""}`}
+                  className={`action-button ${hoveredItem === "status" ? "hovered" : ""} p-0`}
                   onMouseEnter={() => setHoveredItem("status")}
                   onMouseLeave={() => setHoveredItem(null)}
                 >
-                  {actions.isLoadingStates.changeStatus ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <div className="icon-container mr-2">
-                      <div className="hover-icon text-blue-500">
-                        <RefreshCw className="h-4 w-4" />
+                  <div className="flex items-center gap-1 rounded-md cursor-pointer hover:bg-slate-200 w-full h-full px-2 py-1"> 
+                    {actions.isLoadingStates.changeStatus ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <div className="icon-container mr-2">
+                        <div className="hover-icon text-blue-500">
+                          <RefreshCw className="h-4 w-4" />
+                        </div>
+                        <div className="default-icon">
+                          <RefreshCw className="h-4 w-4" />
+                        </div>
                       </div>
-                      <div className="default-icon">
-                        <RefreshCw className="h-4 w-4" />
-                      </div>
-                    </div>
-                  )}
-                  Change Status
+                    )}
+                    Change Status
+                  </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

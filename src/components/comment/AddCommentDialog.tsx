@@ -27,7 +27,7 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 
-import { $getRoot, EditorState } from "lexical";
+import { $getRoot, EditorState, ParagraphNode } from "lexical";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
@@ -36,6 +36,13 @@ import { $generateHtmlFromNodes } from "@lexical/html";
 import configTheme from "../theme/configTheme";
 import { createEditor } from "lexical";
 import { OnChangePlugin } from "../editor/OnChangePlugin";
+import PlaygroundAutoLinkPlugin from "../editor/AutoLinkPlugin";
+import ListMaxIndentLevelPlugin from "../editor/ListMaxIndentLevelPlugin";
+import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
+import InlineImagePlugin from "../editor/InlineImagePlugin";
+import { ClearEditorPlugin } from "../editor/ClearEditorPlugin";
+import { ImageNode } from "../editor/InlineImageNodes";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
 interface AddCommentDialogProps {
   open: boolean;
@@ -44,17 +51,15 @@ interface AddCommentDialogProps {
     editorContent: { raw: string; html: string };
     attachments?: File[];
   }) => void;
-  ticketId?: string;
+  ticketId: string;
   isComplete?: boolean;
 }
 
 // Editor configuration
-export const initialConfig = {
-  namespace: "AddCommentDialogEditor",
+const initialConfig = {
+  namespace: "ConversationInputEditor",
+  onError: (error: Error) => { console.error(error); },
   theme: configTheme,
-  onError: (error: Error) => {
-    console.error("Editor error:", error);
-  },
   nodes: [
     HeadingNode,
     ListNode,
@@ -62,7 +67,10 @@ export const initialConfig = {
     CodeNode,
     CodeHighlightNode,
     AutoLinkNode,
-    LinkNode
+    LinkNode,
+    ParagraphNode,
+    TableNode, TableCellNode, TableRowNode,
+    ImageNode,
   ],
 };
 
@@ -87,6 +95,7 @@ export function AddCommentDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const contentEditableRef = useRef<HTMLDivElement>(null);
 
   // Generate unique key for this dialog instance
   const uniqueKey = `AddCommentDialog_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -190,7 +199,7 @@ export function AddCommentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="md:max-w-[1000px] md:max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Add Comment</DialogTitle>
         </DialogHeader>
@@ -200,143 +209,129 @@ export function AddCommentDialog({
         >
           <div className="space-y-2 m-4">
             <Label htmlFor="content">Comment *</Label>
-            <LexicalComposer key={uniqueKey} initialConfig={initialConfig}>
+            <LexicalComposer initialConfig={initialConfig}>
               <div className="relative">
-                <ToolbarPlugin />
-                <div className="relative mt-2">
+                <ToolbarPlugin ticketId={ticketId} />
+                <div
+                  className="relative border p-2 min-h-[40vh]"
+                  onClick={() => contentEditableRef.current?.focus()}
+                  style={{ cursor: "text" }}
+                >
                   <RichTextPlugin
                     contentEditable={
-                      <ContentEditable className="outline-none focus:ring-0 focus:ring-offset-0" />
+                      <ContentEditable
+                        ref={contentEditableRef}
+                        className="outline-none focus:ring-0 focus:ring-offset-0"
+                      />
                     }
                     placeholder={
-                      <div className="absolute top-4 left-4 text-gray-400">
+                      <div className="absolute top-2 left-2 text-gray-400 pointer-events-none">
                         Enter your comment here...
                       </div>
                     }
                     ErrorBoundary={LexicalErrorBoundary}
                   />
                 </div>
-                <HistoryPlugin />
-                <AutoFocusPlugin />
-                <LinkPlugin />
-                <ListPlugin />
-                <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
-                <OnChangePlugin onChange={setEditorContent} />
+                  <ListPlugin />
+                  <LinkPlugin />
+                  <PlaygroundAutoLinkPlugin />
+                  <ListMaxIndentLevelPlugin maxDepth={7} />
+                  <HistoryPlugin />
+                  <AutoFocusPlugin />
+                  <TablePlugin />
+                  <OnChangePlugin onChange={setEditorContent} />
+                  <InlineImagePlugin />
               </div>
             </LexicalComposer>
           </div>
 
           <div className="space-y-2 m-4">
             <Label htmlFor="attachments">Attachments</Label>
-            <div
-              ref={dropZoneRef}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-6 transition-colors duration-200 ease-in-out"
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+            <label
+              htmlFor="attachments"
+              className="block border-2 border-dashed border-gray-300 rounded-lg p-4 transition-colors duration-200 ease-in-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 hover:bg-blue-50 hover:border-blue-300 relative min-h-[120px] flex flex-col items-center justify-center"
+              tabIndex={0}
+              onDragOver={handleDragOver as any}
+              onDragLeave={handleDragLeave as any}
+              onDrop={handleDrop as any}
+              aria-label="File upload area. Click or drag files here."
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click();
+              }}
             >
-              <div className="text-center">
-                <Paperclip className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="mt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mx-auto"
-                  >
-                    <Paperclip className="h-4 w-4 mr-2" />
-                    Select Files
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    id="attachments"
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <p className="mt-2 text-sm text-gray-500">
-                    or drag and drop files here
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {attachments.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Selected files ({attachments.length})</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAttachments([])}
-                    className="text-xs h-7 px-2"
-                  >
-                    Clear all
-                  </Button>
-                </div>
-                <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
-                  {attachments.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
+              <input
+                ref={fileInputRef}
+                id="attachments"
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                tabIndex={-1}
+              />
+              {attachments.length === 0 && (
+                <>
+                  <Paperclip className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                  <span className="text-gray-500 text-sm">Click or drag files here to upload</span>
+                </>
+              )}
+              {attachments.length > 0 && (
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-500">{attachments.length} file(s) selected</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAttachments([])}
+                      className="text-xs h-7 px-2"
                     >
-                      <div className="flex items-center space-x-3 overflow-hidden">
-                        {getFileIcon(file)}
-                        <div className="overflow-hidden">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {file.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatFileSize(file.size)}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAttachment(index)}
-                        className="h-7 w-7 p-0 rounded-full"
+                      Clear all
+                    </Button>
+                  </div>
+                  <div className={attachments.some(f => f.type.startsWith('image/')) ? 'grid grid-cols-2 gap-2 max-h-40 overflow-y-auto' : 'flex flex-col gap-2 max-h-40 overflow-y-auto'}>
+                    {attachments.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center bg-gray-50 rounded-md hover:bg-gray-100 transition-colors p-2 relative group"
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+                        {file.type.startsWith('image/') ? (
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={file.name}
+                            className="h-12 w-12 object-cover rounded mr-3 border"
+                          />
+                        ) : (
+                          <FileText className="h-8 w-8 text-gray-400 mr-3 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-gray-900 truncate">{file.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{formatFileSize(file.size)}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => { e.stopPropagation(); removeAttachment(index); }}
+                          className="h-7 w-7 p-0 rounded-full ml-2 opacity-70 group-hover:opacity-100"
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </label>
           </div>
 
-          <DialogFooter className="pt-4 mx-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancel
+          <div className="space-y-2 m-4 flex justify-end">
+            <Button type="submit" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Submit"}
             </Button>
-            <Button
-              type="submit"
-              disabled={loading || !editorContent.text.trim() || isComplete}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Comment"
-              )}
-            </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
   );
 }
-
-// Custom plugin to get editor content as plain text
-

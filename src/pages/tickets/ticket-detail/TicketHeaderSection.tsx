@@ -70,46 +70,72 @@ export const TicketHeaderSection: React.FC<TicketHeaderSectionProps> = ({
   const [selectedStaff, setSelectedStaff] = useState<User | null>(ticket.staff);
 
   return (
-    <div className="p-6 bg-white border rounded-lg hover:shadow-md transition-all duration-300">
+    <div className="p-6">
       <div className="pb-4">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              {isEditingTitle ? (
-                <Input
-                  value={editedTitle}
-                  onChange={(e) => onTitleChange(e.target.value)}
-                  className="text-lg font-semibold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
-                  maxLength={200}
-                  autoFocus
-                  onBlur={onTitleBlur}
-                  onKeyDown={onTitleKeyDown}
-                />
-              ) : (
-                <h1
-                  className="text-xl font-semibold text-foreground cursor-pointer hover:underline transition-colors"
-                  onClick={() => !isReadOnly && onEditTitle()}
-                  title={isReadOnly ? undefined : "Click to edit title"}
-                >
-                  {savingTitle ? (
-                    <span className="text-sm text-muted-foreground">
-                      Saving...
-                    </span>
-                  ) : (
-                    ticket.title
-                  )}
-                </h1>
-              )}
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          {/* Left: Title and Time */}
+          <div className="flex-1 min-w-0">
+            {isEditingTitle ? (
+              <Input
+                value={editedTitle}
+                onChange={(e) => onTitleChange(e.target.value)}
+                className="text-lg font-semibold focus:ring-0 focus:ring-offset-0 focus:border-none focus:outline-none"
+                maxLength={200}
+                autoFocus
+                onBlur={onTitleBlur}
+                onKeyDown={onTitleKeyDown}
+              />
+            ) : (
+              <h1
+                className="text-xl font-semibold text-foreground cursor-pointer hover:underline transition-colors"
+                onClick={() => !isReadOnly && onEditTitle()}
+                title={isReadOnly ? undefined : "Click to edit title"}
+              >
+                {savingTitle ? (
+                  <span className="text-sm text-muted-foreground">Saving...</span>
+                ) : (
+                  ticket.title
+                )}
+              </h1>
+            )}
+            <div className="flex flex-wrap items-center text-xs text-muted-foreground gap-x-6 gap-y-1 mt-2">
+              <div className="flex items-center">
+                <CalendarIcon className="h-3 w-3 mr-1" />
+                Created {formatDate(ticket.created_at)}
+              </div>
+              <div className="flex items-center">
+                <Clock className="h-3 w-3 mr-1" />
+                Updated {formatDate(ticket.updated_at)}
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center text-xs text-muted-foreground gap-x-6 gap-y-1">
-            <div className="flex items-center">
-              <CalendarIcon className="h-3 w-3 mr-1" />
-              Created {formatDate(ticket.created_at)}
+
+          {/* Right: Status and Staff */}
+          <div className="flex flex-row gap-4 md:items-end md:justify-end">
+            <div className="space-y-2 w-32">
+              <ChangeStatus
+                isStatusOpen={isStatusOpen}
+                setIsStatusOpen={setIsStatusOpen}
+                isLoadingUsers={isLoadingUsers}
+                ticketData={ticket}
+                selectedStatus={selectedStatus}
+                handleStatusSelect={onStatusChange}
+                setSelectedStatus={setSelectedStatus}
+                isTicketComplete={ticket.status === "archived"}
+              />
             </div>
-            <div className="flex items-center">
-              <Clock className="h-3 w-3 mr-1" />
-              Updated {formatDate(ticket.updated_at)}
+            <div className="space-y-2 w-48">
+              <AssigneeUser
+                isStaffOpen={isStaffOpen}
+                setIsStaffOpen={setIsStaffOpen}
+                isLoadingUsers={isLoadingUsers}
+                usersData={usersData}
+                selectedStaff={selectedStaff}
+                handleStaffSelect={onStaffAssign}
+                isErrorUsers={isErrorUsers}
+                isTicketComplete={isReadOnly}
+                setSelectedStaff={setSelectedStaff}
+              />
             </div>
           </div>
         </div>
@@ -177,44 +203,6 @@ export const TicketHeaderSection: React.FC<TicketHeaderSectionProps> = ({
                 )}
               </div>
             )}
-          </div>
-
-          {/* Status and Staff Assignment */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Status */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wider text-foreground">
-                Status
-              </label>
-              <ChangeStatus
-                isStatusOpen={isStatusOpen}
-                setIsStatusOpen={setIsStatusOpen}
-                isLoadingUsers={isLoadingUsers}
-                ticketData={ticket}
-                selectedStatus={selectedStatus}
-                handleStatusSelect={onStatusChange}
-                setSelectedStatus={setSelectedStatus}
-                isTicketComplete={isReadOnly}
-              />
-            </div>
-
-            {/* Staff Assignment */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium uppercase tracking-wider text-foreground">
-                Assigned To
-              </label>
-              <AssigneeUser
-                isStaffOpen={isStaffOpen}
-                setIsStaffOpen={setIsStaffOpen}
-                isLoadingUsers={isLoadingUsers}
-                usersData={usersData}
-                selectedStaff={selectedStaff}
-                handleStaffSelect={onStaffAssign}
-                isErrorUsers={isErrorUsers}
-                isTicketComplete={isReadOnly}
-                setSelectedStaff={setSelectedStaff}
-              />
-            </div>
           </div>
         </div>
       </div>

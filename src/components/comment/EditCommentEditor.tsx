@@ -7,24 +7,23 @@ import { $getRoot, EditorState } from "lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
+import configTheme from "../theme/configTheme";
 
 interface EditCommentEditorProps {
   initialState: string;
   onChange: (value: { raw: string; html: string }) => void;
+  ticketId: string
 }
-
-const theme = {
-  // add your Lexical theme here
-};
 
 const EditCommentEditor = ({
   initialState,
   onChange,
+  ticketId,
 }: EditCommentEditorProps) => {
   const initialConfig = {
     namespace: "EditCommentEditor",
     editorState: initialState,
-    theme,
+    theme: configTheme,
     onError: (e: Error) => {
       console.error(e);
     },
@@ -32,15 +31,17 @@ const EditCommentEditor = ({
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <EditorInner onChange={onChange} />
+      <EditorInner onChange={onChange} ticketId={ticketId}/>
     </LexicalComposer>
   );
 };
 
 const EditorInner = ({
   onChange,
+  ticketId
 }: {
   onChange: (value: { raw: string; html: string }) => void;
+  ticketId: string
 }) => {
   const [editor] = useLexicalComposerContext();
 
@@ -54,7 +55,7 @@ const EditorInner = ({
 
   return (
     <>
-      <ToolbarPlugin />
+      <ToolbarPlugin ticketId={ticketId}/>
       <RichTextPlugin
         contentEditable={
           <ContentEditable className="min-h-[80px] border rounded-md p-2 text-sm" />

@@ -263,7 +263,7 @@ export default function ToolbarPlugin({
   onAddInlineImage,
 }: {
   ticketId: string,
-  onAddInlineImage: (editor: any, files: FileList) => void
+  onAddInlineImage?: (editor: any, files: FileList) => void
 }) {
   const [editor] = useLexicalComposerContext();
   const [isBold, setIsBold] = useState(false);
@@ -635,7 +635,9 @@ export default function ToolbarPlugin({
         multiple
         onChange={e => {
           if (e.target.files && e.target.files.length > 0) {
-            onAddInlineImage(editor, e.target.files);
+            if (onAddInlineImage) {
+              onAddInlineImage(editor, e.target.files);
+            }
             e.target.value = '';
           }
         }}
