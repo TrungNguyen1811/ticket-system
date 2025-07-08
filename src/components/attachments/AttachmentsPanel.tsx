@@ -9,11 +9,8 @@ import {
   Eye,
   Download,
 } from "lucide-react";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
 import { SearchToggleInput } from "../ui/search-toggle-input";
 
 interface AttachmentsPanelProps {
@@ -135,7 +132,6 @@ export const AttachmentsPanel: React.FC<AttachmentsPanelProps> = ({
           >
             Media ({mediaAttachments.length})
           </button>
-          
         </div>
 
         {/* Content */}

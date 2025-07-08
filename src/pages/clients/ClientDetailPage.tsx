@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -11,20 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Plus,
-  Search,
-  MoreHorizontal,
-  Building2,
-  Eye,
-  MessageCircle,
-  Loader2,
-} from "lucide-react";
+
+import { Plus, Building2, Eye, MessageCircle, Loader2 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { UserAvatar } from "@/components/shared/UserAvatar";

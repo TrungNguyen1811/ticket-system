@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { CreateTicketData, ticketService } from "@/services/ticket.service";
-import { CreateTicketSchema, UpdateTicketSchema } from "@/schema/ticket.schema";
+import { UpdateTicketSchema } from "@/schema/ticket.schema";
 import { useToast } from "@/components/ui/use-toast";
 import { CommentFormData } from "@/types/comment";
 import { commentService } from "@/services/comment.services";
 import { logService } from "@/services/log.service";
 import { Ticket } from "@/types/ticket";
-import { DataResponse, Response } from "@/types/response";
+import { Response } from "@/types/response";
 
 export const useTicketMutations = () => {
   const queryClient = useQueryClient();

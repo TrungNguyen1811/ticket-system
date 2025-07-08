@@ -3,7 +3,6 @@
  */
 export function convertLexicalToEmailHtml(
   lexicalState: string,
-  options: any = {}
 ): string {
   try {
     // If it's already HTML, return it directly

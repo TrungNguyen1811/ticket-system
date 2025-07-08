@@ -1,8 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import {
-  Info,
-  Clock,
   FileText,
   MessageSquare,
   Paperclip,
@@ -10,24 +8,17 @@ import {
   Send,
   X,
   Download,
-  Search,
-  ImageIcon,
-  TimerIcon,
   RefreshCw,
   Menu,
   Loader,
 } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import attachmentService from "@/services/attachment.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Response, DataResponse } from "@/types/response";
-import { userService } from "@/services/user.service";
+import { Response } from "@/types/response";
 import { useToast } from "@/components/ui/use-toast";
-import type { User, User as UserType } from "@/types/user";
-import ChangeStatus from "@/components/ticket/ChangeStatus";
-import { Attachment, Status, Ticket } from "@/types/ticket";
-import AssigneeUser from "@/components/ticket/AssigneeUser";
+import { Attachment } from "@/types/ticket";
 import { cn, formatDate } from "@/lib/utils";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
@@ -61,7 +52,6 @@ import { OnChangePlugin } from "@/components/editor/OnChangePlugin";
 import { ParagraphNode } from "lexical";
 import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import { convertLexicalToEmailHtml } from "@/utils/lexicalConverter";
 import { 
   isImageFile, 
   isImageFileByName, 
@@ -229,9 +219,9 @@ export default function ConversationDetail() {
     new Set(),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [shouldAutoScroll] = useState(true);
   const [showLeftSidebar, setShowLeftSidebar] = useState(true);
-  const [showRightSidebar, setShowRightSidebar] = useState(true);
+  const [showRightSidebar] = useState(true);
   const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -248,7 +238,7 @@ export default function ConversationDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Custom hooks
-  const { scrollToBottomWithDelay, scrollToBottomImmediate } = useScrollToBottom(scrollRef);
+  const { scrollToBottomWithDelay } = useScrollToBottom(scrollRef);
   
   const { 
     optimisticObjectUrls, 
@@ -687,13 +677,6 @@ export default function ConversationDetail() {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleRemoveInlineImage = (editor: any, url: string) => {
-    setInlineImages(prev => prev.filter(img => img.url !== url));
-    editor.update(() => {
-      const imgs = document.querySelectorAll(`img[src="${url}"]`);
-      imgs.forEach(img => img.remove());
-    });
-  };
 
   return (
     <div className="flex flex-col h-[89vh] bg-[#f8fafc] ticket-detail-container">
@@ -861,7 +844,7 @@ export default function ConversationDetail() {
                                         "flex flex-col gap-1",
                                         isOwnMessage ? "items-end" : "items-start",
                                       )}>
-                                        {m.attachments.map((a, idx) => {
+                                        {m.attachments.map((a, _) => {
                                           const isImg = isImageFile(a.file_extension);
                                           const isOptimistic = a.id.startsWith("temp-");
                                           return (
@@ -896,7 +879,7 @@ export default function ConversationDetail() {
                       <div className="relative">
                         <div className="toolbar">
                           {id &&       
-                          < ToolbarPlugin ticketId={id} onAddInlineImage={(editor, files) => handleAddInlineImages(editor, files)} />
+                          < ToolbarPlugin onAddInlineImage={(editor, files) => handleAddInlineImages(editor, files)} />
                         }                        
                         </div>
                         <div className="editor-scroll-container">

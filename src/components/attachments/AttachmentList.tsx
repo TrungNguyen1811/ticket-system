@@ -7,7 +7,6 @@ import {
   ImageIcon,
   FileText,
   Download,
-  Trash,
   Paperclip,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";

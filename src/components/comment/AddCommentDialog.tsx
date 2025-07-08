@@ -2,18 +2,17 @@
 
 import type React from "react";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Paperclip, X, FileText, ImageIcon, File, Loader2 } from "lucide-react";
+import { Paperclip, X, FileText, Loader2 } from "lucide-react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
@@ -21,26 +20,19 @@ import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
-import { TRANSFORMERS } from "@lexical/markdown";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-
-import { $getRoot, EditorState, ParagraphNode } from "lexical";
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { ParagraphNode } from "lexical";
+import { HeadingNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
-import { $generateHtmlFromNodes } from "@lexical/html";
 import configTheme from "../theme/configTheme";
-import { createEditor } from "lexical";
 import { OnChangePlugin } from "../editor/OnChangePlugin";
 import PlaygroundAutoLinkPlugin from "../editor/AutoLinkPlugin";
 import ListMaxIndentLevelPlugin from "../editor/ListMaxIndentLevelPlugin";
 import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import InlineImagePlugin from "../editor/InlineImagePlugin";
-import { ClearEditorPlugin } from "../editor/ClearEditorPlugin";
 import { ImageNode } from "../editor/InlineImageNodes";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
@@ -51,8 +43,6 @@ interface AddCommentDialogProps {
     editorContent: { raw: string; html: string };
     attachments?: File[];
   }) => void;
-  ticketId: string;
-  isComplete?: boolean;
 }
 
 // Editor configuration
@@ -78,8 +68,6 @@ export function AddCommentDialog({
   open,
   onOpenChange,
   onSubmit,
-  ticketId,
-  isComplete,
 }: AddCommentDialogProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<{
@@ -96,9 +84,6 @@ export function AddCommentDialog({
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const contentEditableRef = useRef<HTMLDivElement>(null);
-
-  // Generate unique key for this dialog instance
-  const uniqueKey = `AddCommentDialog_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -175,17 +160,6 @@ export function AddCommentDialog({
     }
   };
 
-  const getFileIcon = (file: File) => {
-    const fileType = file.type.split("/")[0];
-    switch (fileType) {
-      case "image":
-        return <ImageIcon className="h-5 w-5 text-blue-500" />;
-      case "text":
-        return <FileText className="h-5 w-5 text-green-500" />;
-      default:
-        return <File className="h-5 w-5 text-gray-500" />;
-    }
-  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -211,7 +185,7 @@ export function AddCommentDialog({
             <Label htmlFor="content">Comment *</Label>
             <LexicalComposer initialConfig={initialConfig}>
               <div className="relative">
-                <ToolbarPlugin ticketId={ticketId} />
+                <ToolbarPlugin />
                 <div
                   className="relative border p-2 min-h-[40vh]"
                   onClick={() => contentEditableRef.current?.focus()}

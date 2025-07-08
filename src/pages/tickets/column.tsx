@@ -6,7 +6,6 @@ import {
   Settings,
   ArrowUpDown,
   Eye,
-  Building2,
   Edit,
   UserPlus,
   RefreshCw,

@@ -2,7 +2,7 @@ import { Info, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/shared/UserAvatar";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +18,6 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   clientEmail,
   ticketId,
 }) => {
-  const navigate = useNavigate();
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
     queryFn: () => userService.getClients({}),

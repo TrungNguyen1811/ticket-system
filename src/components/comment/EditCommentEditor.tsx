@@ -4,7 +4,6 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { $getRoot, EditorState } from "lexical";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
 import configTheme from "../theme/configTheme";
@@ -12,13 +11,11 @@ import configTheme from "../theme/configTheme";
 interface EditCommentEditorProps {
   initialState: string;
   onChange: (value: { raw: string; html: string }) => void;
-  ticketId: string
 }
 
 const EditCommentEditor = ({
   initialState,
   onChange,
-  ticketId,
 }: EditCommentEditorProps) => {
   const initialConfig = {
     namespace: "EditCommentEditor",
@@ -31,23 +28,19 @@ const EditCommentEditor = ({
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <EditorInner onChange={onChange} ticketId={ticketId}/>
+      <EditorInner onChange={onChange} />
     </LexicalComposer>
   );
 };
 
 const EditorInner = ({
   onChange,
-  ticketId
 }: {
   onChange: (value: { raw: string; html: string }) => void;
-  ticketId: string
 }) => {
-  const [editor] = useLexicalComposerContext();
-
   const handleChange = (editorState: EditorState) => {
     editorState.read(() => {
-      const html = $getRoot().getTextContent(); // TODO: Replace with proper HTML exporter
+      const html = $getRoot().getTextContent();
       const raw = JSON.stringify(editorState.toJSON());
       onChange({ html, raw });
     });
@@ -55,7 +48,7 @@ const EditorInner = ({
 
   return (
     <>
-      <ToolbarPlugin ticketId={ticketId}/>
+      <ToolbarPlugin />
       <RichTextPlugin
         contentEditable={
           <ContentEditable className="min-h-[80px] border rounded-md p-2 text-sm" />

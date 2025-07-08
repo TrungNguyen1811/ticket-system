@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings, Pencil, Trash, ArrowUpDown, Loader2, RefreshCw, MoreHorizontal, UserPlus } from "lucide-react";
+import { Settings, Pencil, Trash, ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

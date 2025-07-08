@@ -19,8 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Columns } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Select,

@@ -6,41 +6,20 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
-import { TRANSFORMERS } from "@lexical/markdown";
 import configTheme from "../theme/configTheme";
 
 // Import necessary nodes
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { HeadingNode } from "@lexical/rich-text";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { fixAttachmentImageSrc } from "@/pages/conversations/ConversationDetailPage";
-import { remove } from "lodash";
 import PlaygroundAutoLinkPlugin from "./AutoLinkPlugin";
 import ListMaxIndentLevelPlugin from "./ListMaxIndentLevelPlugin";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { cleanHtmlForEmail } from "@/utils/emailHtmlCleaner";
-
-// Auto-link matchers
-const URL_MATCHER =
-  /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
-
-const MATCHERS = [
-  (text: string) => {
-    const match = URL_MATCHER.exec(text);
-    return (
-      match && {
-        index: match.index,
-        length: match[0].length,
-        text: match[0],
-        url: match[0].startsWith("http") ? match[0] : `https://${match[0]}`,
-      }
-    );
-  },
-];
 
 function SetEditorStateFromRaw({ content }: { content: string }) {
   const [editor] = useLexicalComposerContext();

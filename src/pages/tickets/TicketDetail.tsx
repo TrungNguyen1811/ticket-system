@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useParams, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UploadAttachmentDialog } from "@/components/attachments/UploadAttachmentDialog";
@@ -54,8 +54,6 @@ export default function TicketDetail() {
 
   const { 
     comments,
-    pagination: commentsPagination,
-    isLoading: isLoadingComments,
     page: commentPage,
     perPage: commentPerPage,
     setPage: setCommentPage,
@@ -63,7 +61,7 @@ export default function TicketDetail() {
   } = useTicketComments({ ticketId: id || "" })
 
   // Hooks
-  const { logs, isLoading: isLoadingTicketLogs } = useTicketLogs({
+  const { isLoading: isLoadingTicketLogs } = useTicketLogs({
     ticketId: id || "",
   });
 
@@ -472,8 +470,6 @@ export default function TicketDetail() {
         open={dialogOpen === "comment"}
         onOpenChange={(open) => !open && setDialogOpen(null)}
         onSubmit={handleAddComment}
-        ticketId={id!}
-        isComplete={ticketData.status === "complete" || ticketData.status === "archived"}
       />
       
       <FilePreviewModal

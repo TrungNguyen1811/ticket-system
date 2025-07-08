@@ -19,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import {
@@ -29,13 +28,6 @@ import {
   SelectItem,
   SelectContent,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { DropdownMenuCheckboxItem } from "@radix-ui/react-dropdown-menu";
 import { renderSkeletonRow } from "@/components/loading-table/renderSkeletonRow";
 
 interface DataTableProps<TData, TValue> {

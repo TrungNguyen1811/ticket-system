@@ -1,15 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-} from "@/components/ui/pagination";
 import { formatDate } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { commentService } from "@/services/comment.services";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +42,7 @@ import AttachmentService from "@/services/attachment.service";
 import { useCommentRealtime } from "@/hooks/realtime/useCommentRealtime";
 import EditCommentEditor from "../comment/EditCommentEditor";
 import { ReadOnlyEditor } from "../editor/ReadOnlyEditor";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CommentListProps {
   ticketId: string;
@@ -67,7 +60,7 @@ export const CommentList: React.FC<CommentListProps> = ({
   pagination,
   onPreviewFile,
 }) => {
-  const { page, perPage, setPage, setPerPage } = pagination;
+  const { page, perPage, setPage } = pagination;
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
@@ -84,11 +77,6 @@ export const CommentList: React.FC<CommentListProps> = ({
 
   // Add new state to track if menu should be visible
   const [visibleMenuId, setVisibleMenuId] = useState<string | null>(null);
-
-  // Add to state
-  const [previewFiles, setPreviewFiles] = useState<any[]>([]);
-  const [previewIndex, setPreviewIndex] = useState<number>(0);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const {
     data: commentsData,
@@ -132,7 +120,6 @@ export const CommentList: React.FC<CommentListProps> = ({
   });
 
   const comments = commentsData?.data.data || [];
-  const total = commentsData?.data.pagination?.total || 0;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -244,11 +231,6 @@ export const CommentList: React.FC<CommentListProps> = ({
     undefined,
     lastEditedComment,
   );
-
-  // Handle Pagination
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
 
   const updateComment = async (commentId: string, content: string) => {
     if (!content.trim()) {
@@ -416,14 +398,6 @@ export const CommentList: React.FC<CommentListProps> = ({
     }
   }, [page, isLoadingMore, setPage]);
 
-  // Handler to open preview
-  const handlePreviewFile = (file: any, files: any[]) => {
-    const index = files.findIndex(f => f.id === file.id);
-    setPreviewFiles(files);
-    setPreviewIndex(index);
-    setIsPreviewOpen(true);
-  };
-
   // Empty state
   if (!isLoading && comments.length === 0) {
     return (
@@ -544,7 +518,6 @@ export const CommentList: React.FC<CommentListProps> = ({
                   {editingCommentId === comment.id ? (
                     <div className="space-y-2 mt-2">
                       <EditCommentEditor
-                        ticketId={ticketId}
                         initialState={comment.content}
                         onChange={(val) => setEditContent(val.raw)}
                       />

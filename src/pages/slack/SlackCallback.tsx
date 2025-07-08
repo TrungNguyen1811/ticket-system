@@ -1,4 +1,4 @@
-import api from "@/lib/axios";
+
 import { authService } from "@/services/auth.service";
 import { Loader2 } from "lucide-react";
 import { Slack } from "lucide-react";

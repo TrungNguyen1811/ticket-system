@@ -21,7 +21,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
   const { loginWithRedirect } = useAuth0();
   const { toast } = useToast();
   const location = useLocation();

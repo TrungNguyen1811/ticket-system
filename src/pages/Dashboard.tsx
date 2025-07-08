@@ -34,7 +34,7 @@ import { Ticket } from "@/types/ticket";
 import { DashboardSummary } from "@/types/dashboard";
 import { dashboardService } from "@/services/dashboard.service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type RoleData = {
@@ -50,7 +50,7 @@ type UserRoleData = {
 };
 
 // Animation variants
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -60,7 +60,7 @@ const containerVariants = {
   },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { y: 20, opacity: 0 },
   visible: {
     y: 0,

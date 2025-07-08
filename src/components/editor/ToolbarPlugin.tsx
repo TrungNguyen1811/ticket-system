@@ -1,10 +1,8 @@
 "use client";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CAN_REDO_COMMAND,
-  CAN_UNDO_COMMAND,
   REDO_COMMAND,
   UNDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
@@ -13,16 +11,13 @@ import {
   $getSelection,
   $isRangeSelection,
   $createParagraphNode,
-  $getNodeByKey,
   ElementFormatType,
   $isElementNode,
   LexicalEditor,
 } from "lexical";
 import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import {
-  $isParentElementRTL,
   $isAtNodeEnd,
-  $wrapNodes,
 } from "@lexical/selection";
 import { $getNearestNodeOfType, mergeRegister } from "@lexical/utils";
 import {
@@ -35,7 +30,6 @@ import {
 import { createPortal } from "react-dom";
 import {
   $createHeadingNode,
-  $createQuoteNode,
   $isHeadingNode,
   $isQuoteNode,
   HeadingTagType,
@@ -43,8 +37,6 @@ import {
 import {
   $createCodeNode,
   $isCodeNode,
-  getDefaultCodeLanguage,
-  getCodeLanguages,
 } from "@lexical/code";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,8 +66,6 @@ import {
 import { cn } from "@/lib/utils";
 import { INSERT_TABLE_COMMAND } from "@lexical/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { INSERT_IMAGE_COMMAND } from './InlineImagePlugin';
-import attachmentService from "@/services/attachment.service";
 
 const headingTags: { tag: HeadingTagType; icon: any; label: string }[] = [
   { tag: "h1", icon: Heading1, label: "Heading 1" },
@@ -124,7 +114,7 @@ function FloatingLinkEditor({ editor }: any) {
   const [linkUrl, setLinkUrl] = useState("");
   const [isEditMode, setEditMode] = useState(false);
   const [lastSelection, setLastSelection] = useState(null);
-  const [activeEditor, setActiveEditor] = useState(editor)
+  const [ setActiveEditor] = useState(editor)
 
   const updateLinkEditor = useCallback(() => {
     const selection = $getSelection();
@@ -259,10 +249,8 @@ function FloatingLinkEditor({ editor }: any) {
 }
 
 export default function ToolbarPlugin({
-  ticketId,
   onAddInlineImage,
 }: {
-  ticketId: string,
   onAddInlineImage?: (editor: any, files: FileList) => void
 }) {
   const [editor] = useLexicalComposerContext();
@@ -276,8 +264,7 @@ export default function ToolbarPlugin({
   const [activeHeading, setActiveHeading] = useState<HeadingTagType | null>(null);
   const [isCode, setIsCode] = useState(false);
   const [textAlign, setTextAlign] = useState<ElementFormatType>("left");
-  const [isTable, setIsTable] = useState(false);
-  const [blockType, setBlockType] = useState<string>("paragraph");
+  const [_, setBlockType] = useState<string>("paragraph");
   const [showTableModal, setShowTableModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -611,7 +598,7 @@ export default function ToolbarPlugin({
         type="button"
         variant="ghost"
         size="sm"
-        className={cn("h-8 w-8 p-0", isTable && "bg-muted")}
+        className={cn("h-8 w-8 p-0", "bg-muted")}
         onClick={() => {
           setShowTableModal(true);
         }}

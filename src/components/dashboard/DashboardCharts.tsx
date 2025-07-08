@@ -3,7 +3,6 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -27,13 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, Download, RefreshCw, BarChartIcon } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Eye, EyeOff, RefreshCw, BarChartIcon } from "lucide-react";
 import { AreaChartIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "../ui/use-toast";
@@ -42,19 +35,12 @@ import { Ticket } from "@/types/ticket";
 import { userService } from "@/services/user.service";
 import { User } from "@/types/user";
 
-interface ChartData {
-  name: string;
-  value: number;
-}
-
 const RANGE_OPTIONS = [
   { value: "today", label: "Today" },
   { value: "last_7_days", label: "Last 7 Days" },
   { value: "last_month", label: "Last Month" },
   { value: "this_month", label: "This Month" },
 ];
-
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 export function DashboardCharts() {
   const { user } = useAuth();
@@ -103,7 +89,7 @@ export function DashboardCharts() {
     enabled: !isAdmin,
   });
 
-  const { data: tickets, isLoading: isLoadingTickets } = useQuery<
+  const { isLoading: isLoadingTickets } = useQuery<
     Response<DataResponse<Ticket[]>>,
     Error
   >({
@@ -111,7 +97,7 @@ export function DashboardCharts() {
     queryFn: () => ticketService.getTickets(),
   });
 
-  const { data: users, isLoading: isLoadingUsers } = useQuery<
+  const { isLoading: isLoadingUsers } = useQuery<
     Response<DataResponse<User[]>>,
     Error
   >({
@@ -157,12 +143,6 @@ export function DashboardCharts() {
   };
 
   const roleData = getRoleData();
-
-  const statusData: ChartData[] = [
-    { name: "New", value: roleData?.new || 0 },
-    { name: "In Progress", value: roleData?.in_progress || 0 },
-    { name: "Complete", value: roleData?.complete || 0 },
-  ];
 
   const handleRefresh = () => {
     setLoading(true);
