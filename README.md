@@ -61,7 +61,7 @@ src/
 
 1. Clone & Install
 
-git clone https://github.com/your-username/ticket-system.git
+git clone https://github.com/TrungNguyen1811/ticket-system.git
 cd ticket-system
 npm install
 
