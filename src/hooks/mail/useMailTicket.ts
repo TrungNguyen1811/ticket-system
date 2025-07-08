@@ -26,7 +26,7 @@ export const useMailTicket = ({
     queryFn: () => mailService.getMails(ticketId, { limit, cursor }),
   });
 
-  const handleMailUpdate = useCallback((data: Mail) => {
+  const handleMailUpdate = useCallback(() => {
     setHasNewMails(true);
     toast({
       title: "New mail received",

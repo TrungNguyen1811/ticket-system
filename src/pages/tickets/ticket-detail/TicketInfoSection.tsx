@@ -1,6 +1,5 @@
 import { Ticket, Status } from "@/types/ticket";
 import { User } from "@/types/user";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,7 +42,6 @@ export const TicketInfoSection: React.FC<TicketInfoSectionProps> = ({
   usersData,
   isLoadingUsers,
   isErrorUsers,
-  navigate,
 }) => {
   const isReadOnly =
     ticket.status === "complete" || ticket.status === "archived";

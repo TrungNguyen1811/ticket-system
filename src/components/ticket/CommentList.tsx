@@ -1,15 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-} from "@/components/ui/pagination";
 import { formatDate } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { commentService } from "@/services/comment.services";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,6 +42,7 @@ import AttachmentService from "@/services/attachment.service";
 import { useCommentRealtime } from "@/hooks/realtime/useCommentRealtime";
 import EditCommentEditor from "../comment/EditCommentEditor";
 import { ReadOnlyEditor } from "../editor/ReadOnlyEditor";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CommentListProps {
   ticketId: string;
@@ -59,13 +52,15 @@ interface CommentListProps {
     setPage: (page: number) => void;
     setPerPage: (perPage: number) => void;
   };
+  onPreviewFile?: (file: any, files: any[]) => void;
 }
 
 export const CommentList: React.FC<CommentListProps> = ({
   ticketId,
   pagination,
+  onPreviewFile,
 }) => {
-  const { page, perPage, setPage, setPerPage } = pagination;
+  const { page, perPage, setPage } = pagination;
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
@@ -125,7 +120,6 @@ export const CommentList: React.FC<CommentListProps> = ({
   });
 
   const comments = commentsData?.data.data || [];
-  const total = commentsData?.data.pagination?.total || 0;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -237,11 +231,6 @@ export const CommentList: React.FC<CommentListProps> = ({
     undefined,
     lastEditedComment,
   );
-
-  // Handle Pagination
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
 
   const updateComment = async (commentId: string, content: string) => {
     if (!content.trim()) {
@@ -570,21 +559,54 @@ export const CommentList: React.FC<CommentListProps> = ({
                       </div>
                       {comment.attachments &&
                         comment.attachments.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {comment.attachments.map((attachment) => (
-                              <Button
-                                key={attachment.id}
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleDownloadAttachment(attachment.id)
-                                }
-                                className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
-                              >
-                                <FileIcon className="h-3 w-3" />
-                                {attachment.file_name}
-                              </Button>
-                            ))}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {comment.attachments.map((attachment) => {
+                              const isImage = attachment.file_extension?.match(/(jpg|jpeg|png|gif|webp|bmp|svg)/i);
+                              const fileUrl = `${import.meta.env.VITE_API_URL}/attachments/${attachment.id}`;
+                              return (
+                                <div
+                                  key={attachment.id}
+                                  className="group relative flex flex-col items-center justify-center w-24 h-24 bg-gray-50 rounded-lg border border-gray-200 transition-all cursor-pointertransform hover:scale-105 focus-within:scale-105"
+                                  onClick={() =>
+                                    onPreviewFile
+                                      ? onPreviewFile(attachment, comment.attachments!)
+                                      : handleDownloadAttachment(attachment.id)
+                                  }
+                                  title={attachment.file_name}
+                                  tabIndex={0}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      onPreviewFile
+                                        ? onPreviewFile(attachment, comment.attachments!)
+                                        : handleDownloadAttachment(attachment.id);
+                                    }
+                                  }}
+                                  role="button"
+                                >
+                                  {isImage ? (
+                                    <img
+                                      src={fileUrl}
+                                      alt={attachment.file_name}
+                                      className="object-cover w-24 h-24"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <>
+                                      <FileIcon className="h-10 w-10 text-blue-400 mt-4 mb-2" />
+                                      <div className="w-full px-1 text-center">
+                                        <div className="truncate text-xs font-medium text-gray-700" title={attachment.file_name}>
+                                          {attachment.file_name}
+                                        </div>
+                                        <div className="text-[10px] text-gray-400 truncate">
+                                          {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : ""}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                     </>

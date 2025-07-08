@@ -6,10 +6,9 @@
  *
  */
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext'
-import {useEffect, useState} from 'react'
+import {useEffect} from 'react'
 import { $insertNodes, COMMAND_PRIORITY_EDITOR, createCommand, LexicalCommand } from 'lexical'
 import { $createImageNode, ImageNode } from './InlineImageNodes'
-import { Button } from '../ui/button'
 
 export const INSERT_IMAGE_COMMAND: LexicalCommand<string> = createCommand('INSERT_IMAGE_COMMAND')
 

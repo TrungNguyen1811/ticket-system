@@ -4,18 +4,14 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { $getRoot, EditorState } from "lexical";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import ToolbarPlugin from "@/components/editor/ToolbarPlugin";
+import configTheme from "../theme/configTheme";
 
 interface EditCommentEditorProps {
   initialState: string;
   onChange: (value: { raw: string; html: string }) => void;
 }
-
-const theme = {
-  // add your Lexical theme here
-};
 
 const EditCommentEditor = ({
   initialState,
@@ -24,7 +20,7 @@ const EditCommentEditor = ({
   const initialConfig = {
     namespace: "EditCommentEditor",
     editorState: initialState,
-    theme,
+    theme: configTheme,
     onError: (e: Error) => {
       console.error(e);
     },
@@ -42,11 +38,9 @@ const EditorInner = ({
 }: {
   onChange: (value: { raw: string; html: string }) => void;
 }) => {
-  const [editor] = useLexicalComposerContext();
-
   const handleChange = (editorState: EditorState) => {
     editorState.read(() => {
-      const html = $getRoot().getTextContent(); // TODO: Replace with proper HTML exporter
+      const html = $getRoot().getTextContent();
       const raw = JSON.stringify(editorState.toJSON());
       onChange({ html, raw });
     });

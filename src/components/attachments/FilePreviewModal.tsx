@@ -1,6 +1,5 @@
 import { X, ArrowLeft, ArrowRight, Download, FileText } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Document, Page } from "react-pdf";
 import { cn } from "@/lib/utils";
 import { Attachment } from "@/types/ticket";
 

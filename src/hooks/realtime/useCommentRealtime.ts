@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { echo } from "@/lib/echo";
 import type { Comment } from "@/types/comment";
 

@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { commentService } from "@/services/comment.services";
 import { Comment } from "@/types/comment";
 import { Response, DataResponse } from "@/types/response";
-import { Attachment } from "@/types/ticket";
 import { useCommentRealtime } from "../realtime/useCommentRealtime";
 
 interface UseTicketCommentsProps {

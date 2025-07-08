@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, MessageSquare, User } from "lucide-react";
 import { BreadcrumbLink } from "../ui/breadcrumb";
 import { Separator } from "../ui/separator";
@@ -11,6 +11,7 @@ import { ticketService } from "@/services/ticket.service";
 import { useQuery } from "@tanstack/react-query";
 import { userService } from "@/services/user.service";
 import { Client } from "@/types/user";
+import { cn } from "@/lib/utils";
 
 export default function ConversationTabsLayout({
   children,
@@ -20,6 +21,7 @@ export default function ConversationTabsLayout({
   const { id } = useParams();
   const navigate = useNavigate();
   const path = useLocation().pathname;
+  const [hoveredTabIndex, setHoveredTabIndex] = useState<number | null>(null);
 
   const isClient = path.includes("clients");
   const type = isClient ? "client" : "conversation";
@@ -119,33 +121,56 @@ export default function ConversationTabsLayout({
   return (
     <div className="h-screen flex flex-col">
       {tabs.length > 0 && (
-        <div className="flex-none flex space-x-2 border-b bg-muted py-2">
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`px-3 py-1 rounded-t-md cursor-pointer flex items-center gap-1 ml-2 ${
-                tab.id === activeId
-                  ? "bg-white border"
-                  : "text-muted-foreground"
-              }`}
-              onClick={() => handleTabClick(tab)}
-            >
-              {tab.type === "client" ? (
-                <User className="h-4 w-4" />
-              ) : (
-                <MessageSquare className="h-4 w-4" />
-              )}
-              <span className="truncate max-w-[120px]">{tab.subject}</span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCloseTab(tab.id);
-                }}
-                className="ml-1 text-gray-400 hover:text-red-500"
-                title="Close"
+        <div className="flex-none flex space-x-1 border bg-muted py-1 bg-slate-200">
+          {tabs.map((tab, index) => (
+            <div key={tab.id} className="flex items-center flex-1 max-w-[200px]">
+              <div
+                className={`px-2 py-1 rounded-md cursor-pointer flex items-center gap-1 transition-all duration-200 w-full group ${
+                  tab.id === activeId
+                    ? "bg-white shadow-sm"
+                    : "text-muted-foreground hover:bg-slate-100 hover:text-foreground"
+                }`}
+                onClick={() => handleTabClick(tab)}
+                onMouseEnter={() => setHoveredTabIndex(index)}
+                onMouseLeave={() => setHoveredTabIndex(null)}
               >
-                ×
-              </button>
+                <div className="flex flex-row justify-between items-center w-full">
+                  <div className="flex flex-row justify-between items-center gap-2">
+                    {tab.type === "client" ? (
+                      <User className="h-4 w-4" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4" />
+                    )}
+                    <span className="truncate max-w-[120px]">{tab.subject}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCloseTab(tab.id);
+                    }}
+                    className={`ml-1 text-gray-400 opacity-0 transition-colors duration-200 rounded-full w-5 h-5 flex items-center justify-center hover:text-red-500 hover:bg-red-50 ${
+                      tab.id === activeId 
+                        ? "opacity-100" 
+                        : "group-hover:opacity-100"
+                    }`}
+                    title="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              {/* Add vertical separator if not the last tab and current tab is not active and next tab is not active */}
+              {index < tabs.length - 1 && 
+               tab.id !== activeId && 
+               tabs[index + 1]?.id !== activeId && (
+                <Separator 
+                  orientation="vertical" 
+                  className={cn(
+                    "bg-gray-300 h-[50%] p-0 transition-opacity duration-200",
+                    (hoveredTabIndex === index || hoveredTabIndex === index + 1) && "opacity-0"
+                  )}
+                />
+              )}
             </div>
           ))}
         </div>

@@ -9,7 +9,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, RefreshCw, Loader2 } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { Status, Ticket } from "@/types/ticket";
 import { useQuery } from "@tanstack/react-query";
 import { Response, DataResponse } from "@/types/response";

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useParams, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UploadAttachmentDialog } from "@/components/attachments/UploadAttachmentDialog";
 import { useToast } from "@/components/ui/use-toast";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle, MessageSquare, Clock } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { DataResponse, Response } from "@/types/response";
 import { Attachment, Status } from "@/types/ticket";
@@ -23,10 +23,14 @@ import { TicketHeaderSection } from "@/pages/tickets/ticket-detail/TicketHeaderS
 import { ClientCard } from "./ticket-detail/ClientCard";
 import { Separator } from "@/components/ui/separator";
 import LoadingFallback from "@/components/shared/LoadingFallback";
+import { CommentList } from "@/components/ticket/CommentList";
+import { AddCommentDialog } from "@/components/comment/AddCommentDialog";
+import { CommentFormData } from "@/types/comment";
+import { useTicketMutations } from "@/hooks/ticket/useTicketMutations";
+import { useTicketComments } from "@/hooks/ticket/useTicketComments";
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   // State
@@ -43,8 +47,21 @@ export default function TicketDetail() {
   const [previewFiles, setPreviewFiles] = useState<Attachment[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
 
+  const [isViewingLogs, setIsViewingLogs] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState<string | null>(null)
+
+  const mutations = useTicketMutations()
+
+  const { 
+    comments,
+    page: commentPage,
+    perPage: commentPerPage,
+    setPage: setCommentPage,
+    setPerPage: setCommentPerPage
+  } = useTicketComments({ ticketId: id || "" })
+
   // Hooks
-  const { logs, isLoading: isLoadingTicketLogs } = useTicketLogs({
+  const { isLoading: isLoadingTicketLogs } = useTicketLogs({
     ticketId: id || "",
   });
 
@@ -119,6 +136,49 @@ export default function TicketDetail() {
       });
     },
   });
+
+  const handleAddComment = async (data: { editorContent: { raw: string; html: string }; attachments?: File[] }) => {
+    if (!id) return
+
+    try {
+      const formData = new FormData()
+      formData.append("content", data.editorContent.html)
+  
+      if (data.attachments?.length) {
+        data.attachments.forEach((file) => {
+          formData.append("attachments[]", file)
+        })
+      }
+  
+      await mutations.createComment.mutateAsync({ id, data: formData as CommentFormData })
+
+      // // Invalidate both comments and attachments queries to update UI
+      // queryClient.invalidateQueries({ queryKey: ["ticket-comments", id] })
+      // if (data.attachments?.length) {
+      //   queryClient.invalidateQueries({ queryKey: ["ticket-attachments", id] })
+      // }
+
+      toast({
+        title: "Success",
+        description: "Comment created successfully",
+        action: commentPage !== 1 ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCommentPage(1)}
+          >
+            View Latest
+          </Button>
+        ) : undefined
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add comment",
+        variant: "destructive",
+      });
+    }
+  }
 
   // Auto-save title and description
   useEffect(() => {
@@ -273,65 +333,108 @@ export default function TicketDetail() {
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-4">
             {/* Ticket Header */}
-            <TicketHeaderSection
-              ticket={ticketData}
-              isEditingTitle={isEditingTitle}
-              editedTitle={editedTitle}
-              savingTitle={savingTitle}
-              onTitleChange={setEditedTitle}
-              onTitleBlur={handleTitleBlur}
-              onTitleKeyDown={handleTitleKeyDown}
-              onEditTitle={() => setIsEditingTitle(true)}
-              isEditingDescription={isEditingDescription}
-              editedDescription={editedDescription}
-              showFullDescription={showFullDescription}
-              onDescriptionChange={setEditedDescription}
-              onSaveDescription={handleSaveDescription}
-              onCancelDescription={() => {
-                setIsEditingDescription(false);
-              }}
-              onEditDescription={() => setIsEditingDescription(true)}
-              onToggleDescription={() =>
-                setShowFullDescription(!showFullDescription)
-              }
-              isDescriptionClamped={isDescriptionClamped(editedDescription)}
-              onStatusChange={handleStatusChange}
-              onStaffAssign={handleStaffAssign}
-              usersData={usersData}
-              isLoadingUsers={isLoadingUsers}
-              isErrorUsers={isErrorUsers}
-            />
-
-            {/* Audit Logs */}
             <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-medium">
-                    Audit Logs
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    {logs?.data?.data?.length || 0} logs
-                  </Badge>
+              <CardHeader className="flex-shrink-0 pb-2 p-0">
+                {/* Ticket Header */}
+                <TicketHeaderSection
+                  ticket={ticketData}
+                  isEditingTitle={isEditingTitle}
+                  editedTitle={editedTitle}
+                  savingTitle={savingTitle}
+                  onTitleChange={setEditedTitle}
+                  onTitleBlur={handleTitleBlur}
+                  onTitleKeyDown={handleTitleKeyDown}
+                  onEditTitle={() => setIsEditingTitle(true)}
+                  isEditingDescription={isEditingDescription}
+                  editedDescription={editedDescription}
+                  showFullDescription={showFullDescription}
+                  onDescriptionChange={setEditedDescription}
+                  onSaveDescription={handleSaveDescription}
+                  onCancelDescription={() => {
+                    setIsEditingDescription(false);
+                  }}
+                  onEditDescription={() => setIsEditingDescription(true)}
+                  onToggleDescription={() =>
+                    setShowFullDescription(!showFullDescription)
+                  }
+                  isDescriptionClamped={isDescriptionClamped(editedDescription)}
+                  onStatusChange={handleStatusChange}
+                  onStaffAssign={handleStaffAssign}
+                  usersData={usersData}
+                  isLoadingUsers={isLoadingUsers}
+                  isErrorUsers={isErrorUsers}
+                />
+                <div className="flex flex-row items-center justify-center mt-4 border-t w-full">
+                  <div className="flex flex-1 justify-end">
+                    <Button 
+                      variant={!isViewingLogs ? "default" : "outline"} 
+                      size="sm"
+                      className="w-full rounded-none"
+                      onClick={() => setIsViewingLogs(false)}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Comments
+                    </Button>
+                  </div>
+                  <div className="flex flex-1 justify-start">
+                    <Button 
+                      variant={isViewingLogs ? "default" : "outline"} 
+                      size="sm"
+                      className="w-full rounded-none"
+                      onClick={() => setIsViewingLogs(true)}
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Logs
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {isLoadingTicketLogs ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                {!isViewingLogs ? (
+                  <div className="space-y-4 p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" onClick={() => setDialogOpen("comment")} disabled={ticketData.status === "complete" || ticketData.status === "archived"}>
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Add Comment
+                        </Button>
+                      </div>
+                      <Badge variant="outline" className="text-xs self-start sm:self-auto">
+                        {comments.length} comments
+                      </Badge>
+                    </div>
+                    <CommentList 
+                      ticketId={id || ""} 
+                      pagination={{
+                        page: commentPage,
+                        perPage: commentPerPage,
+                        setPage: setCommentPage,
+                        setPerPage: setCommentPerPage
+                      }} 
+                      onPreviewFile={handlePreviewFile}
+                    />
                   </div>
                 ) : (
-                  <div className="bg-muted/20 rounded-lg  border-0 overflow-hidden">
-                    <AuditLogTable
-                      ticketId={id || ""}
-                      currentUserId={ticketData?.holder?.id || ""}
-                      currentStatus={ticketData?.status || ""}
-                      onStatusChange={() => {}} // Disabled - only edit in main section
-                      onStaffChange={() => {}} // Disabled - only edit in main section
-                      isTicketComplete={
-                        ticketData.status === "complete" ||
-                        ticketData.status === "archived"
-                      }
-                    />
+                  <div className="space-y-4">
+                    {isLoadingTicketLogs ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="bg-muted/20  border-0 overflow-hidden">
+                        <AuditLogTable
+                          ticketId={id || ""}
+                          currentUserId={ticketData?.holder?.id || ""}
+                          currentStatus={ticketData?.status || ""}
+                          onStatusChange={() => {}} // Disabled - only edit in main section
+                          onStaffChange={() => {}} // Disabled - only edit in main section
+                          isTicketComplete={
+                            ticketData.status === "complete" ||
+                            ticketData.status === "archived"
+                          }
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -363,6 +466,12 @@ export default function TicketDetail() {
       </div>
 
       {/* File Preview Modal */}
+      <AddCommentDialog
+        open={dialogOpen === "comment"}
+        onOpenChange={(open) => !open && setDialogOpen(null)}
+        onSubmit={handleAddComment}
+      />
+      
       <FilePreviewModal
         open={isPreviewOpen}
         onClose={() => {

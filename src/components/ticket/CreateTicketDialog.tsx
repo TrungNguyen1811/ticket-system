@@ -16,7 +16,7 @@ import { createTicketSchema } from "@/schema/ticket.schema";
 import { CreateTicketSchema } from "@/schema/ticket.schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, ChevronsUpDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -36,7 +36,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,

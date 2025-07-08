@@ -131,7 +131,7 @@ export function getUserColumns(): ColumnDef<Client>[] {
         const user = row.original;
         const [hovered, setHovered] = useState(false);
         return (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center">
             <div
               className={`action-button ${hovered ? "hovered" : ""}`}
               onMouseEnter={() => setHovered(true)}
@@ -139,7 +139,7 @@ export function getUserColumns(): ColumnDef<Client>[] {
             >
               <Link
                 to={`/communication/clients/${user.id}`}
-                className="flex items-center gap-1 rounded-md cursor-pointer px-2 hover:bg-slate-200"
+                className="flex items-center gap-1 rounded-md cursor-pointer py-2 px-4 hover:bg-slate-200"
               >
                 <div className="icon-container">
                   <div className="hover-icon text-blue-500">
@@ -149,9 +149,6 @@ export function getUserColumns(): ColumnDef<Client>[] {
                     <Eye className="h-4 w-4" />
                   </div>
                 </div>
-                <span className="text-muted-foreground truncate block max-w-[180px] ml-1 p-1">
-                  View
-                </span>
               </Link>
             </div>
           </div>

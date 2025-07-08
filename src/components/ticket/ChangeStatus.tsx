@@ -2,16 +2,13 @@ import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "../ui/command";
 import { ChevronDown } from "lucide-react";
-import { Check } from "lucide-react";
 import { Ticket } from "@/types/ticket";
-import { STATUS_OPTIONS, SHOW_STATUS_OPTIONS } from "@/lib/constants";
+import { STATUS_OPTIONS } from "@/lib/constants";
 import { TicketStatusDisplay } from "../shared/StatusBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { Status } from "@/types/ticket";
